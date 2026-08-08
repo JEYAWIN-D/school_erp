@@ -1,0 +1,130 @@
+@extends('portal.layout')
+@section('title', 'Exam Results')
+@section('content')
+
+@if($children->count() > 1)
+<div style="margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: .5rem;">
+  @foreach($children as $c)
+    <a href="{{ route('portal.parent.exams', ['student_id' => $c->id]) }}"
+       style="display: inline-flex; align-items: center; padding: .35rem 1rem; border-radius: 9999px; font-size: .8125rem; font-weight: 500; text-decoration: none; border: 1.5px solid {{ $c->id == $child->id ? '#2563eb' : '#e2e8f0' }}; background: {{ $c->id == $child->id ? '#2563eb' : '#fff' }}; color: {{ $c->id == $child->id ? '#fff' : '#475569' }};">
+      {{ $c->first_name }}
+    </a>
+  @endforeach
+</div>
+@endif
+
+<h2 style="font-size: 1.0625rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem;">Exams — {{ $child->first_name }} {{ $child->last_name }}</h2>
+
+{{-- Upcoming Exams --}}
+@if($upcoming->count())
+<div class="portal-card" style="margin-bottom: 1.25rem;">
+  <div class="section-title" style="margin-bottom: .875rem;">
+    <svg style="width:1rem;height:1rem;color:#d97706" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+    Upcoming Exams
+  </div>
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: .875rem;">
+      <thead>
+        <tr style="border-bottom: 2px solid #f1f5f9;">
+          <th style="text-align: left; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Exam</th>
+          <th style="text-align: left; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Subject</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Date</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Time</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Max Marks</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach($upcoming as $up)
+        @php $daysLeft = abs(\Carbon\Carbon::parse($up->exam_date)->diffInDays(today(), false)); @endphp
+        <tr class="divider-row">
+          <td style="padding: .5rem .625rem; font-weight: 500; color: #1e293b;">{{ $up->exam_name }}</td>
+          <td style="padding: .5rem .625rem; color: #475569;">{{ $up->subject_name }}</td>
+          <td style="padding: .5rem .625rem; text-align: center;">
+            <span style="font-weight: 600; color: {{ $daysLeft <= 3 ? '#dc2626' : '#1e293b' }};">{{ \Carbon\Carbon::parse($up->exam_date)->format('d M Y') }}</span>
+            @if($daysLeft == 0) <span class="badge-red" style="margin-left:.25rem;">Today</span>
+            @elseif($daysLeft == 1) <span class="badge-slate" style="margin-left:.25rem;">Tomorrow</span>
+            @elseif($daysLeft <= 3) <span class="badge-red" style="margin-left:.25rem;">{{ $daysLeft }}d</span>
+            @else <span style="font-size:.72rem;color:#94a3b8;margin-left:.25rem;">{{ $daysLeft }}d left</span>
+            @endif
+          </td>
+          <td style="padding: .5rem .625rem; text-align: center; color: #64748b;">
+            @if($up->start_time) {{ \Carbon\Carbon::parse($up->start_time)->format('g:i A') }} @else — @endif
+          </td>
+          <td style="padding: .5rem .625rem; text-align: center; font-weight: 600; color: #1e293b;">{{ $up->total_marks ?? '—' }}</td>
+        </tr>
+        @endforeach
+      </tbody>
+    </table>
+  </div>
+</div>
+@endif
+
+<h3 style="font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem;">Past Results</h3>
+
+@forelse($results as $examName => $marks)
+<div class="portal-card" style="margin-bottom: 1rem;">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: .875rem; flex-wrap: wrap; gap: .5rem;">
+    <h3 style="font-size: .9375rem; font-weight: 600; color: #1e293b;">{{ $examName }}</h3>
+    @if($marks->first()->exam_date ?? null)
+      <span style="font-size: .75rem; color: #94a3b8;">{{ \Carbon\Carbon::parse($marks->first()->exam_date)->format('d M Y') }}</span>
+    @endif
+  </div>
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; font-size: .875rem;">
+      <thead>
+        <tr style="border-bottom: 2px solid #f1f5f9;">
+          <th style="text-align: left; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Subject</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Marks</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Max</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">%</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Grade</th>
+          <th style="text-align: center; padding: .5rem .625rem; font-size: .72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em;">Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        @foreach($marks as $m)
+        @php $mpct = $m->max_marks > 0 ? round($m->marks_obtained/$m->max_marks*100, 1) : 0; @endphp
+        <tr class="divider-row">
+          <td style="padding: .625rem .625rem; color: #1e293b; font-weight: 500;">{{ $m->subject_name }}</td>
+          <td style="padding: .625rem .625rem; text-align: center; font-weight: 700; color: #1e293b;">{{ $m->marks_obtained }}</td>
+          <td style="padding: .625rem .625rem; text-align: center; color: #94a3b8;">{{ $m->max_marks }}</td>
+          <td style="padding: .625rem .625rem; text-align: center; font-weight: 600; color: {{ $mpct >= 75 ? '#16a34a' : ($mpct >= 50 ? '#d97706' : '#dc2626') }};">{{ $mpct }}%</td>
+          <td style="padding: .625rem .625rem; text-align: center;">
+            @if($m->grade ?? null)
+              <span class="badge-blue">{{ $m->grade }}</span>
+            @else
+              <span style="color: #94a3b8;">—</span>
+            @endif
+          </td>
+          <td style="padding: .625rem .625rem; text-align: center;">
+            @if(isset($m->pass_status))
+              <span class="{{ strtolower($m->pass_status) === 'pass' ? 'badge-green' : ($m->pass_status === 'Absent' ? 'badge-slate' : 'badge-red') }}">{{ $m->pass_status }}</span>
+            @else
+              <span style="color: #94a3b8;">—</span>
+            @endif
+          </td>
+        </tr>
+        @endforeach
+      </tbody>
+      <tfoot>
+        <tr style="background: #f8fafc; border-top: 2px solid #f1f5f9;">
+          <td style="padding: .625rem .625rem; font-size: .75rem; font-weight: 700; color: #475569;">Total</td>
+          <td style="padding: .625rem .625rem; text-align: center; font-weight: 700; color: #1e293b;">{{ $marks->sum('marks_obtained') }}</td>
+          <td style="padding: .625rem .625rem; text-align: center; color: #94a3b8;">{{ $marks->sum('max_marks') }}</td>
+          <td style="padding: .625rem .625rem; text-align: center; font-weight: 700;">
+            @php $totalPct = $marks->sum('max_marks') > 0 ? round($marks->sum('marks_obtained')/$marks->sum('max_marks')*100, 1) : 0; @endphp
+            <span style="color: {{ $totalPct >= 75 ? '#16a34a' : ($totalPct >= 50 ? '#d97706' : '#dc2626') }}">{{ $totalPct }}%</span>
+          </td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+@empty
+  <div class="portal-card" style="text-align: center; padding: 3rem 1rem;">
+    <svg style="width: 3rem; height: 3rem; margin: 0 auto .875rem; color: #e2e8f0;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <p style="color: #94a3b8; font-size: .875rem;">No exam results available yet</p>
+  </div>
+@endforelse
+@endsection

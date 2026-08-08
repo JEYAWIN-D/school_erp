@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+  <!-- Blue-indigo rounded square background -->
+  <rect width="32" height="32" rx="7" fill="url(#g)"/>
+  <!-- Mortarboard top diamond -->
+  <polygon points="16,6 26,11.5 16,17 6,11.5" fill="white"/>
+  <!-- Cap body -->
+  <path d="M10.5,14 L10.5,19.5 Q16,23 21.5,19.5 L21.5,14 L16,17 Z" fill="rgba(255,255,255,0.82)"/>
+  <!-- Tassel string + bob -->
+  <line x1="26" y1="11.5" x2="26" y2="18.5" stroke="rgba(255,255,255,0.72)" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="26" cy="20" r="1.6" fill="rgba(255,255,255,0.72)"/>
+</svg>

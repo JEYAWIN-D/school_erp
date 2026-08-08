@@ -1,0 +1,3287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model academic_terms {
+  id               BigInt         @id @default(autoincrement())
+  academic_year_id BigInt
+  name             String         @db.VarChar(255)
+  type             String         @default("term") @db.VarChar(255)
+  start_date       DateTime       @db.Date
+  end_date         DateTime       @db.Date
+  order_position   Int            @default(1) @db.SmallInt
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "academic_terms_academic_year_id_foreign")
+}
+
+model academic_years {
+  id                                                                          BigInt                      @id @default(autoincrement())
+  name                                                                        String                      @db.VarChar(255)
+  start_date                                                                  DateTime                    @db.Date
+  end_date                                                                    DateTime                    @db.Date
+  is_current                                                                  Boolean                     @default(false)
+  is_locked                                                                   Boolean                     @default(false)
+  created_at                                                                  DateTime?                   @db.Timestamp(0)
+  updated_at                                                                  DateTime?                   @db.Timestamp(0)
+  academic_terms                                                              academic_terms[]
+  activity_learning_records                                                   activity_learning_records[]
+  attendance_condonations                                                     attendance_condonations[]
+  attendance_records                                                          attendance_records[]
+  competency_assessments                                                      competency_assessments[]
+  coscholastic_assessments                                                    coscholastic_assessments[]
+  enquiries                                                                   enquiries[]
+  exams                                                                       exams[]
+  fee_carry_forwards_fee_carry_forwards_from_academic_year_idToacademic_years fee_carry_forwards[]        @relation("fee_carry_forwards_from_academic_year_idToacademic_years")
+  fee_carry_forwards_fee_carry_forwards_to_academic_year_idToacademic_years   fee_carry_forwards[]        @relation("fee_carry_forwards_to_academic_year_idToacademic_years")
+  fee_payments                                                                fee_payments[]
+  fee_structures                                                              fee_structures[]
+  holidays                                                                    holidays[]
+  hostel_allotments                                                           hostel_allotments[]
+  hostel_fee_structures                                                       hostel_fee_structures[]
+  lesson_plans                                                                lesson_plans[]
+  sections                                                                    sections[]
+  student_custom_fees                                                         student_custom_fees[]
+  student_enrollments                                                         student_enrollments[]
+  syllabus                                                                    syllabus[]
+  timetables                                                                  timetables[]
+  transport_allotments                                                        transport_allotments[]
+}
+
+model activity_learning_records {
+  id               BigInt         @id @default(autoincrement())
+  student_id       BigInt
+  academic_year_id BigInt
+  activity_name    String         @db.VarChar(255)
+  activity_type    String         @db.VarChar(255)
+  description      String?
+  activity_date    DateTime       @db.Date
+  outcome          String?        @db.VarChar(255)
+  attachment       String?        @db.VarChar(255)
+  recorded_by      BigInt?
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "activity_learning_records_academic_year_id_foreign")
+  students         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "activity_learning_records_student_id_foreign")
+}
+
+model admission_stages {
+  id             BigInt    @id @default(autoincrement())
+  enquiry_id     BigInt
+  stage          String    @db.VarChar(255)
+  status         String    @default("pending") @db.VarChar(255)
+  scheduled_date DateTime? @db.Date
+  scheduled_time DateTime? @db.Time(0)
+  venue          String?   @db.VarChar(255)
+  score          Decimal?  @db.Decimal(5, 2)
+  remarks        String?
+  done_by        BigInt?
+  completed_at   DateTime? @db.Timestamp(0)
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+  enquiries      enquiries @relation(fields: [enquiry_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "admission_stages_enquiry_id_foreign")
+}
+
+model alumni {
+  id                 BigInt               @id @default(autoincrement())
+  student_id         BigInt?
+  first_name         String               @db.VarChar(255)
+  last_name          String               @db.VarChar(255)
+  email              String?              @db.VarChar(255)
+  phone              String?              @db.VarChar(255)
+  passing_year       Int
+  last_class         String?              @db.VarChar(255)
+  current_occupation String?              @db.VarChar(255)
+  current_employer   String?              @db.VarChar(255)
+  current_city       String?              @db.VarChar(255)
+  achievements       String?
+  profile_photo      String?              @db.VarChar(255)
+  linkedin_url       String?              @db.VarChar(255)
+  is_verified        Boolean              @default(false)
+  is_active          Boolean              @default(true)
+  created_at         DateTime?            @db.Timestamp(0)
+  updated_at         DateTime?            @db.Timestamp(0)
+  students           students?            @relation(fields: [student_id], references: [id], onUpdate: NoAction, map: "alumni_student_id_foreign")
+  alumni_event_rsvps alumni_event_rsvps[]
+}
+
+model alumni_event_rsvps {
+  id            BigInt        @id @default(autoincrement())
+  event_id      BigInt
+  alumni_id     BigInt
+  attending     Boolean       @default(true)
+  created_at    DateTime?     @db.Timestamp(0)
+  updated_at    DateTime?     @db.Timestamp(0)
+  alumni        alumni        @relation(fields: [alumni_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "alumni_event_rsvps_alumni_id_foreign")
+  alumni_events alumni_events @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "alumni_event_rsvps_event_id_foreign")
+
+  @@unique([event_id, alumni_id], map: "alumni_event_rsvps_event_id_alumni_id_unique")
+}
+
+model alumni_events {
+  id                 BigInt               @id @default(autoincrement())
+  title              String               @db.VarChar(255)
+  event_date         DateTime             @db.Date
+  description        String?
+  venue              String?              @db.VarChar(255)
+  is_published       Boolean              @default(false)
+  created_at         DateTime?            @db.Timestamp(0)
+  updated_at         DateTime?            @db.Timestamp(0)
+  alumni_event_rsvps alumni_event_rsvps[]
+}
+
+model application_form_configs {
+  id                   BigInt                 @id @default(autoincrement())
+  academic_year_id     BigInt
+  class_id             BigInt?
+  title                String                 @db.VarChar(255)
+  description          String?
+  fields               Json                   @db.Json
+  document_fields      Json                   @db.Json
+  application_fee      Decimal                @default(0) @db.Decimal(10, 2)
+  open_from            DateTime?              @db.Date
+  open_until           DateTime?              @db.Date
+  link_token           String?                @unique(map: "application_form_configs_link_token_unique") @db.VarChar(255)
+  is_active            Boolean                @default(true)
+  created_at           DateTime?              @db.Timestamp(0)
+  updated_at           DateTime?              @db.Timestamp(0)
+  student_applications student_applications[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model arrears_bonus_entries {
+  id           BigInt    @id @default(autoincrement())
+  employee_id  BigInt
+  type         String    @default("bonus") @db.VarChar(255)
+  amount       Decimal   @db.Decimal(10, 2)
+  month        String    @db.VarChar(7)
+  description  String?   @db.VarChar(255)
+  payment_mode String    @default("payroll") @db.VarChar(30)
+  created_by   BigInt?
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+  employees    employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "arrears_bonus_entries_employee_id_foreign")
+}
+
+model attendance_condonations {
+  id               BigInt         @id @default(autoincrement())
+  student_id       BigInt
+  academic_year_id BigInt
+  days_condoned    Int            @default(0)
+  reason           String?
+  condoned_by      BigInt
+  condoned_on      DateTime       @db.Date
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "attendance_condonations_academic_year_id_foreign")
+  users            users          @relation(fields: [condoned_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "attendance_condonations_condoned_by_foreign")
+  students         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "attendance_condonations_student_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model attendance_records {
+  id                                                 BigInt         @id @default(autoincrement())
+  student_id                                         BigInt
+  class_id                                           BigInt
+  section_id                                         BigInt?
+  academic_year_id                                   BigInt
+  date                                               DateTime       @db.Date
+  status                                             String         @default("present") @db.VarChar(255)
+  remark                                             String?        @db.VarChar(255)
+  marked_by                                          BigInt?
+  created_at                                         DateTime?      @db.Timestamp(0)
+  updated_at                                         DateTime?      @db.Timestamp(0)
+  period_data                                        Json?          @db.Json
+  arrival_time                                       DateTime?      @db.Time(0)
+  departure_time                                     DateTime?      @db.Time(0)
+  is_late                                            Boolean        @default(false)
+  cutoff_override                                    Boolean        @default(false)
+  cutoff_override_by                                 BigInt?
+  academic_years                                     academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "attendance_records_academic_year_id_foreign")
+  classes                                            classes        @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "attendance_records_class_id_foreign")
+  users_attendance_records_cutoff_override_byTousers users?         @relation("attendance_records_cutoff_override_byTousers", fields: [cutoff_override_by], references: [id], onUpdate: NoAction, map: "attendance_records_cutoff_override_by_foreign")
+  users_attendance_records_marked_byTousers          users?         @relation("attendance_records_marked_byTousers", fields: [marked_by], references: [id], onUpdate: NoAction, map: "attendance_records_marked_by_foreign")
+  sections                                           sections?      @relation(fields: [section_id], references: [id], onUpdate: NoAction, map: "attendance_records_section_id_foreign")
+  students                                           students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "attendance_records_student_id_foreign")
+
+  @@unique([student_id, date], map: "attendance_records_student_id_date_unique")
+  @@index([class_id, date], map: "attendance_records_class_id_date_index")
+}
+
+model audit_logs {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt?
+  module     String   @db.VarChar(255)
+  action     String   @db.VarChar(255)
+  model_type String?  @db.VarChar(255)
+  model_id   BigInt?
+  old_values Json?    @db.Json
+  new_values Json?    @db.Json
+  ip_address String?  @db.VarChar(45)
+  user_agent String?
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  users      users?   @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "audit_logs_user_id_foreign")
+
+  @@index([model_type, model_id], map: "audit_logs_model_type_model_id_index")
+  @@index([module, action], map: "audit_logs_module_action_index")
+  @@index([user_id], map: "audit_logs_user_id_index")
+}
+
+model book_categories {
+  id         BigInt    @id @default(autoincrement())
+  name       String    @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  books      books[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model book_issues {
+  id                                   BigInt     @id @default(autoincrement())
+  book_id                              BigInt
+  student_id                           BigInt?
+  employee_id                          BigInt?
+  issue_date                           DateTime   @db.Date
+  due_date                             DateTime   @db.Date
+  return_date                          DateTime?  @db.Date
+  fine_amount                          Decimal    @default(0) @db.Decimal(6, 2)
+  fine_paid                            Boolean    @default(false)
+  status                               String     @default("issued") @db.VarChar(255)
+  issued_by                            BigInt?
+  returned_to                          BigInt?
+  notes                                String?
+  created_at                           DateTime?  @db.Timestamp(0)
+  updated_at                           DateTime?  @db.Timestamp(0)
+  fine_waived                          Boolean    @default(false)
+  waiver_amount                        Decimal?   @db.Decimal(10, 2)
+  waiver_reason                        String?    @db.VarChar(255)
+  waived_by                            BigInt?
+  waived_at                            DateTime?  @db.Timestamp(0)
+  renew_count                          Int        @default(0) @db.SmallInt
+  fine_collected_at                    DateTime?  @db.Timestamp(0)
+  fine_collection_mode                 String?    @db.VarChar(30)
+  books                                books      @relation(fields: [book_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "book_issues_book_id_foreign")
+  employees                            employees? @relation(fields: [employee_id], references: [id], onUpdate: NoAction, map: "book_issues_employee_id_foreign")
+  users_book_issues_issued_byTousers   users?     @relation("book_issues_issued_byTousers", fields: [issued_by], references: [id], onUpdate: NoAction, map: "book_issues_issued_by_foreign")
+  users_book_issues_returned_toTousers users?     @relation("book_issues_returned_toTousers", fields: [returned_to], references: [id], onUpdate: NoAction, map: "book_issues_returned_to_foreign")
+  students                             students?  @relation(fields: [student_id], references: [id], onUpdate: NoAction, map: "book_issues_student_id_foreign")
+
+  @@index([student_id, status], map: "book_issues_student_id_status_index")
+}
+
+model book_reservations {
+  id             BigInt    @id @default(autoincrement())
+  book_id        BigInt
+  student_id     BigInt?
+  employee_id    BigInt?
+  queue_position Int       @default(1)
+  status         String    @default("waiting") @db.VarChar(255)
+  reserved_at    DateTime  @db.Timestamp(0)
+  expires_at     DateTime? @db.Timestamp(0)
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+  books          books     @relation(fields: [book_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "book_reservations_book_id_foreign")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model books {
+  id                 BigInt              @id @default(autoincrement())
+  accession_number   String              @unique(map: "books_accession_number_unique") @db.VarChar(255)
+  title              String              @db.VarChar(255)
+  author             String?             @db.VarChar(255)
+  publisher          String?             @db.VarChar(255)
+  isbn               String?             @db.VarChar(20)
+  category_id        BigInt?
+  publish_year       Int?
+  edition            String?             @db.VarChar(255)
+  language           String?             @db.VarChar(30)
+  total_copies       Int                 @default(1)
+  available_copies   Int                 @default(1)
+  purchase_price     Decimal?            @db.Decimal(8, 2)
+  purchase_date      DateTime?           @db.Date
+  location           String?             @db.VarChar(255)
+  is_available       Boolean             @default(true)
+  created_at         DateTime?           @db.Timestamp(0)
+  updated_at         DateTime?           @db.Timestamp(0)
+  cover_image        String?             @db.VarChar(255)
+  is_deaccessioned   Boolean             @default(false)
+  deaccession_date   DateTime?           @db.Date
+  deaccession_reason String?             @db.VarChar(255)
+  deaccession_by     BigInt?
+  book_issues        book_issues[]
+  book_reservations  book_reservations[]
+  book_categories    book_categories?    @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "books_category_id_foreign")
+}
+
+model bus_attendance {
+  id            BigInt    @id @default(autoincrement())
+  vehicle_id    BigInt
+  route_id      BigInt?
+  date          DateTime  @db.Date
+  trip_type     String    @default("morning") @db.VarChar(255)
+  student_id    BigInt
+  status        String    @default("present") @db.VarChar(255)
+  boarding_stop String?   @db.VarChar(255)
+  remarks       String?   @db.VarChar(255)
+  marked_by     BigInt?
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+
+  @@unique([vehicle_id, date, trip_type, student_id], map: "bus_attendance_vehicle_id_date_trip_type_student_id_unique")
+}
+
+model cache {
+  key        String @id @db.VarChar(255)
+  value      String
+  expiration Int
+
+  @@index([expiration], map: "cache_expiration_index")
+}
+
+model cache_locks {
+  key        String @id @db.VarChar(255)
+  owner      String @db.VarChar(255)
+  expiration Int
+
+  @@index([expiration], map: "cache_locks_expiration_index")
+}
+
+model category_fee_variations {
+  id               BigInt         @id @default(autoincrement())
+  fee_structure_id BigInt
+  fee_head_id      BigInt
+  student_category String         @db.VarChar(20)
+  amount           Decimal        @default(0) @db.Decimal(10, 2)
+  remarks          String?
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  fee_heads        fee_heads      @relation(fields: [fee_head_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "category_fee_variations_fee_head_id_foreign")
+  fee_structures   fee_structures @relation(fields: [fee_structure_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "category_fee_variations_fee_structure_id_foreign")
+
+  @@unique([fee_structure_id, fee_head_id, student_category], map: "cfv_structure_head_cat")
+}
+
+model classes {
+  id                          BigInt                        @id @default(autoincrement())
+  name                        String                        @db.VarChar(255)
+  numeric_value               Int?
+  description                 String?                       @db.VarChar(255)
+  is_active                   Boolean                       @default(true)
+  sort_order                  Int                           @default(0)
+  created_at                  DateTime?                     @db.Timestamp(0)
+  updated_at                  DateTime?                     @db.Timestamp(0)
+  attendance_records          attendance_records[]
+  competencies                competencies[]
+  enquiries                   enquiries[]
+  exam_schedules              exam_schedules[]
+  fee_structures              fee_structures[]
+  homework                    homework[]
+  lesson_plans                lesson_plans[]
+  online_exams                online_exams[]
+  question_papers             question_papers[]
+  seat_capacities             seat_capacities[]
+  sections                    sections[]
+  student_enrollments         student_enrollments[]
+  substitutions               substitutions[]
+  syllabus                    syllabus[]
+  teacher_subject_allocations teacher_subject_allocations[]
+  timetables                  timetables[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model communication_logs {
+  id            BigInt    @id @default(autoincrement())
+  type          String    @default("email") @db.VarChar(255)
+  subject       String    @db.VarChar(255)
+  body          String
+  audience_meta Json?     @db.Json
+  sent_count    Int       @default(0)
+  failed_count  Int       @default(0)
+  status        String    @default("draft") @db.VarChar(255)
+  sent_by       BigInt?
+  sent_at       DateTime? @db.Timestamp(0)
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+
+  @@index([type, status], map: "communication_logs_type_status_index")
+}
+
+model communication_settings {
+  id         BigInt    @id @default(autoincrement())
+  provider   String    @db.VarChar(255)
+  settings   Json      @db.Json
+  is_active  Boolean   @default(false)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model competencies {
+  id                     BigInt                   @id @default(autoincrement())
+  subject_id             BigInt
+  class_id               BigInt
+  name                   String                   @db.VarChar(255)
+  code                   String?                  @db.VarChar(30)
+  description            String?
+  domain                 String                   @default("cognitive") @db.VarChar(255)
+  sort_order             Int                      @default(0)
+  is_active              Boolean                  @default(true)
+  created_at             DateTime?                @db.Timestamp(0)
+  updated_at             DateTime?                @db.Timestamp(0)
+  classes                classes                  @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "competencies_class_id_foreign")
+  subjects               subjects                 @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "competencies_subject_id_foreign")
+  competency_assessments competency_assessments[]
+  competency_topic_map   competency_topic_map[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model competency_assessments {
+  id               BigInt         @id @default(autoincrement())
+  student_id       BigInt
+  competency_id    BigInt
+  academic_year_id BigInt
+  term             String?        @db.VarChar(255)
+  level            String         @default("not_assessed") @db.VarChar(255)
+  remarks          String?
+  assessed_by      BigInt?
+  assessment_date  DateTime?      @db.Date
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "competency_assessments_academic_year_id_foreign")
+  competencies     competencies   @relation(fields: [competency_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "competency_assessments_competency_id_foreign")
+  students         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "competency_assessments_student_id_foreign")
+
+  @@unique([student_id, competency_id, academic_year_id, term], map: "uniq_comp_assessment")
+}
+
+model competency_topic_map {
+  id                BigInt       @id @default(autoincrement())
+  competency_id     BigInt
+  syllabus_topic_id BigInt?
+  topic_name        String?      @db.VarChar(255)
+  created_at        DateTime?    @db.Timestamp(0)
+  updated_at        DateTime?    @db.Timestamp(0)
+  competencies      competencies @relation(fields: [competency_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "competency_topic_map_competency_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model coscholastic_assessments {
+  id               BigInt         @id @default(autoincrement())
+  student_id       BigInt
+  academic_year_id BigInt
+  term             String?        @db.VarChar(255)
+  area             String         @db.VarChar(255)
+  sub_area         String?        @db.VarChar(255)
+  grade            String         @default("A") @db.VarChar(255)
+  remarks          String?
+  assessed_by      BigInt?
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "coscholastic_assessments_academic_year_id_foreign")
+  students         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "coscholastic_assessments_student_id_foreign")
+}
+
+model departments {
+  id           BigInt         @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  code         String?        @db.VarChar(20)
+  description  String?
+  is_active    Boolean        @default(true)
+  created_at   DateTime?      @db.Timestamp(0)
+  updated_at   DateTime?      @db.Timestamp(0)
+  designations designations[]
+  employees    employees[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model designations {
+  id            BigInt       @id @default(autoincrement())
+  department_id BigInt?
+  name          String       @db.VarChar(255)
+  grade         String?      @db.VarChar(255)
+  description   String?
+  is_active     Boolean      @default(true)
+  created_at    DateTime?    @db.Timestamp(0)
+  updated_at    DateTime?    @db.Timestamp(0)
+  pay_band_min  Decimal?     @db.Decimal(10, 2)
+  pay_band_max  Decimal?     @db.Decimal(10, 2)
+  pay_scale     String?      @db.VarChar(255)
+  spatie_role   String?      @db.VarChar(255)
+  departments   departments? @relation(fields: [department_id], references: [id], onUpdate: NoAction, map: "designations_department_id_foreign")
+}
+
+model digital_resources {
+  id             BigInt    @id @default(autoincrement())
+  title          String    @db.VarChar(255)
+  resource_type  String    @db.VarChar(255)
+  description    String?
+  file_path      String?   @db.VarChar(255)
+  external_url   String?   @db.VarChar(255)
+  class_id       BigInt?
+  subject_id     BigInt?
+  download_count Int       @default(0)
+  is_active      Boolean   @default(true)
+  uploaded_by    BigInt?
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+}
+
+model employee_appraisals {
+  id                                                     BigInt    @id @default(autoincrement())
+  employee_id                                            BigInt
+  appraisal_year                                         Int       @db.SmallInt
+  ratings                                                Json?     @db.Json
+  overall_score                                          Decimal?  @db.Decimal(4, 2)
+  rating_label                                           String?   @db.VarChar(30)
+  hod_remarks                                            String?
+  principal_remarks                                      String?
+  appraised_by                                           BigInt?
+  appraised_at                                           DateTime? @db.Timestamp(0)
+  created_at                                             DateTime? @db.Timestamp(0)
+  updated_at                                             DateTime? @db.Timestamp(0)
+  self_ratings                                           Json?     @db.Json
+  self_score                                             Decimal?  @db.Decimal(4, 2)
+  self_remarks                                           String?
+  self_submitted_at                                      DateTime? @db.Timestamp(0)
+  increment_amount                                       Decimal?  @db.Decimal(10, 2)
+  increment_percent                                      Decimal?  @db.Decimal(5, 2)
+  increment_effective_date                               DateTime? @db.Date
+  increment_approved_by                                  BigInt?
+  increment_approved_at                                  DateTime? @db.Timestamp(0)
+  users_employee_appraisals_appraised_byTousers          users?    @relation("employee_appraisals_appraised_byTousers", fields: [appraised_by], references: [id], onUpdate: NoAction, map: "employee_appraisals_appraised_by_foreign")
+  employees                                              employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "employee_appraisals_employee_id_foreign")
+  users_employee_appraisals_increment_approved_byTousers users?    @relation("employee_appraisals_increment_approved_byTousers", fields: [increment_approved_by], references: [id], onUpdate: NoAction, map: "employee_appraisals_increment_approved_by_foreign")
+
+  @@unique([employee_id, appraisal_year], map: "employee_appraisals_employee_id_appraisal_year_unique")
+}
+
+model employee_certifications {
+  id                 BigInt    @id @default(autoincrement())
+  employee_id        BigInt
+  certification_name String    @db.VarChar(255)
+  issuing_authority  String?   @db.VarChar(255)
+  issue_date         DateTime? @db.Date
+  expiry_date        DateTime? @db.Date
+  certificate_number String?   @db.VarChar(255)
+  file_path          String?   @db.VarChar(255)
+  created_at         DateTime? @db.Timestamp(0)
+  updated_at         DateTime? @db.Timestamp(0)
+  employees          employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "employee_certifications_employee_id_foreign")
+}
+
+model employee_documents {
+  id                  BigInt    @id @default(autoincrement())
+  employee_id         BigInt
+  document_type       String    @db.VarChar(255)
+  document_name       String    @db.VarChar(255)
+  file_path           String    @db.VarChar(255)
+  file_original_name  String?   @db.VarChar(255)
+  verification_status String    @default("pending") @db.VarChar(255)
+  verified_by         BigInt?
+  verified_at         DateTime? @db.Timestamp(0)
+  notes               String?   @db.VarChar(255)
+  created_at          DateTime? @db.Timestamp(0)
+  updated_at          DateTime? @db.Timestamp(0)
+  employees           employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "employee_documents_employee_id_foreign")
+  users               users?    @relation(fields: [verified_by], references: [id], onUpdate: NoAction, map: "employee_documents_verified_by_foreign")
+}
+
+model employee_experiences {
+  id                 BigInt    @id @default(autoincrement())
+  employee_id        BigInt
+  organisation       String    @db.VarChar(255)
+  role               String    @db.VarChar(255)
+  from_date          DateTime  @db.Date
+  to_date            DateTime? @db.Date
+  is_current         Boolean   @default(false)
+  reason_for_leaving String?   @db.VarChar(255)
+  responsibilities   String?
+  reference_contact  String?   @db.VarChar(255)
+  created_at         DateTime? @db.Timestamp(0)
+  updated_at         DateTime? @db.Timestamp(0)
+  employees          employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "employee_experiences_employee_id_foreign")
+}
+
+model employee_loans {
+  id                  BigInt    @id @default(autoincrement())
+  employee_id         BigInt
+  loan_type           String    @default("personal") @db.VarChar(255)
+  principal_amount    Decimal   @db.Decimal(12, 2)
+  interest_rate       Decimal   @default(0) @db.Decimal(5, 2)
+  emi_months          Int
+  emi_amount          Decimal   @db.Decimal(10, 2)
+  total_paid          Decimal   @default(0) @db.Decimal(12, 2)
+  outstanding_balance Decimal   @db.Decimal(12, 2)
+  disbursement_date   DateTime  @db.Date
+  emi_start_month     DateTime  @db.Date
+  status              String    @default("active") @db.VarChar(255)
+  purpose             String?
+  approved_by         BigInt?
+  approved_at         DateTime? @db.Timestamp(0)
+  created_at          DateTime? @db.Timestamp(0)
+  updated_at          DateTime? @db.Timestamp(0)
+  users               users?    @relation(fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "employee_loans_approved_by_foreign")
+  employees           employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "employee_loans_employee_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employee_qualifications {
+  id                  BigInt    @id @default(autoincrement())
+  employee_id         BigInt
+  degree              String    @db.VarChar(255)
+  subject             String?   @db.VarChar(255)
+  institution         String    @db.VarChar(255)
+  university          String?   @db.VarChar(255)
+  year_of_passing     Int?
+  grade_or_percentage String?   @db.VarChar(255)
+  education_level     String    @default("graduate") @db.VarChar(255)
+  created_at          DateTime? @db.Timestamp(0)
+  updated_at          DateTime? @db.Timestamp(0)
+  employees           employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "employee_qualifications_employee_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model employees {
+  id                                                           BigInt                        @id @default(autoincrement())
+  employee_code                                                String                        @unique(map: "employees_employee_code_unique") @db.VarChar(255)
+  joining_date                                                 DateTime                      @db.Date
+  first_name                                                   String                        @db.VarChar(255)
+  last_name                                                    String                        @db.VarChar(255)
+  dob                                                          DateTime?                     @db.Date
+  gender                                                       String                        @db.VarChar(255)
+  blood_group                                                  String?                       @db.VarChar(5)
+  nationality                                                  String                        @default("Indian") @db.VarChar(255)
+  religion                                                     String?                       @db.VarChar(255)
+  category                                                     String                        @default("general") @db.VarChar(255)
+  aadhaar_no                                                   String?                       @db.VarChar(12)
+  pan_no                                                       String?                       @db.VarChar(10)
+  photo                                                        String?                       @db.VarChar(255)
+  mobile                                                       String?                       @db.VarChar(15)
+  personal_email                                               String?                       @db.VarChar(255)
+  official_email                                               String?                       @db.VarChar(255)
+  residential_address                                          String?
+  emergency_contact_name                                       String?                       @db.VarChar(255)
+  emergency_contact_mobile                                     String?                       @db.VarChar(15)
+  designation                                                  String?                       @db.VarChar(255)
+  department                                                   String?                       @db.VarChar(255)
+  employee_type                                                String                        @default("teaching") @db.VarChar(255)
+  bank_account_no                                              String?                       @db.VarChar(255)
+  bank_ifsc                                                    String?                       @db.VarChar(15)
+  bank_name                                                    String?                       @db.VarChar(255)
+  bank_branch                                                  String?                       @db.VarChar(255)
+  pf_account_no                                                String?                       @db.VarChar(255)
+  esi_no                                                       String?                       @db.VarChar(255)
+  is_active                                                    Boolean                       @default(true)
+  deleted_at                                                   DateTime?                     @db.Timestamp(0)
+  created_at                                                   DateTime?                     @db.Timestamp(0)
+  updated_at                                                   DateTime?                     @db.Timestamp(0)
+  department_id                                                BigInt?
+  salary_on_hold                                               Boolean                       @default(false)
+  investment_80c                                               Decimal                       @default(0) @db.Decimal(10, 2)
+  investment_80d                                               Decimal                       @default(0) @db.Decimal(10, 2)
+  hra_exemption                                                Decimal                       @default(0) @db.Decimal(10, 2)
+  tax_regime                                                   String                        @default("new") @db.VarChar(10)
+  manager_id                                                   BigInt?
+  arrears_bonus_entries                                        arrears_bonus_entries[]
+  book_issues                                                  book_issues[]
+  employee_appraisals                                          employee_appraisals[]
+  employee_certifications                                      employee_certifications[]
+  employee_documents                                           employee_documents[]
+  employee_experiences                                         employee_experiences[]
+  employee_loans                                               employee_loans[]
+  employee_qualifications                                      employee_qualifications[]
+  departments                                                  departments?                  @relation(fields: [department_id], references: [id], onUpdate: NoAction, map: "employees_department_id_foreign")
+  employees                                                    employees?                    @relation("employeesToemployees", fields: [manager_id], references: [id], onUpdate: NoAction, map: "employees_manager_id_foreign")
+  other_employees                                              employees[]                   @relation("employeesToemployees")
+  leave_encashments                                            leave_encashments[]
+  leave_requests                                               leave_requests[]
+  night_duty_staff                                             night_duty_staff[]
+  overtime_entries                                             overtime_entries[]
+  payroll_records                                              payroll_records[]
+  salary_advances                                              salary_advances[]
+  salary_structures                                            salary_structures[]
+  staff_attendance                                             staff_attendance[]
+  students                                                     students[]
+  substitutions_substitutions_absent_teacher_idToemployees     substitutions[]               @relation("substitutions_absent_teacher_idToemployees")
+  substitutions_substitutions_substitute_teacher_idToemployees substitutions[]               @relation("substitutions_substitute_teacher_idToemployees")
+  teacher_subject_allocations                                  teacher_subject_allocations[]
+  timetables                                                   timetables[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model enquiries {
+  id                                 BigInt               @id @default(autoincrement())
+  enquiry_number                     String               @unique(map: "enquiries_enquiry_number_unique") @db.VarChar(255)
+  student_name                       String               @db.VarChar(255)
+  dob                                DateTime?            @db.Date
+  gender                             String?              @db.VarChar(255)
+  class_id                           BigInt?
+  parent_name                        String               @db.VarChar(255)
+  parent_mobile                      String               @db.VarChar(15)
+  parent_email                       String?              @db.VarChar(255)
+  address                            String?              @db.VarChar(255)
+  source                             String?              @db.VarChar(255)
+  notes                              String?
+  status                             String               @default("new") @db.VarChar(255)
+  follow_up_date                     DateTime?            @db.Date
+  academic_year_id                   BigInt?
+  assigned_to                        BigInt?
+  created_by                         BigInt?
+  previous_school                    String?              @db.VarChar(255)
+  previous_class                     String?              @db.VarChar(255)
+  previous_percentage                Decimal?             @db.Decimal(5, 2)
+  created_at                         DateTime?            @db.Timestamp(0)
+  updated_at                         DateTime?            @db.Timestamp(0)
+  deleted_at                         DateTime?            @db.Timestamp(0)
+  rejection_reason                   String?
+  waitlist_position                  Int?                 @db.SmallInt
+  entrance_test_date                 DateTime?            @db.Date
+  entrance_test_venue                String?              @db.VarChar(200)
+  entrance_test_marks                Decimal?             @db.Decimal(5, 2)
+  interview_date                     DateTime?            @db.Date
+  interview_feedback                 String?
+  documents                          Json?                @db.Json
+  doc_checklist                      Json?                @db.Json
+  referral_name                      String?              @db.VarChar(255)
+  entrance_test_time                 String?              @db.VarChar(10)
+  entrance_test_invigilator          String?              @db.VarChar(255)
+  interview_time                     String?              @db.VarChar(10)
+  interview_interviewer              String?              @db.VarChar(255)
+  missing_docs                       Json?                @db.Json
+  docs_flag_note                     String?              @db.VarChar(500)
+  admission_stages                   admission_stages[]
+  academic_years                     academic_years?      @relation(fields: [academic_year_id], references: [id], onUpdate: NoAction, map: "enquiries_academic_year_id_foreign")
+  users_enquiries_assigned_toTousers users?               @relation("enquiries_assigned_toTousers", fields: [assigned_to], references: [id], onUpdate: NoAction, map: "enquiries_assigned_to_foreign")
+  classes                            classes?             @relation(fields: [class_id], references: [id], onUpdate: NoAction, map: "enquiries_class_id_foreign")
+  users_enquiries_created_byTousers  users?               @relation("enquiries_created_byTousers", fields: [created_by], references: [id], onUpdate: NoAction, map: "enquiries_created_by_foreign")
+  enquiry_follow_ups                 enquiry_follow_ups[]
+
+  @@index([parent_mobile], map: "enquiries_parent_mobile_index")
+  @@index([status, academic_year_id], map: "enquiries_status_academic_year_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model enquiry_follow_ups {
+  id                  BigInt    @id @default(autoincrement())
+  enquiry_id          BigInt
+  notes               String
+  next_follow_up_date DateTime? @db.Date
+  status              String    @db.VarChar(255)
+  created_by          BigInt?
+  created_at          DateTime? @db.Timestamp(0)
+  updated_at          DateTime? @db.Timestamp(0)
+  users               users?    @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "enquiry_follow_ups_created_by_foreign")
+  enquiries           enquiries @relation(fields: [enquiry_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "enquiry_follow_ups_enquiry_id_foreign")
+}
+
+model event_photos {
+  id          BigInt    @id @default(autoincrement())
+  event_id    BigInt
+  photo_path  String    @db.VarChar(255)
+  caption     String?   @db.VarChar(255)
+  uploaded_by BigInt
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  events      events    @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "event_photos_event_id_foreign")
+  users       users     @relation(fields: [uploaded_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "event_photos_uploaded_by_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model event_rsvps {
+  id          BigInt    @id @default(autoincrement())
+  event_id    BigInt
+  user_id     BigInt
+  status      String    @default("attending") @db.VarChar(255)
+  guest_count Int       @default(0)
+  note        String?
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  events      events    @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "event_rsvps_event_id_foreign")
+  users       users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "event_rsvps_user_id_foreign")
+
+  @@unique([event_id, user_id], map: "event_rsvps_event_id_user_id_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model events {
+  id           BigInt         @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  event_type   String         @default("other") @db.VarChar(255)
+  event_date   DateTime       @db.Date
+  start_time   DateTime?      @db.Time(0)
+  end_time     DateTime?      @db.Time(0)
+  venue        String?        @db.VarChar(255)
+  description  String?
+  banner_image String?        @db.VarChar(255)
+  is_published Boolean        @default(false)
+  allow_rsvp   Boolean        @default(false)
+  max_rsvp     Int?
+  audience     String         @default("all") @db.VarChar(255)
+  created_by   BigInt
+  created_at   DateTime?      @db.Timestamp(0)
+  updated_at   DateTime?      @db.Timestamp(0)
+  event_photos event_photos[]
+  event_rsvps  event_rsvps[]
+  users        users          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "events_created_by_foreign")
+}
+
+model exam_marks {
+  id               BigInt         @id @default(autoincrement())
+  exam_schedule_id BigInt
+  student_id       BigInt
+  marks_obtained   Decimal?       @db.Decimal(6, 2)
+  is_absent        Boolean        @default(false)
+  grade            String?        @db.VarChar(5)
+  remarks          String?
+  entered_by       BigInt?
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  users            users?         @relation(fields: [entered_by], references: [id], onUpdate: NoAction, map: "exam_marks_entered_by_foreign")
+  exam_schedules   exam_schedules @relation(fields: [exam_schedule_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "exam_marks_exam_schedule_id_foreign")
+  students         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "exam_marks_student_id_foreign")
+
+  @@unique([exam_schedule_id, student_id], map: "exam_marks_exam_schedule_id_student_id_unique")
+}
+
+model exam_schedules {
+  id                     BigInt                   @id @default(autoincrement())
+  exam_id                BigInt
+  class_id               BigInt
+  subject_id             BigInt
+  exam_date              DateTime                 @db.Date
+  start_time             DateTime                 @db.Time(0)
+  end_time               DateTime                 @db.Time(0)
+  total_marks            Int
+  passing_marks          Int
+  room                   String?                  @db.VarChar(255)
+  created_at             DateTime?                @db.Timestamp(0)
+  updated_at             DateTime?                @db.Timestamp(0)
+  grace_marks            Int                      @default(0)
+  exam_marks             exam_marks[]
+  classes                classes                  @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "exam_schedules_class_id_foreign")
+  exams                  exams                    @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "exam_schedules_exam_id_foreign")
+  subjects               subjects                 @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "exam_schedules_subject_id_foreign")
+  marks_recheck_requests marks_recheck_requests[]
+
+  @@unique([exam_id, class_id, subject_id], map: "exam_schedules_exam_id_class_id_subject_id_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model exams {
+  id                      BigInt                   @id @default(autoincrement())
+  academic_year_id        BigInt
+  name                    String                   @db.VarChar(255)
+  type                    String                   @default("term") @db.VarChar(255)
+  start_date              DateTime                 @db.Date
+  end_date                DateTime                 @db.Date
+  passing_percentage      Decimal                  @default(33) @db.Decimal(5, 2)
+  is_published            Boolean                  @default(false)
+  result_published        Boolean                  @default(false)
+  created_at              DateTime?                @db.Timestamp(0)
+  updated_at              DateTime?                @db.Timestamp(0)
+  supplementary_threshold Int                      @default(2) @db.SmallInt
+  marks_locked            Boolean                  @default(false)
+  marks_locked_at         DateTime?                @db.Timestamp(0)
+  marks_locked_by         BigInt?
+  best_of_n_subjects      Int?                     @db.SmallInt
+  term_label              String?                  @db.VarChar(30)
+  weightage_percent       Decimal?                 @db.Decimal(5, 2)
+  is_cumulative_component Boolean                  @default(false)
+  is_external             Boolean                  @default(false)
+  conducting_body         String?                  @db.VarChar(255)
+  exam_schedules          exam_schedules[]
+  academic_years          academic_years           @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "exams_academic_year_id_foreign")
+  users                   users?                   @relation(fields: [marks_locked_by], references: [id], onUpdate: NoAction, map: "exams_marks_locked_by_foreign")
+  marks_recheck_requests  marks_recheck_requests[]
+  question_papers         question_papers[]
+}
+
+model failed_jobs {
+  id         BigInt   @id @default(autoincrement())
+  uuid       String   @unique(map: "failed_jobs_uuid_unique") @db.VarChar(255)
+  connection String
+  queue      String
+  payload    String
+  exception  String
+  failed_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fee_advance_payments {
+  id               BigInt    @id @default(autoincrement())
+  student_id       BigInt
+  academic_year_id BigInt?
+  amount           Decimal   @db.Decimal(10, 2)
+  applied_amount   Decimal   @default(0) @db.Decimal(10, 2)
+  remaining_amount Decimal   @db.Decimal(10, 2)
+  payment_date     DateTime  @db.Date
+  receipt_number   String?   @db.VarChar(255)
+  payment_mode     String    @default("cash") @db.VarChar(255)
+  transaction_id   String?   @db.VarChar(255)
+  notes            String?   @db.VarChar(255)
+  recorded_by      BigInt?
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+  students         students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_advance_payments_student_id_foreign")
+}
+
+model fee_carry_forwards {
+  id                                                                      BigInt         @id @default(autoincrement())
+  student_id                                                              BigInt
+  from_academic_year_id                                                   BigInt
+  to_academic_year_id                                                     BigInt
+  outstanding_amount                                                      Decimal        @default(0) @db.Decimal(10, 2)
+  recovered_amount                                                        Decimal        @default(0) @db.Decimal(10, 2)
+  note                                                                    String?        @db.VarChar(255)
+  created_by                                                              BigInt?
+  created_at                                                              DateTime?      @db.Timestamp(0)
+  updated_at                                                              DateTime?      @db.Timestamp(0)
+  users                                                                   users?         @relation(fields: [created_by], references: [id], onUpdate: NoAction, map: "fee_carry_forwards_created_by_foreign")
+  academic_years_fee_carry_forwards_from_academic_year_idToacademic_years academic_years @relation("fee_carry_forwards_from_academic_year_idToacademic_years", fields: [from_academic_year_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fee_carry_forwards_from_academic_year_id_foreign")
+  students                                                                students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_carry_forwards_student_id_foreign")
+  academic_years_fee_carry_forwards_to_academic_year_idToacademic_years   academic_years @relation("fee_carry_forwards_to_academic_year_idToacademic_years", fields: [to_academic_year_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fee_carry_forwards_to_academic_year_id_foreign")
+
+  @@unique([student_id, from_academic_year_id, to_academic_year_id], map: "fcf_student_year_unique")
+}
+
+model fee_change_logs {
+  id               BigInt    @id @default(autoincrement())
+  student_id       BigInt?
+  class_id         BigInt?
+  fee_head_id      BigInt?
+  academic_year_id BigInt?
+  change_type      String    @db.VarChar(30)
+  old_amount       Decimal?  @db.Decimal(10, 2)
+  new_amount       Decimal?  @db.Decimal(10, 2)
+  reason           String?   @db.VarChar(500)
+  changed_by       BigInt?
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fee_heads {
+  id                      BigInt                    @id @default(autoincrement())
+  name                    String                    @db.VarChar(255)
+  code                    String?                   @unique(map: "fee_heads_code_unique") @db.VarChar(20)
+  description             String?
+  is_active               Boolean                   @default(true)
+  created_at              DateTime?                 @db.Timestamp(0)
+  updated_at              DateTime?                 @db.Timestamp(0)
+  gst_applicable          Boolean                   @default(false)
+  gst_percent             Decimal                   @default(0) @db.Decimal(5, 2)
+  hsn_code                String?                   @db.VarChar(20)
+  gst_type                String                    @default("cgst_sgst") @db.VarChar(255)
+  tally_ledger_name       String?                   @db.VarChar(255)
+  category_fee_variations category_fee_variations[]
+  fee_payments            fee_payments[]
+  fee_structures          fee_structures[]
+  student_custom_fees     student_custom_fees[]
+  student_fee_charges     student_fee_charges[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fee_installment_plans {
+  id                 BigInt             @id @default(autoincrement())
+  name               String             @db.VarChar(255)
+  class_id           BigInt?
+  academic_year_id   BigInt?
+  installments_count Int                @default(1)
+  is_active          Boolean            @default(true)
+  created_at         DateTime?          @db.Timestamp(0)
+  updated_at         DateTime?          @db.Timestamp(0)
+  frequency          String             @default("one_time") @db.VarChar(255)
+  start_date         DateTime?          @db.Date
+  late_fee_rule_id   BigInt?
+  description        String?
+  fee_installments   fee_installments[]
+}
+
+model fee_installments {
+  id                    BigInt                @id @default(autoincrement())
+  plan_id               BigInt
+  installment_number    Int
+  due_date              DateTime              @db.Date
+  amount_percentage     Decimal               @default(0) @db.Decimal(5, 2)
+  created_at            DateTime?             @db.Timestamp(0)
+  updated_at            DateTime?             @db.Timestamp(0)
+  name                  String?               @db.VarChar(255)
+  amount                Decimal               @default(0) @db.Decimal(10, 2)
+  fee_head_id           BigInt?
+  fee_installment_plans fee_installment_plans @relation(fields: [plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_installments_plan_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fee_payments {
+  id                  BigInt               @id @default(autoincrement())
+  receipt_number      String               @unique(map: "fee_payments_receipt_number_unique") @db.VarChar(255)
+  student_id          BigInt
+  academic_year_id    BigInt
+  fee_head_id         BigInt?
+  amount              Decimal              @db.Decimal(10, 2)
+  late_fee            Decimal              @default(0) @db.Decimal(8, 2)
+  discount            Decimal              @default(0) @db.Decimal(8, 2)
+  total_paid          Decimal              @db.Decimal(10, 2)
+  payment_mode        String               @default("cash") @db.VarChar(255)
+  transaction_id      String?              @db.VarChar(255)
+  cheque_number       String?              @db.VarChar(255)
+  bank_name           String?              @db.VarChar(255)
+  payment_date        DateTime             @db.Date
+  remarks             String?
+  collected_by        BigInt?
+  is_cancelled        Boolean              @default(false)
+  cancel_reason       String?
+  created_at          DateTime?            @db.Timestamp(0)
+  updated_at          DateTime?            @db.Timestamp(0)
+  enrollment_id       BigInt?
+  amount_paid         Decimal              @default(0) @db.Decimal(10, 2)
+  cheque_bank         String?              @db.VarChar(100)
+  cheque_branch       String?              @db.VarChar(100)
+  cheque_date         DateTime?            @db.Date
+  cheque_status       String?              @db.VarChar(255)
+  bounce_charge       Decimal              @default(0) @db.Decimal(8, 2)
+  bounce_reason       String?              @db.VarChar(255)
+  advance_applied     Decimal              @default(0) @db.Decimal(10, 2)
+  academic_years      academic_years       @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_payments_academic_year_id_foreign")
+  users               users?               @relation(fields: [collected_by], references: [id], onUpdate: NoAction, map: "fee_payments_collected_by_foreign")
+  student_enrollments student_enrollments? @relation(fields: [enrollment_id], references: [id], onUpdate: NoAction, map: "fee_payments_enrollment_id_foreign")
+  fee_heads           fee_heads?           @relation(fields: [fee_head_id], references: [id], onUpdate: NoAction, map: "fee_payments_fee_head_id_foreign")
+  students            students             @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_payments_student_id_foreign")
+
+  @@index([student_id, academic_year_id], map: "fee_payments_student_id_academic_year_id_index")
+}
+
+model fee_reminder_configs {
+  id              BigInt    @id @default(autoincrement())
+  name            String    @default("Default Schedule") @db.VarChar(255)
+  before_due_days Json?     @db.Json
+  on_due_date     Boolean   @default(true)
+  after_due_days  Json?     @db.Json
+  channel         String    @default("email") @db.VarChar(255)
+  email_subject   String?   @db.VarChar(255)
+  email_body      String?
+  is_active       Boolean   @default(true)
+  updated_by      BigInt?
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fee_structures {
+  id                      BigInt                    @id @default(autoincrement())
+  academic_year_id        BigInt
+  class_id                BigInt
+  fee_head_id             BigInt
+  amount                  Decimal                   @db.Decimal(10, 2)
+  frequency               String                    @default("annually") @db.VarChar(255)
+  due_date                DateTime?                 @db.Date
+  late_fee_per_day        Decimal                   @default(0) @db.Decimal(8, 2)
+  is_mandatory            Boolean                   @default(true)
+  created_at              DateTime?                 @db.Timestamp(0)
+  updated_at              DateTime?                 @db.Timestamp(0)
+  applies_to              String                    @default("all") @db.VarChar(255)
+  category_fee_variations category_fee_variations[]
+  academic_years          academic_years            @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_structures_academic_year_id_foreign")
+  classes                 classes                   @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_structures_class_id_foreign")
+  fee_heads               fee_heads                 @relation(fields: [fee_head_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fee_structures_fee_head_id_foreign")
+
+  @@unique([academic_year_id, class_id, fee_head_id], map: "fee_structures_academic_year_id_class_id_fee_head_id_unique")
+}
+
+model gate_blacklist {
+  id         BigInt    @id @default(autoincrement())
+  name       String    @db.VarChar(255)
+  phone      String?   @db.VarChar(255)
+  id_number  String?   @db.VarChar(255)
+  reason     String
+  is_active  Boolean   @default(true)
+  added_by   BigInt
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+  users      users     @relation(fields: [added_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "gate_blacklist_added_by_foreign")
+}
+
+model gate_visitors {
+  id                BigInt    @id @default(autoincrement())
+  visitor_name      String    @db.VarChar(255)
+  visitor_phone     String?   @db.VarChar(255)
+  visitor_id_type   String?   @db.VarChar(255)
+  visitor_id_number String?   @db.VarChar(255)
+  purpose           String    @db.VarChar(255)
+  whom_to_meet      String?   @db.VarChar(255)
+  department        String?   @db.VarChar(255)
+  vehicle_number    String?   @db.VarChar(255)
+  pass_token        String?   @unique(map: "gate_visitors_pass_token_unique") @db.VarChar(255)
+  visitor_photo     String?   @db.VarChar(255)
+  in_time           DateTime  @db.Timestamp(0)
+  out_time          DateTime? @db.Timestamp(0)
+  is_approved       Boolean   @default(true)
+  is_blacklisted    Boolean   @default(false)
+  logged_by         BigInt
+  remarks           String?
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+  users             users     @relation(fields: [logged_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "gate_visitors_logged_by_foreign")
+}
+
+model grading_scheme_ranges {
+  id              BigInt          @id @default(autoincrement())
+  scheme_id       BigInt
+  min_marks       Decimal         @db.Decimal(5, 2)
+  max_marks       Decimal         @db.Decimal(5, 2)
+  grade           String          @db.VarChar(255)
+  description     String?         @db.VarChar(255)
+  gpa_points      Decimal?        @db.Decimal(4, 2)
+  created_at      DateTime?       @db.Timestamp(0)
+  updated_at      DateTime?       @db.Timestamp(0)
+  grading_schemes grading_schemes @relation(fields: [scheme_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "grading_scheme_ranges_scheme_id_foreign")
+}
+
+model grading_schemes {
+  id                    BigInt                  @id @default(autoincrement())
+  name                  String                  @db.VarChar(255)
+  scheme_type           String                  @default("marks") @db.VarChar(255)
+  is_default            Boolean                 @default(false)
+  is_active             Boolean                 @default(true)
+  created_at            DateTime?               @db.Timestamp(0)
+  updated_at            DateTime?               @db.Timestamp(0)
+  grading_scheme_ranges grading_scheme_ranges[]
+}
+
+model grn_items {
+  id                   BigInt                @id @default(autoincrement())
+  grn_id               BigInt
+  item_id              BigInt
+  po_item_id           BigInt?
+  received_qty         Int
+  accepted_qty         Int
+  rejected_qty         Int                   @default(0)
+  rejection_reason     String?
+  grn_records          grn_records           @relation(fields: [grn_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "grn_items_grn_id_foreign")
+  inventory_items      inventory_items       @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "grn_items_item_id_foreign")
+  purchase_order_items purchase_order_items? @relation(fields: [po_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "grn_items_po_item_id_foreign")
+}
+
+model grn_records {
+  id              BigInt          @id @default(autoincrement())
+  grn_number      String          @unique(map: "grn_records_grn_number_unique") @db.VarChar(255)
+  po_id           BigInt
+  received_date   DateTime        @db.Date
+  invoice_number  String?         @db.VarChar(255)
+  invoice_date    DateTime?       @db.Date
+  invoice_amount  Decimal?        @db.Decimal(12, 2)
+  remarks         String?
+  received_by     BigInt
+  created_at      DateTime?       @db.Timestamp(0)
+  updated_at      DateTime?       @db.Timestamp(0)
+  grn_items       grn_items[]
+  purchase_orders purchase_orders @relation(fields: [po_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "grn_records_po_id_foreign")
+  users           users           @relation(fields: [received_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "grn_records_received_by_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model holidays {
+  id               BigInt         @id @default(autoincrement())
+  academic_year_id BigInt
+  name             String         @db.VarChar(255)
+  date             DateTime       @db.Date
+  type             String         @default("school") @db.VarChar(255)
+  description      String?
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "holidays_academic_year_id_foreign")
+
+  @@index([academic_year_id, date], map: "holidays_academic_year_id_date_index")
+}
+
+model homework {
+  id                   BigInt                 @id @default(autoincrement())
+  class_id             BigInt
+  section_id           BigInt?
+  subject_id           BigInt
+  assigned_by          BigInt
+  description          String
+  assigned_date        DateTime               @db.Date
+  due_date             DateTime               @db.Date
+  attachment           String?                @db.VarChar(255)
+  is_active            Boolean                @default(true)
+  created_at           DateTime?              @db.Timestamp(0)
+  updated_at           DateTime?              @db.Timestamp(0)
+  title                String?                @db.VarChar(255)
+  max_score            Decimal?               @db.Decimal(5, 2)
+  users                users                  @relation(fields: [assigned_by], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "homework_assigned_by_foreign")
+  classes              classes                @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "homework_class_id_foreign")
+  sections             sections?              @relation(fields: [section_id], references: [id], onUpdate: NoAction, map: "homework_section_id_foreign")
+  subjects             subjects               @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "homework_subject_id_foreign")
+  homework_submissions homework_submissions[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model homework_submissions {
+  id               BigInt    @id @default(autoincrement())
+  homework_id      BigInt
+  student_id       BigInt
+  status           String    @default("submitted") @db.VarChar(255)
+  submitted_at     DateTime? @db.Date
+  file_path        String?   @db.VarChar(255)
+  student_remarks  String?
+  score            Decimal?  @db.Decimal(5, 2)
+  teacher_feedback String?
+  evaluated_by     BigInt?
+  evaluated_at     DateTime? @db.Timestamp(0)
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+  users            users?    @relation(fields: [evaluated_by], references: [id], onUpdate: NoAction, map: "homework_submissions_evaluated_by_foreign")
+  homework         homework  @relation(fields: [homework_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "homework_submissions_homework_id_foreign")
+  students         students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "homework_submissions_student_id_foreign")
+
+  @@unique([homework_id, student_id], map: "homework_submissions_homework_id_student_id_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model hostel_allotments {
+  id                       BigInt             @id @default(autoincrement())
+  student_id               BigInt
+  room_id                  BigInt
+  academic_year_id         BigInt
+  allotment_date           DateTime           @db.Date
+  vacating_date            DateTime?          @db.Date
+  status                   String             @default("active") @db.VarChar(255)
+  monthly_fee              Decimal            @default(0) @db.Decimal(8, 2)
+  notes                    String?
+  created_at               DateTime?          @db.Timestamp(0)
+  updated_at               DateTime?          @db.Timestamp(0)
+  transferred_from_room_id BigInt?
+  transfer_date            DateTime?          @db.Date
+  transfer_reason          String?            @db.VarChar(255)
+  vacate_reason            String?            @db.VarChar(255)
+  vacated_by               BigInt?
+  mess_included            Boolean            @default(true)
+  mess_exclusion_reason    String?
+  academic_years           academic_years     @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hostel_allotments_academic_year_id_foreign")
+  hostel_rooms             hostel_rooms       @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hostel_allotments_room_id_foreign")
+  students                 students           @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hostel_allotments_student_id_foreign")
+  hostel_outpasses         hostel_outpasses[]
+  mess_attendance          mess_attendance[]
+  mess_rebates             mess_rebates[]
+
+  @@unique([student_id, academic_year_id], map: "hostel_allotments_student_id_academic_year_id_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model hostel_beds {
+  id           BigInt       @id @default(autoincrement())
+  room_id      BigInt
+  bed_number   String       @db.VarChar(20)
+  status       String       @default("available") @db.VarChar(255)
+  notes        String?      @db.VarChar(200)
+  created_at   DateTime?    @db.Timestamp(0)
+  updated_at   DateTime?    @db.Timestamp(0)
+  hostel_rooms hostel_rooms @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hostel_beds_room_id_foreign")
+
+  @@unique([room_id, bed_number], map: "hostel_beds_room_id_bed_number_unique")
+}
+
+model hostel_complaints {
+  id               BigInt    @id @default(autoincrement())
+  student_id       BigInt?
+  room_id          BigInt?
+  complaint_type   String    @db.VarChar(255)
+  description      String
+  status           String    @default("open") @db.VarChar(255)
+  assigned_to      BigInt?
+  resolution_notes String?
+  resolved_at      DateTime? @db.Timestamp(0)
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+  category         String?   @db.VarChar(255)
+  priority         String    @default("medium") @db.VarChar(255)
+  vendor_name      String?   @db.VarChar(255)
+  reported_by      BigInt?
+}
+
+model hostel_disciplinary {
+  id              BigInt    @id @default(autoincrement())
+  student_id      BigInt
+  incident_date   DateTime  @db.Date
+  description     String
+  action_taken    String?   @db.VarChar(255)
+  parent_notified Boolean   @default(false)
+  reported_by     BigInt?
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+  is_warning      Boolean   @default(false)
+  warning_number  Int?      @db.SmallInt
+  warning_date    DateTime? @db.Date
+  severity        String    @default("minor") @db.VarChar(255)
+  vendor_name     String?   @db.VarChar(255)
+  assigned_to     BigInt?
+  priority        String    @default("medium") @db.VarChar(255)
+  category        String?   @db.VarChar(255)
+  students        students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hostel_disciplinary_student_id_foreign")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model hostel_fee_structures {
+  id                    BigInt          @id @default(autoincrement())
+  hostel_id             BigInt?
+  room_type             String          @db.VarChar(255)
+  academic_year_id      BigInt?
+  monthly_fee           Decimal         @default(0) @db.Decimal(10, 2)
+  admission_fee         Decimal         @default(0) @db.Decimal(10, 2)
+  mess_fee              Decimal         @default(0) @db.Decimal(10, 2)
+  security_deposit      Decimal         @default(0) @db.Decimal(10, 2)
+  created_at            DateTime?       @db.Timestamp(0)
+  updated_at            DateTime?       @db.Timestamp(0)
+  mess_included_default Boolean         @default(true)
+  academic_years        academic_years? @relation(fields: [academic_year_id], references: [id], onUpdate: NoAction, map: "hostel_fee_structures_academic_year_id_foreign")
+  hostels               hostels?        @relation(fields: [hostel_id], references: [id], onUpdate: NoAction, map: "hostel_fee_structures_hostel_id_foreign")
+}
+
+model hostel_floors {
+  id           BigInt         @id @default(autoincrement())
+  hostel_id    BigInt
+  name         String         @db.VarChar(255)
+  floor_number Int            @default(0) @db.SmallInt
+  created_at   DateTime?      @db.Timestamp(0)
+  updated_at   DateTime?      @db.Timestamp(0)
+  hostels      hostels        @relation(fields: [hostel_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hostel_floors_hostel_id_foreign")
+  hostel_rooms hostel_rooms[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model hostel_outpasses {
+  id                 BigInt             @id @default(autoincrement())
+  student_id         BigInt?
+  allotment_id       BigInt?
+  from_datetime      DateTime           @db.Timestamp(0)
+  to_datetime        DateTime           @db.Timestamp(0)
+  reason             String?            @db.VarChar(255)
+  parent_contact     String?            @db.VarChar(255)
+  destination        String?            @db.VarChar(255)
+  status             String             @default("pending") @db.VarChar(255)
+  approved_by        BigInt?
+  approved_at        DateTime?          @db.Timestamp(0)
+  actual_return_time DateTime?          @db.Timestamp(0)
+  created_by         BigInt?
+  created_at         DateTime?          @db.Timestamp(0)
+  updated_at         DateTime?          @db.Timestamp(0)
+  hostel_allotments  hostel_allotments? @relation(fields: [allotment_id], references: [id], onUpdate: NoAction, map: "hostel_outpasses_allotment_id_foreign")
+  users              users?             @relation(fields: [approved_by], references: [id], onUpdate: NoAction, map: "hostel_outpasses_approved_by_foreign")
+  students           students?          @relation(fields: [student_id], references: [id], onUpdate: NoAction, map: "hostel_outpasses_student_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model hostel_rooms {
+  id                BigInt              @id @default(autoincrement())
+  hostel_id         BigInt
+  room_number       String              @db.VarChar(20)
+  floor             String?             @db.VarChar(10)
+  room_type         String              @default("double") @db.VarChar(255)
+  capacity          Int                 @default(2)
+  occupied          Int                 @default(0)
+  fee_per_month     Decimal             @default(0) @db.Decimal(8, 2)
+  status            String              @default("available") @db.VarChar(255)
+  created_at        DateTime?           @db.Timestamp(0)
+  updated_at        DateTime?           @db.Timestamp(0)
+  floor_id          BigInt?
+  has_locker        Boolean             @default(false)
+  fan_type          String?             @db.VarChar(20)
+  hostel_allotments hostel_allotments[]
+  hostel_beds       hostel_beds[]
+  hostel_floors     hostel_floors?      @relation(fields: [floor_id], references: [id], onUpdate: NoAction, map: "hostel_rooms_floor_id_foreign")
+  hostels           hostels             @relation(fields: [hostel_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "hostel_rooms_hostel_id_foreign")
+
+  @@unique([hostel_id, room_number], map: "hostel_rooms_hostel_id_room_number_unique")
+}
+
+model hostel_visiting_hours {
+  id         BigInt    @id @default(autoincrement())
+  hostel_id  BigInt?
+  day_type   String    @default("all") @db.VarChar(255)
+  from_time  DateTime  @db.Time(0)
+  to_time    DateTime  @db.Time(0)
+  is_active  Boolean   @default(true)
+  note       String?   @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+}
+
+model hostel_visitors {
+  id               BigInt    @id @default(autoincrement())
+  student_id       BigInt?
+  visitor_name     String    @db.VarChar(255)
+  visitor_mobile   String?   @db.VarChar(255)
+  id_type          String?   @db.VarChar(255)
+  id_number        String?   @db.VarChar(255)
+  relation         String?   @db.VarChar(255)
+  purpose          String?
+  vehicle_number   String?   @db.VarChar(255)
+  entry_time       DateTime  @db.Timestamp(0)
+  exit_time        DateTime? @db.Timestamp(0)
+  registered_by    BigInt?
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+  hostel_id        String?   @db.VarChar(255)
+  pass_token       String?   @unique(map: "hostel_visitors_pass_token_unique") @db.VarChar(64)
+  pass_valid_until DateTime? @db.Timestamp(0)
+  visitor_photo    String?   @db.VarChar(255)
+  visitor_phone    String?   @db.VarChar(255)
+  destination      String?   @db.VarChar(255)
+  in_time          String?   @db.VarChar(255)
+  out_time         String?   @db.VarChar(255)
+  logged_by        BigInt?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model hostels {
+  id                    BigInt                  @id @default(autoincrement())
+  name                  String                  @db.VarChar(255)
+  type                  String                  @default("boys") @db.VarChar(255)
+  warden_name           String?                 @db.VarChar(255)
+  warden_mobile         String?                 @db.VarChar(15)
+  total_capacity        Int                     @default(0)
+  address               String?
+  is_active             Boolean                 @default(true)
+  created_at            DateTime?               @db.Timestamp(0)
+  updated_at            DateTime?               @db.Timestamp(0)
+  meal_menus            Json?                   @db.Json
+  hostel_fee_structures hostel_fee_structures[]
+  hostel_floors         hostel_floors[]
+  hostel_rooms          hostel_rooms[]
+  night_duty_staff      night_duty_staff[]
+}
+
+model inventory_categories {
+  id              BigInt            @id @default(autoincrement())
+  name            String            @db.VarChar(255)
+  code            String?           @unique(map: "inventory_categories_code_unique") @db.VarChar(255)
+  description     String?
+  is_active       Boolean           @default(true)
+  created_at      DateTime?         @db.Timestamp(0)
+  updated_at      DateTime?         @db.Timestamp(0)
+  inventory_items inventory_items[]
+}
+
+model inventory_items {
+  id                         BigInt                       @id @default(autoincrement())
+  category_id                BigInt
+  name                       String                       @db.VarChar(255)
+  item_code                  String                       @unique(map: "inventory_items_item_code_unique") @db.VarChar(255)
+  unit                       String                       @db.VarChar(255)
+  unit_price                 Decimal                      @default(0) @db.Decimal(10, 2)
+  reorder_level              Int                          @default(0)
+  current_stock              Int                          @default(0)
+  location                   String?                      @db.VarChar(255)
+  description                String?
+  is_active                  Boolean                      @default(true)
+  created_at                 DateTime?                    @db.Timestamp(0)
+  updated_at                 DateTime?                    @db.Timestamp(0)
+  grn_items                  grn_items[]
+  inventory_categories       inventory_categories         @relation(fields: [category_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "inventory_items_category_id_foreign")
+  purchase_order_items       purchase_order_items[]
+  purchase_requisition_items purchase_requisition_items[]
+  stock_issuance_items       stock_issuance_items[]
+}
+
+model ip_whitelist {
+  id          BigInt    @id @default(autoincrement())
+  ip_address  String    @db.VarChar(255)
+  description String?   @db.VarChar(255)
+  is_active   Boolean   @default(true)
+  added_by    BigInt
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  users       users     @relation(fields: [added_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "ip_whitelist_added_by_foreign")
+}
+
+model job_batches {
+  id             String  @id @db.VarChar(255)
+  name           String  @db.VarChar(255)
+  total_jobs     Int
+  pending_jobs   Int
+  failed_jobs    Int
+  failed_job_ids String
+  options        String?
+  cancelled_at   Int?
+  created_at     Int
+  finished_at    Int?
+}
+
+model jobs {
+  id           BigInt @id @default(autoincrement())
+  queue        String @db.VarChar(255)
+  payload      String
+  attempts     Int    @db.SmallInt
+  reserved_at  Int?
+  available_at Int
+  created_at   Int
+
+  @@index([queue], map: "jobs_queue_index")
+}
+
+model late_fee_rules {
+  id          BigInt    @id @default(autoincrement())
+  fee_head_id BigInt?
+  rule_type   String    @db.VarChar(255)
+  amount      Decimal   @default(0) @db.Decimal(10, 2)
+  grace_days  Int       @default(0)
+  is_active   Boolean   @default(true)
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+}
+
+model leave_encashments {
+  id              BigInt      @id @default(autoincrement())
+  employee_id     BigInt
+  leave_type_id   BigInt
+  days_encashed   Int         @db.SmallInt
+  basic_per_day   Decimal     @db.Decimal(10, 2)
+  amount          Decimal     @db.Decimal(12, 2)
+  year            String      @db.VarChar(4)
+  remarks         String?
+  processed_by    BigInt?
+  encashment_date DateTime    @db.Date
+  created_at      DateTime?   @db.Timestamp(0)
+  updated_at      DateTime?   @db.Timestamp(0)
+  employees       employees   @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "leave_encashments_employee_id_foreign")
+  leave_types     leave_types @relation(fields: [leave_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "leave_encashments_leave_type_id_foreign")
+  users           users?      @relation(fields: [processed_by], references: [id], onUpdate: NoAction, map: "leave_encashments_processed_by_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leave_requests {
+  id               BigInt      @id @default(autoincrement())
+  employee_id      BigInt
+  leave_type_id    BigInt
+  from_date        DateTime    @db.Date
+  to_date          DateTime    @db.Date
+  total_days       Decimal     @db.Decimal(4, 1)
+  reason           String
+  attachment       String?     @db.VarChar(255)
+  status           String      @default("pending") @db.VarChar(255)
+  approved_by      BigInt?
+  approval_note    String?
+  approved_at      DateTime?   @db.Timestamp(0)
+  created_at       DateTime?   @db.Timestamp(0)
+  updated_at       DateTime?   @db.Timestamp(0)
+  is_half_day      Boolean     @default(false)
+  half_day_session String?     @db.VarChar(255)
+  users            users?      @relation(fields: [approved_by], references: [id], onUpdate: NoAction, map: "leave_requests_approved_by_foreign")
+  employees        employees   @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "leave_requests_employee_id_foreign")
+  leave_types      leave_types @relation(fields: [leave_type_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "leave_requests_leave_type_id_foreign")
+}
+
+model leave_types {
+  id                BigInt              @id @default(autoincrement())
+  name              String              @db.VarChar(255)
+  code              String              @unique(map: "leave_types_code_unique") @db.VarChar(10)
+  days_allowed      Int                 @default(0)
+  is_paid           Boolean             @default(true)
+  created_at        DateTime?           @db.Timestamp(0)
+  updated_at        DateTime?           @db.Timestamp(0)
+  leave_encashments leave_encashments[]
+  leave_requests    leave_requests[]
+}
+
+model lesson_plans {
+  id                                        BigInt          @id @default(autoincrement())
+  syllabus_id                               BigInt?
+  class_id                                  BigInt
+  subject_id                                BigInt
+  academic_year_id                          BigInt?
+  topic                                     String          @db.VarChar(255)
+  learning_objectives                       String?
+  teaching_method                           String?
+  resources_required                        String?
+  period_number                             String?         @db.VarChar(255)
+  plan_date                                 DateTime        @db.Date
+  duration_minutes                          Int             @default(45)
+  teacher_notes                             String?
+  status                                    String          @default("draft") @db.VarChar(255)
+  created_by                                BigInt
+  hod_reviewed_by                           BigInt?
+  hod_reviewed_at                           DateTime?       @db.Timestamp(0)
+  hod_remarks                               String?
+  hod_decision                              String?         @db.VarChar(255)
+  is_completed                              Boolean         @default(false)
+  completed_at                              DateTime?       @db.Timestamp(0)
+  created_at                                DateTime?       @db.Timestamp(0)
+  updated_at                                DateTime?       @db.Timestamp(0)
+  academic_years                            academic_years? @relation(fields: [academic_year_id], references: [id], onUpdate: NoAction, map: "lesson_plans_academic_year_id_foreign")
+  classes                                   classes         @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lesson_plans_class_id_foreign")
+  users_lesson_plans_created_byTousers      users           @relation("lesson_plans_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lesson_plans_created_by_foreign")
+  users_lesson_plans_hod_reviewed_byTousers users?          @relation("lesson_plans_hod_reviewed_byTousers", fields: [hod_reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lesson_plans_hod_reviewed_by_foreign")
+  subjects                                  subjects        @relation(fields: [subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lesson_plans_subject_id_foreign")
+  syllabus                                  syllabus?       @relation(fields: [syllabus_id], references: [id], onUpdate: NoAction, map: "lesson_plans_syllabus_id_foreign")
+}
+
+model library_settings {
+  id           BigInt    @id @default(autoincrement())
+  member_type  String    @default("student") @db.VarChar(255)
+  fine_per_day Decimal   @default(1) @db.Decimal(6, 2)
+  loan_days    Int       @default(14)
+  max_books    Int       @default(2)
+  max_renewals Int       @default(1)
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+}
+
+model lms_assignment_submissions {
+  id            BigInt    @id @default(autoincrement())
+  assignment_id BigInt
+  student_id    BigInt
+  file_path     String?   @db.VarChar(255)
+  note          String?
+  submitted_at  DateTime  @db.Timestamp(0)
+  is_late       Boolean   @default(false)
+  score         Decimal?  @db.Decimal(7, 2)
+  feedback      String?
+  evaluated_at  DateTime? @db.Timestamp(0)
+  evaluated_by  BigInt?
+
+  @@unique([assignment_id, student_id], map: "lms_assignment_submissions_assignment_id_student_id_unique")
+  @@index([assignment_id], map: "lms_assignment_submissions_assignment_id_index")
+  @@index([student_id], map: "lms_assignment_submissions_student_id_index")
+}
+
+model lms_assignments {
+  id           BigInt    @id @default(autoincrement())
+  course_id    BigInt
+  lesson_id    BigInt?
+  title        String    @db.VarChar(255)
+  instructions String
+  due_at       DateTime  @db.Timestamp(0)
+  max_marks    Decimal   @default(10) @db.Decimal(7, 2)
+  attachment   String?   @db.VarChar(255)
+  created_by   BigInt
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+
+  @@index([course_id], map: "lms_assignments_course_id_index")
+  @@index([lesson_id], map: "lms_assignments_lesson_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lms_courses {
+  id          BigInt    @id @default(autoincrement())
+  title       String    @db.VarChar(255)
+  subject_id  BigInt?
+  class_id    BigInt?
+  description String?
+  thumbnail   String?   @db.VarChar(255)
+  status      String    @default("draft") @db.VarChar(255)
+  created_by  BigInt
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+
+  @@index([class_id], map: "lms_courses_class_id_index")
+  @@index([subject_id], map: "lms_courses_subject_id_index")
+}
+
+model lms_discussion_replies {
+  id            BigInt    @id @default(autoincrement())
+  discussion_id BigInt
+  user_id       BigInt
+  body          String
+  is_answer     Boolean   @default(false)
+  is_hidden     Boolean   @default(false)
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+
+  @@index([discussion_id], map: "lms_discussion_replies_discussion_id_index")
+  @@index([user_id], map: "lms_discussion_replies_user_id_index")
+}
+
+model lms_discussions {
+  id          BigInt    @id @default(autoincrement())
+  course_id   BigInt
+  user_id     BigInt
+  title       String    @db.VarChar(255)
+  body        String
+  is_answered Boolean   @default(false)
+  is_hidden   Boolean   @default(false)
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+
+  @@index([course_id], map: "lms_discussions_course_id_index")
+  @@index([user_id], map: "lms_discussions_user_id_index")
+}
+
+model lms_lesson_progress {
+  id           BigInt   @id @default(autoincrement())
+  student_id   BigInt
+  lesson_id    BigInt
+  completed_at DateTime @db.Timestamp(0)
+
+  @@unique([student_id, lesson_id], map: "lms_lesson_progress_student_id_lesson_id_unique")
+  @@index([lesson_id], map: "lms_lesson_progress_lesson_id_index")
+  @@index([student_id], map: "lms_lesson_progress_student_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lms_lessons {
+  id           BigInt    @id @default(autoincrement())
+  unit_id      BigInt
+  title        String    @db.VarChar(255)
+  type         String    @default("text") @db.VarChar(255)
+  body         String?
+  video_url    String?   @db.VarChar(255)
+  file_path    String?   @db.VarChar(255)
+  order        Int       @default(0)
+  is_published Boolean   @default(false)
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+
+  @@index([unit_id], map: "lms_lessons_unit_id_index")
+}
+
+model lms_quiz_answers {
+  id            BigInt   @id @default(autoincrement())
+  attempt_id    BigInt
+  question_id   BigInt
+  given_answer  String?
+  is_correct    Boolean?
+  marks_awarded Decimal  @default(0) @db.Decimal(5, 2)
+
+  @@index([attempt_id], map: "lms_quiz_answers_attempt_id_index")
+  @@index([question_id], map: "lms_quiz_answers_question_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lms_quiz_attempts {
+  id           BigInt    @id @default(autoincrement())
+  quiz_id      BigInt
+  student_id   BigInt
+  score        Decimal   @default(0) @db.Decimal(7, 2)
+  total_marks  Decimal   @default(0) @db.Decimal(7, 2)
+  started_at   DateTime  @db.Timestamp(0)
+  submitted_at DateTime? @db.Timestamp(0)
+  status       String    @default("in_progress") @db.VarChar(255)
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+
+  @@index([quiz_id], map: "lms_quiz_attempts_quiz_id_index")
+  @@index([student_id], map: "lms_quiz_attempts_student_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model lms_quiz_questions {
+  id             BigInt    @id @default(autoincrement())
+  quiz_id        BigInt
+  question       String
+  type           String    @default("mcq_single") @db.VarChar(255)
+  options        Json?     @db.Json
+  correct_answer String
+  marks          Decimal   @default(1) @db.Decimal(5, 2)
+  order          Int       @default(0)
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+
+  @@index([quiz_id], map: "lms_quiz_questions_quiz_id_index")
+}
+
+model lms_quizzes {
+  id                 BigInt    @id @default(autoincrement())
+  lesson_id          BigInt?
+  course_id          BigInt
+  title              String    @db.VarChar(255)
+  duration_minutes   Int       @default(30)
+  marks_per_question Decimal   @default(1) @db.Decimal(5, 2)
+  negative_marks     Decimal   @default(0) @db.Decimal(5, 2)
+  available_from     DateTime? @db.Timestamp(0)
+  available_to       DateTime? @db.Timestamp(0)
+  randomise          Boolean   @default(true)
+  created_at         DateTime? @db.Timestamp(0)
+  updated_at         DateTime? @db.Timestamp(0)
+
+  @@index([course_id], map: "lms_quizzes_course_id_index")
+  @@index([lesson_id], map: "lms_quizzes_lesson_id_index")
+}
+
+model lms_units {
+  id         BigInt    @id @default(autoincrement())
+  course_id  BigInt
+  title      String    @db.VarChar(255)
+  order      Int       @default(0)
+  created_at DateTime? @db.Timestamp(0)
+  updated_at DateTime? @db.Timestamp(0)
+
+  @@index([course_id], map: "lms_units_course_id_index")
+}
+
+model login_attempts {
+  id           BigInt   @id @default(autoincrement())
+  email        String   @db.VarChar(255)
+  ip_address   String?  @db.VarChar(255)
+  success      Boolean  @default(false)
+  attempted_at DateTime @db.Timestamp(0)
+
+  @@index([email, attempted_at], map: "login_attempts_email_attempted_at_index")
+}
+
+model marks_recheck_requests {
+  id                                               BigInt         @id @default(autoincrement())
+  exam_id                                          BigInt
+  student_id                                       BigInt
+  exam_schedule_id                                 BigInt
+  marks_before                                     Decimal?       @db.Decimal(6, 2)
+  marks_after                                      Decimal?       @db.Decimal(6, 2)
+  reason                                           String?
+  status                                           String         @default("pending") @db.VarChar(255)
+  admin_remarks                                    String?
+  requested_by                                     BigInt
+  reviewed_by                                      BigInt?
+  reviewed_at                                      DateTime?      @db.Timestamp(0)
+  created_at                                       DateTime?      @db.Timestamp(0)
+  updated_at                                       DateTime?      @db.Timestamp(0)
+  exams                                            exams          @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "marks_recheck_requests_exam_id_foreign")
+  exam_schedules                                   exam_schedules @relation(fields: [exam_schedule_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "marks_recheck_requests_exam_schedule_id_foreign")
+  users_marks_recheck_requests_requested_byTousers users          @relation("marks_recheck_requests_requested_byTousers", fields: [requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "marks_recheck_requests_requested_by_foreign")
+  users_marks_recheck_requests_reviewed_byTousers  users?         @relation("marks_recheck_requests_reviewed_byTousers", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "marks_recheck_requests_reviewed_by_foreign")
+  students                                         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "marks_recheck_requests_student_id_foreign")
+}
+
+model mess_attendance {
+  id                BigInt            @id @default(autoincrement())
+  allotment_id      BigInt
+  date              DateTime          @db.Date
+  meal              String            @db.VarChar(255)
+  is_present        Boolean           @default(true)
+  created_at        DateTime?         @db.Timestamp(0)
+  updated_at        DateTime?         @db.Timestamp(0)
+  hostel_allotments hostel_allotments @relation(fields: [allotment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "mess_attendance_allotment_id_foreign")
+
+  @@unique([allotment_id, date, meal], map: "mess_attendance_allotment_id_date_meal_unique")
+}
+
+model mess_expenses {
+  id             BigInt    @id @default(autoincrement())
+  hostel_id      BigInt?
+  expense_date   DateTime  @db.Date
+  category       String    @db.VarChar(255)
+  description    String    @db.VarChar(255)
+  amount         Decimal   @db.Decimal(10, 2)
+  vendor         String?   @db.VarChar(255)
+  invoice_number String?   @db.VarChar(255)
+  meal_type      String?   @db.VarChar(255)
+  recorded_by    BigInt?
+  notes          String?
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mess_feedback {
+  id            BigInt    @id @default(autoincrement())
+  student_id    BigInt
+  hostel_id     BigInt?
+  feedback_date DateTime  @db.Date
+  meal_type     String    @db.VarChar(255)
+  rating        Int       @db.SmallInt
+  comment       String?
+  is_anonymous  Boolean   @default(false)
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+  students      students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "mess_feedback_student_id_foreign")
+
+  @@unique([student_id, feedback_date, meal_type], map: "uniq_mess_feedback")
+}
+
+model mess_rebates {
+  id                BigInt            @id @default(autoincrement())
+  allotment_id      BigInt
+  from_date         DateTime          @db.Date
+  to_date           DateTime          @db.Date
+  days_absent       Int
+  rebate_per_day    Decimal           @default(0) @db.Decimal(8, 2)
+  total_rebate      Decimal           @default(0) @db.Decimal(10, 2)
+  reason            String?           @db.VarChar(255)
+  status            String            @default("pending") @db.VarChar(255)
+  approved_by       BigInt?
+  notes             String?
+  created_at        DateTime?         @db.Timestamp(0)
+  updated_at        DateTime?         @db.Timestamp(0)
+  hostel_allotments hostel_allotments @relation(fields: [allotment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "mess_rebates_allotment_id_foreign")
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement())
+  migration String @db.VarChar(255)
+  batch     Int
+}
+
+model model_has_permissions {
+  permission_id BigInt
+  model_type    String      @db.VarChar(255)
+  model_id      BigInt
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "model_has_permissions_permission_id_foreign")
+
+  @@id([permission_id, model_id, model_type])
+  @@index([model_id, model_type], map: "model_has_permissions_model_id_model_type_index")
+}
+
+model model_has_roles {
+  role_id    BigInt
+  model_type String @db.VarChar(255)
+  model_id   BigInt
+  roles      roles  @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "model_has_roles_role_id_foreign")
+
+  @@id([role_id, model_id, model_type])
+  @@index([model_id, model_type], map: "model_has_roles_model_id_model_type_index")
+}
+
+model night_duty_staff {
+  id          BigInt    @id @default(autoincrement())
+  hostel_id   BigInt
+  employee_id BigInt
+  duty_date   DateTime  @db.Date
+  shift       String    @default("night") @db.VarChar(255)
+  notes       String?   @db.VarChar(255)
+  assigned_by BigInt?
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  users       users?    @relation(fields: [assigned_by], references: [id], onUpdate: NoAction, map: "night_duty_staff_assigned_by_foreign")
+  employees   employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "night_duty_staff_employee_id_foreign")
+  hostels     hostels   @relation(fields: [hostel_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "night_duty_staff_hostel_id_foreign")
+
+  @@unique([hostel_id, employee_id, duty_date], map: "night_duty_staff_hostel_id_employee_id_duty_date_unique")
+}
+
+model notice_reads {
+  id        BigInt   @id @default(autoincrement())
+  notice_id BigInt
+  user_id   BigInt
+  read_at   DateTime @db.Timestamp(0)
+  notices   notices  @relation(fields: [notice_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "notice_reads_notice_id_foreign")
+
+  @@unique([notice_id, user_id], map: "notice_reads_notice_id_user_id_unique")
+}
+
+model notices {
+  id              BigInt         @id @default(autoincrement())
+  title           String         @db.VarChar(255)
+  content         String
+  notice_type     String         @default("general") @db.VarChar(255)
+  target_audience String         @default("all") @db.VarChar(255)
+  target_class_id BigInt?
+  publish_date    DateTime       @db.Date
+  expiry_date     DateTime?      @db.Date
+  attachment      String?        @db.VarChar(255)
+  is_published    Boolean        @default(false)
+  created_by      BigInt
+  created_at      DateTime?      @db.Timestamp(0)
+  updated_at      DateTime?      @db.Timestamp(0)
+  notice_reads    notice_reads[]
+}
+
+model notification_logs {
+  id            BigInt    @id @default(autoincrement())
+  type          String    @db.VarChar(255)
+  recipient     String    @db.VarChar(255)
+  message       String
+  status        String    @default("pending") @db.VarChar(255)
+  response      String?
+  student_id    BigInt?
+  employee_id   BigInt?
+  trigger_event String?   @db.VarChar(255)
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+}
+
+model notification_templates {
+  id           BigInt    @id @default(autoincrement())
+  event_type   String    @db.VarChar(255)
+  channel      String    @default("email") @db.VarChar(255)
+  subject      String?   @db.VarChar(255)
+  body         String
+  trigger_time DateTime? @db.Time(0)
+  is_active    Boolean   @default(true)
+  updated_by   BigInt?
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+
+  @@unique([event_type, channel], map: "notification_templates_event_type_channel_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model online_exam_attempts {
+  id                    BigInt                  @id @default(autoincrement())
+  online_exam_id        BigInt
+  student_id            BigInt
+  started_at            DateTime?               @db.Timestamp(0)
+  submitted_at          DateTime?               @db.Timestamp(0)
+  auto_submitted        Boolean                 @default(false)
+  score                 Decimal?                @db.Decimal(8, 2)
+  negative_marks        Decimal                 @default(0) @db.Decimal(8, 2)
+  final_score           Decimal?                @db.Decimal(8, 2)
+  result                String                  @default("pending") @db.VarChar(255)
+  question_order        Json?                   @db.Json
+  created_at            DateTime?               @db.Timestamp(0)
+  updated_at            DateTime?               @db.Timestamp(0)
+  online_exams          online_exams            @relation(fields: [online_exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "online_exam_attempts_online_exam_id_foreign")
+  students              students                @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "online_exam_attempts_student_id_foreign")
+  online_exam_responses online_exam_responses[]
+
+  @@unique([online_exam_id, student_id], map: "uniq_attempt")
+}
+
+model online_exam_questions {
+  id               BigInt        @id @default(autoincrement())
+  online_exam_id   BigInt
+  question_bank_id BigInt
+  sort_order       Int           @default(0)
+  created_at       DateTime?     @db.Timestamp(0)
+  updated_at       DateTime?     @db.Timestamp(0)
+  online_exams     online_exams  @relation(fields: [online_exam_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "online_exam_questions_online_exam_id_foreign")
+  question_bank    question_bank @relation(fields: [question_bank_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "online_exam_questions_question_bank_id_foreign")
+
+  @@unique([online_exam_id, question_bank_id], map: "uniq_exam_question")
+}
+
+model online_exam_responses {
+  id                   BigInt               @id @default(autoincrement())
+  attempt_id           BigInt
+  question_bank_id     BigInt
+  answer               String?              @db.VarChar(255)
+  is_correct           Boolean?
+  marks_awarded        Decimal              @default(0) @db.Decimal(6, 2)
+  evaluator_remarks    String?
+  evaluated_by         BigInt?
+  created_at           DateTime?            @db.Timestamp(0)
+  updated_at           DateTime?            @db.Timestamp(0)
+  online_exam_attempts online_exam_attempts @relation(fields: [attempt_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "online_exam_responses_attempt_id_foreign")
+  question_bank        question_bank        @relation(fields: [question_bank_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "online_exam_responses_question_bank_id_foreign")
+
+  @@unique([attempt_id, question_bank_id], map: "uniq_response")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model online_exams {
+  id                       BigInt                  @id @default(autoincrement())
+  title                    String                  @db.VarChar(255)
+  academic_year_id         BigInt?
+  class_id                 BigInt
+  subject_id               BigInt?
+  start_time               DateTime                @db.Timestamp(0)
+  end_time                 DateTime                @db.Timestamp(0)
+  duration_minutes         Int
+  total_marks              Decimal                 @default(0) @db.Decimal(8, 2)
+  pass_marks               Decimal                 @default(0) @db.Decimal(8, 2)
+  randomise_questions      Boolean                 @default(true)
+  negative_marking         Boolean                 @default(false)
+  negative_marks_per_wrong Decimal                 @default(0) @db.Decimal(5, 2)
+  status                   String                  @default("draft") @db.VarChar(255)
+  instructions             String?
+  created_at               DateTime?               @db.Timestamp(0)
+  updated_at               DateTime?               @db.Timestamp(0)
+  online_exam_attempts     online_exam_attempts[]
+  online_exam_questions    online_exam_questions[]
+  classes                  classes                 @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "online_exams_class_id_foreign")
+}
+
+model overtime_entries {
+  id            BigInt    @id @default(autoincrement())
+  employee_id   BigInt
+  entry_date    DateTime  @db.Date
+  hours         Decimal   @db.Decimal(5, 2)
+  rate_per_hour Decimal   @default(0) @db.Decimal(8, 2)
+  amount        Decimal   @default(0) @db.Decimal(10, 2)
+  month         String    @db.VarChar(7)
+  remarks       String?   @db.VarChar(255)
+  created_by    BigInt?
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+  employees     employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "overtime_entries_employee_id_foreign")
+}
+
+model parent_students {
+  id             BigInt    @id @default(autoincrement())
+  parent_user_id BigInt
+  student_id     BigInt
+  created_at     DateTime? @db.Timestamp(0)
+  updated_at     DateTime? @db.Timestamp(0)
+
+  @@unique([parent_user_id, student_id], map: "parent_students_parent_user_id_student_id_unique")
+  @@index([parent_user_id], map: "parent_students_parent_user_id_index")
+  @@index([student_id], map: "parent_students_student_id_index")
+}
+
+model password_reset_tokens {
+  email      String    @id @db.VarChar(255)
+  token      String    @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payroll_records {
+  id              BigInt    @id @default(autoincrement())
+  employee_id     BigInt
+  month           String    @db.VarChar(7)
+  working_days    Int       @default(26)
+  present_days    Int       @default(0)
+  absent_days     Int       @default(0)
+  leave_days      Int       @default(0)
+  gross_salary    Decimal   @default(0) @db.Decimal(10, 2)
+  deductions      Decimal   @default(0) @db.Decimal(10, 2)
+  net_salary      Decimal   @default(0) @db.Decimal(10, 2)
+  status          String    @default("draft") @db.VarChar(255)
+  paid_on         DateTime? @db.Date
+  payment_mode    String?   @db.VarChar(255)
+  bank_reference  String?   @db.VarChar(255)
+  approved_by     BigInt?
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+  is_locked       Boolean   @default(false)
+  locked_at       DateTime? @db.Timestamp(0)
+  lop_days        Int       @default(0) @db.SmallInt
+  lop_amount      Decimal   @default(0) @db.Decimal(10, 2)
+  loan_emi        Decimal?  @default(0) @db.Decimal(10, 2)
+  tds_amount      Decimal   @default(0) @db.Decimal(10, 2)
+  overtime_amount Decimal   @default(0) @db.Decimal(10, 2)
+  arrears_amount  Decimal   @default(0) @db.Decimal(10, 2)
+  bonus_amount    Decimal   @default(0) @db.Decimal(10, 2)
+  users           users?    @relation(fields: [approved_by], references: [id], onUpdate: NoAction, map: "payroll_records_approved_by_foreign")
+  employees       employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payroll_records_employee_id_foreign")
+
+  @@unique([employee_id, month], map: "payroll_records_employee_id_month_unique")
+}
+
+model permissions {
+  id                    BigInt                  @id @default(autoincrement())
+  name                  String                  @db.VarChar(255)
+  guard_name            String                  @db.VarChar(255)
+  created_at            DateTime?               @db.Timestamp(0)
+  updated_at            DateTime?               @db.Timestamp(0)
+  model_has_permissions model_has_permissions[]
+  role_has_permissions  role_has_permissions[]
+
+  @@unique([name, guard_name], map: "permissions_name_guard_name_unique")
+}
+
+model purchase_order_items {
+  id              BigInt          @id @default(autoincrement())
+  po_id           BigInt
+  item_id         BigInt
+  quantity        Int
+  unit_price      Decimal         @db.Decimal(10, 2)
+  total_price     Decimal         @default(dbgenerated("((quantity)::numeric * unit_price)")) @db.Decimal(10, 2)
+  received_qty    Int             @default(0)
+  grn_items       grn_items[]
+  inventory_items inventory_items @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_order_items_item_id_foreign")
+  purchase_orders purchase_orders @relation(fields: [po_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "purchase_order_items_po_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model purchase_orders {
+  id                    BigInt                 @id @default(autoincrement())
+  po_number             String                 @unique(map: "purchase_orders_po_number_unique") @db.VarChar(255)
+  vendor_id             BigInt
+  requisition_id        BigInt?
+  order_date            DateTime               @db.Date
+  expected_delivery     DateTime?              @db.Date
+  total_amount          Decimal                @default(0) @db.Decimal(12, 2)
+  status                String                 @default("draft") @db.VarChar(255)
+  terms                 String?
+  created_by            BigInt
+  created_at            DateTime?              @db.Timestamp(0)
+  updated_at            DateTime?              @db.Timestamp(0)
+  grn_records           grn_records[]
+  purchase_order_items  purchase_order_items[]
+  users                 users                  @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_orders_created_by_foreign")
+  purchase_requisitions purchase_requisitions? @relation(fields: [requisition_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_orders_requisition_id_foreign")
+  vendors               vendors                @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_orders_vendor_id_foreign")
+}
+
+model purchase_requisition_items {
+  id                    BigInt                @id @default(autoincrement())
+  requisition_id        BigInt
+  item_id               BigInt
+  quantity              Int
+  estimated_price       Decimal?              @db.Decimal(10, 2)
+  remark                String?
+  inventory_items       inventory_items       @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_requisition_items_item_id_foreign")
+  purchase_requisitions purchase_requisitions @relation(fields: [requisition_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "purchase_requisition_items_requisition_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model purchase_requisitions {
+  id                                              BigInt                       @id @default(autoincrement())
+  pr_number                                       String                       @unique(map: "purchase_requisitions_pr_number_unique") @db.VarChar(255)
+  required_by                                     DateTime                     @db.Date
+  purpose                                         String?
+  status                                          String                       @default("pending") @db.VarChar(255)
+  requested_by                                    BigInt
+  approved_by                                     BigInt?
+  approved_at                                     DateTime?                    @db.Timestamp(0)
+  remarks                                         String?
+  created_at                                      DateTime?                    @db.Timestamp(0)
+  updated_at                                      DateTime?                    @db.Timestamp(0)
+  purchase_orders                                 purchase_orders[]
+  purchase_requisition_items                      purchase_requisition_items[]
+  users_purchase_requisitions_approved_byTousers  users?                       @relation("purchase_requisitions_approved_byTousers", fields: [approved_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_requisitions_approved_by_foreign")
+  users_purchase_requisitions_requested_byTousers users                        @relation("purchase_requisitions_requested_byTousers", fields: [requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "purchase_requisitions_requested_by_foreign")
+}
+
+model question_bank {
+  id                    BigInt                  @id @default(autoincrement())
+  subject_id            BigInt
+  class_id              BigInt
+  question_type         String                  @db.VarChar(255)
+  question              String
+  option_a              String?
+  option_b              String?
+  option_c              String?
+  option_d              String?
+  correct_answer        String?
+  marks                 Decimal                 @default(1) @db.Decimal(5, 2)
+  difficulty            String                  @default("medium") @db.VarChar(255)
+  chapter               String?                 @db.VarChar(255)
+  is_active             Boolean                 @default(true)
+  created_at            DateTime?               @db.Timestamp(0)
+  updated_at            DateTime?               @db.Timestamp(0)
+  online_exam_questions online_exam_questions[]
+  online_exam_responses online_exam_responses[]
+  subjects              subjects                @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "question_bank_subject_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model question_paper_templates {
+  id                      BigInt    @id @default(autoincrement())
+  name                    String    @db.VarChar(255)
+  exam_type               String?   @db.VarChar(255)
+  show_school_logo        Boolean   @default(true)
+  show_school_name        Boolean   @default(true)
+  show_school_address     Boolean   @default(true)
+  show_affiliation        Boolean   @default(true)
+  header_instructions     String?
+  general_instructions    String?
+  watermark_text          String?   @db.VarChar(255)
+  question_numbering      String    @default("numeric") @db.VarChar(255)
+  show_marks_per_question Boolean   @default(true)
+  show_section_totals     Boolean   @default(true)
+  show_answer_lines       Boolean   @default(false)
+  answer_lines_count      Int       @default(5)
+  paper_size              String    @default("A4") @db.VarChar(10)
+  font_size               String    @default("12") @db.VarChar(10)
+  is_default              Boolean   @default(false)
+  created_at              DateTime? @db.Timestamp(0)
+  updated_at              DateTime? @db.Timestamp(0)
+}
+
+model question_papers {
+  id              BigInt    @id @default(autoincrement())
+  exam_id         BigInt?
+  subject_id      BigInt?
+  class_id        BigInt?
+  title           String    @db.VarChar(255)
+  file_path       String    @db.VarChar(255)
+  original_name   String?   @db.VarChar(255)
+  accessible_from DateTime? @db.Date
+  is_restricted   Boolean   @default(true)
+  uploaded_by     BigInt?
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+  classes         classes?  @relation(fields: [class_id], references: [id], onUpdate: NoAction, map: "question_papers_class_id_foreign")
+  exams           exams?    @relation(fields: [exam_id], references: [id], onUpdate: NoAction, map: "question_papers_exam_id_foreign")
+  subjects        subjects? @relation(fields: [subject_id], references: [id], onUpdate: NoAction, map: "question_papers_subject_id_foreign")
+}
+
+model role_has_permissions {
+  permission_id BigInt
+  role_id       BigInt
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_has_permissions_permission_id_foreign")
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_has_permissions_role_id_foreign")
+
+  @@id([permission_id, role_id])
+}
+
+model roles {
+  id                   BigInt                 @id @default(autoincrement())
+  name                 String                 @db.VarChar(255)
+  guard_name           String                 @db.VarChar(255)
+  created_at           DateTime?              @db.Timestamp(0)
+  updated_at           DateTime?              @db.Timestamp(0)
+  model_has_roles      model_has_roles[]
+  role_has_permissions role_has_permissions[]
+
+  @@unique([name, guard_name], map: "roles_name_guard_name_unique")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model salary_advances {
+  id                BigInt    @id @default(autoincrement())
+  employee_id       BigInt
+  amount            Decimal   @db.Decimal(10, 2)
+  advance_date      DateTime  @db.Date
+  reason            String?   @db.VarChar(255)
+  status            String    @default("pending") @db.VarChar(255)
+  recovery_months   Int       @default(1) @db.SmallInt
+  monthly_deduction Decimal   @default(0) @db.Decimal(10, 2)
+  recovered_amount  Decimal   @default(0) @db.Decimal(10, 2)
+  approved_by       BigInt?
+  approved_date     DateTime? @db.Date
+  remarks           String?   @db.VarChar(255)
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+  users             users?    @relation(fields: [approved_by], references: [id], onUpdate: NoAction, map: "salary_advances_approved_by_foreign")
+  employees         employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "salary_advances_employee_id_foreign")
+}
+
+model salary_structures {
+  id                BigInt    @id @default(autoincrement())
+  employee_id       BigInt
+  basic_salary      Decimal   @default(0) @db.Decimal(10, 2)
+  hra               Decimal   @default(0) @db.Decimal(8, 2)
+  da                Decimal   @default(0) @db.Decimal(8, 2)
+  ta                Decimal   @default(0) @db.Decimal(8, 2)
+  medical_allowance Decimal   @default(0) @db.Decimal(8, 2)
+  other_allowances  Decimal   @default(0) @db.Decimal(8, 2)
+  pf_employee       Decimal   @default(0) @db.Decimal(8, 2)
+  pf_employer       Decimal   @default(0) @db.Decimal(8, 2)
+  esi_employee      Decimal   @default(0) @db.Decimal(8, 2)
+  esi_employer      Decimal   @default(0) @db.Decimal(8, 2)
+  tds               Decimal   @default(0) @db.Decimal(8, 2)
+  effective_from    DateTime  @db.Date
+  effective_to      DateTime? @db.Date
+  is_active         Boolean   @default(true)
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+  employees         employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "salary_structures_employee_id_foreign")
+}
+
+model scholarship_schemes {
+  id                   BigInt    @id @default(autoincrement())
+  name                 String    @db.VarChar(255)
+  type                 String    @db.VarChar(255)
+  value                Decimal   @default(0) @db.Decimal(10, 2)
+  applicable_fee_heads String?
+  criteria_type        String?   @db.VarChar(255)
+  marks_threshold      Decimal?  @db.Decimal(5, 2)
+  is_active            Boolean   @default(true)
+  created_at           DateTime? @db.Timestamp(0)
+  updated_at           DateTime? @db.Timestamp(0)
+}
+
+model school_settings {
+  id                       BigInt    @id @default(autoincrement())
+  school_name              String    @db.VarChar(255)
+  school_code              String?   @db.VarChar(255)
+  affiliation_no           String?   @db.VarChar(255)
+  board                    String    @default("CBSE") @db.VarChar(255)
+  address                  String?
+  city                     String?   @db.VarChar(255)
+  state                    String?   @db.VarChar(255)
+  pincode                  String?   @db.VarChar(10)
+  phone                    String?   @db.VarChar(20)
+  email                    String?   @db.VarChar(255)
+  website                  String?   @db.VarChar(255)
+  logo                     String?   @db.VarChar(255)
+  principal_name           String?   @db.VarChar(255)
+  principal_signature      String?   @db.VarChar(255)
+  school_stamp             String?   @db.VarChar(255)
+  gstin                    String?   @db.VarChar(20)
+  pan                      String?   @db.VarChar(20)
+  primary_color            String    @default("#3B82F6") @db.VarChar(7)
+  currency_symbol          String    @default("₹") @db.VarChar(5)
+  date_format              String    @default("d/m/Y") @db.VarChar(255)
+  timezone                 String    @default("Asia/Kolkata") @db.VarChar(255)
+  academic_year_format     String    @default("April-March") @db.VarChar(255)
+  medium                   String    @default("English") @db.VarChar(255)
+  sms_enabled              Boolean   @default(false)
+  whatsapp_enabled         Boolean   @default(false)
+  online_payment_enabled   Boolean   @default(false)
+  created_at               DateTime? @db.Timestamp(0)
+  updated_at               DateTime? @db.Timestamp(0)
+  id_card_header_color     String    @default("#1e3a5f") @db.VarChar(7)
+  id_card_text_color       String    @default("#1e3a5f") @db.VarChar(7)
+  id_card_bg_color         String    @default("#ffffff") @db.VarChar(7)
+  id_card_header_text      String?   @db.VarChar(255)
+  id_card_footer_text      String?   @db.VarChar(255)
+  id_card_show_blood_group Boolean   @default(true)
+  id_card_show_dob         Boolean   @default(true)
+  id_card_show_qr          Boolean   @default(true)
+  id_card_show_mobile      Boolean   @default(true)
+  id_card_show_address     Boolean   @default(false)
+  id_card_show_photo       Boolean   @default(true)
+}
+
+model seat_capacities {
+  id               BigInt    @id @default(autoincrement())
+  class_id         BigInt
+  academic_year_id BigInt?
+  category         String    @default("general") @db.VarChar(255)
+  total_seats      Int       @default(0)
+  filled_seats     Int       @default(0)
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+  classes          classes   @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "seat_capacities_class_id_foreign")
+}
+
+model sections {
+  id                                        BigInt                @id @default(autoincrement())
+  class_id                                  BigInt
+  academic_year_id                          BigInt
+  name                                      String                @db.VarChar(255)
+  capacity                                  Int                   @default(40)
+  class_teacher_id                          BigInt?
+  is_active                                 Boolean               @default(true)
+  created_at                                DateTime?             @db.Timestamp(0)
+  updated_at                                DateTime?             @db.Timestamp(0)
+  co_class_teacher_id                       BigInt?
+  attendance_records                        attendance_records[]
+  homework                                  homework[]
+  academic_years                            academic_years        @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sections_academic_year_id_foreign")
+  classes                                   classes               @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "sections_class_id_foreign")
+  users_sections_class_teacher_idTousers    users?                @relation("sections_class_teacher_idTousers", fields: [class_teacher_id], references: [id], onUpdate: NoAction, map: "sections_class_teacher_id_foreign")
+  users_sections_co_class_teacher_idTousers users?                @relation("sections_co_class_teacher_idTousers", fields: [co_class_teacher_id], references: [id], onUpdate: NoAction, map: "sections_co_class_teacher_id_foreign")
+  student_enrollments                       student_enrollments[]
+  timetables                                timetables[]
+
+  @@unique([class_id, academic_year_id, name], map: "sections_class_id_academic_year_id_name_unique")
+}
+
+model sessions {
+  id            String  @id @db.VarChar(255)
+  user_id       BigInt?
+  ip_address    String? @db.VarChar(45)
+  user_agent    String?
+  payload       String
+  last_activity Int
+
+  @@index([last_activity], map: "sessions_last_activity_index")
+  @@index([user_id], map: "sessions_user_id_index")
+}
+
+model staff_attendance {
+  id           BigInt    @id @default(autoincrement())
+  employee_id  BigInt
+  date         DateTime  @db.Date
+  status       String    @default("present") @db.VarChar(255)
+  check_in     DateTime? @db.Time(0)
+  check_out    DateTime? @db.Time(0)
+  remarks      String?
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+  is_late      Boolean   @default(false)
+  late_minutes Int       @default(0) @db.SmallInt
+  employees    employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staff_attendance_employee_id_foreign")
+
+  @@unique([employee_id, date], map: "staff_attendance_employee_id_date_unique")
+}
+
+model staff_notice_reads {
+  id              BigInt   @id @default(autoincrement())
+  staff_notice_id BigInt
+  user_id         BigInt
+  read_at         DateTime @db.Timestamp(0)
+
+  @@unique([staff_notice_id, user_id], map: "staff_notice_reads_staff_notice_id_user_id_unique")
+  @@index([staff_notice_id], map: "staff_notice_reads_staff_notice_id_index")
+  @@index([user_id], map: "staff_notice_reads_user_id_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model staff_notices {
+  id                BigInt    @id @default(autoincrement())
+  title             String    @db.VarChar(255)
+  body              String
+  priority          String    @default("normal") @db.VarChar(255)
+  target_department String?   @db.VarChar(255)
+  created_by        BigInt
+  expires_at        DateTime? @db.Timestamp(0)
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+
+  @@index([priority], map: "staff_notices_priority_index")
+}
+
+model stock_issuance_items {
+  id              BigInt          @id @default(autoincrement())
+  issuance_id     BigInt
+  item_id         BigInt
+  quantity        Int
+  remark          String?
+  stock_issuances stock_issuances @relation(fields: [issuance_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "stock_issuance_items_issuance_id_foreign")
+  inventory_items inventory_items @relation(fields: [item_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_issuance_items_item_id_foreign")
+}
+
+model stock_issuances {
+  id                   BigInt                 @id @default(autoincrement())
+  issue_number         String                 @unique(map: "stock_issuances_issue_number_unique") @db.VarChar(255)
+  issue_date           DateTime               @db.Date
+  issued_to            String                 @db.VarChar(255)
+  issued_by            BigInt
+  purpose              String?
+  created_at           DateTime?              @db.Timestamp(0)
+  updated_at           DateTime?              @db.Timestamp(0)
+  stock_issuance_items stock_issuance_items[]
+  users                users                  @relation(fields: [issued_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "stock_issuances_issued_by_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_applications {
+  id                       BigInt                   @id @default(autoincrement())
+  application_number       String                   @unique(map: "student_applications_application_number_unique") @db.VarChar(255)
+  form_config_id           BigInt
+  academic_year_id         BigInt
+  class_id                 BigInt?
+  enquiry_id               BigInt?
+  form_data                Json                     @db.Json
+  documents                Json?                    @db.Json
+  status                   String                   @default("submitted") @db.VarChar(255)
+  parent_name              String?                  @db.VarChar(255)
+  parent_mobile            String?                  @db.VarChar(20)
+  parent_email             String?                  @db.VarChar(255)
+  student_name             String?                  @db.VarChar(255)
+  admin_notes              String?
+  reviewed_by              BigInt?
+  created_at               DateTime?                @db.Timestamp(0)
+  updated_at               DateTime?                @db.Timestamp(0)
+  application_form_configs application_form_configs @relation(fields: [form_config_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_applications_form_config_id_foreign")
+}
+
+model student_concessions {
+  id                   BigInt    @id @default(autoincrement())
+  student_id           BigInt
+  scholarship_id       BigInt?
+  academic_year_id     BigInt?
+  concession_type      String    @db.VarChar(255)
+  value_type           String    @db.VarChar(255)
+  value                Decimal   @default(0) @db.Decimal(10, 2)
+  applicable_fee_heads String?
+  valid_from           DateTime  @db.Date
+  valid_to             DateTime? @db.Date
+  granted_by           BigInt?
+  remarks              String?
+  created_at           DateTime? @db.Timestamp(0)
+  updated_at           DateTime? @db.Timestamp(0)
+  students             students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_concessions_student_id_foreign")
+}
+
+model student_custom_fees {
+  id               BigInt         @id @default(autoincrement())
+  student_id       BigInt
+  fee_head_id      BigInt
+  academic_year_id BigInt
+  custom_amount    Decimal        @db.Decimal(10, 2)
+  reason           String?
+  set_by           BigInt?
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_custom_fees_academic_year_id_foreign")
+  fee_heads        fee_heads      @relation(fields: [fee_head_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_custom_fees_fee_head_id_foreign")
+  users            users?         @relation(fields: [set_by], references: [id], onUpdate: NoAction, map: "student_custom_fees_set_by_foreign")
+  students         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_custom_fees_student_id_foreign")
+
+  @@unique([student_id, fee_head_id, academic_year_id], map: "scf_student_head_year")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_disciplinaries {
+  id                 BigInt    @id @default(autoincrement())
+  student_id         BigInt
+  incident_date      DateTime  @db.Date
+  incident_type      String    @db.VarChar(50)
+  description        String
+  action_taken       String?
+  action_type        String    @default("warning") @db.VarChar(255)
+  suspension_from    DateTime? @db.Date
+  suspension_to      DateTime? @db.Date
+  award_name         String?   @db.VarChar(100)
+  reported_by        BigInt?
+  parent_notified    Boolean   @default(false)
+  parent_notified_at DateTime? @db.Timestamp(0)
+  created_at         DateTime? @db.Timestamp(0)
+  updated_at         DateTime? @db.Timestamp(0)
+  users              users?    @relation(fields: [reported_by], references: [id], onUpdate: NoAction, map: "student_disciplinaries_reported_by_foreign")
+  students           students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_disciplinaries_student_id_foreign")
+}
+
+model student_disciplinary {
+  id              BigInt    @id @default(autoincrement())
+  student_id      BigInt
+  incident_date   DateTime  @db.Date
+  incident_type   String    @db.VarChar(255)
+  description     String
+  action_taken    String?   @db.VarChar(255)
+  reported_by     BigInt?
+  parent_notified Boolean   @default(false)
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+  students        students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_disciplinary_student_id_foreign")
+}
+
+model student_documents {
+  id            BigInt    @id @default(autoincrement())
+  student_id    BigInt
+  document_type String    @db.VarChar(255)
+  file_path     String    @db.VarChar(255)
+  original_name String?   @db.VarChar(255)
+  status        String    @default("pending") @db.VarChar(255)
+  verified_by   BigInt?
+  verified_at   DateTime? @db.Timestamp(0)
+  remarks       String?
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+  expiry_date   DateTime? @db.Date
+  reminder_sent Boolean   @default(false)
+  students      students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_documents_student_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_enrollments {
+  id               BigInt         @id @default(autoincrement())
+  student_id       BigInt
+  academic_year_id BigInt
+  class_id         BigInt
+  section_id       BigInt
+  roll_number      Int?
+  house            String?        @db.VarChar(255)
+  status           String         @default("active") @db.VarChar(255)
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  fee_payments     fee_payments[]
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_enrollments_academic_year_id_foreign")
+  classes          classes        @relation(fields: [class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "student_enrollments_class_id_foreign")
+  sections         sections       @relation(fields: [section_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "student_enrollments_section_id_foreign")
+  students         students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_enrollments_student_id_foreign")
+
+  @@unique([student_id, academic_year_id], map: "student_enrollments_student_id_academic_year_id_unique")
+  @@index([academic_year_id, class_id, section_id], map: "student_enrollments_academic_year_id_class_id_section_id_index")
+}
+
+model student_fee_charges {
+  id               BigInt     @id @default(autoincrement())
+  student_id       BigInt
+  academic_year_id BigInt?
+  fee_head_id      BigInt?
+  amount           Decimal    @db.Decimal(10, 2)
+  due_date         DateTime?  @db.Date
+  description      String?    @db.VarChar(255)
+  source           String?    @db.VarChar(255)
+  source_id        BigInt?
+  is_active        Boolean    @default(true)
+  created_by       BigInt?
+  created_at       DateTime?  @db.Timestamp(0)
+  updated_at       DateTime?  @db.Timestamp(0)
+  fee_heads        fee_heads? @relation(fields: [fee_head_id], references: [id], onUpdate: NoAction, map: "student_fee_charges_fee_head_id_foreign")
+  students         students   @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_fee_charges_student_id_foreign")
+}
+
+model student_leave_requests {
+  id          BigInt    @id @default(autoincrement())
+  student_id  BigInt
+  leave_type  String    @db.VarChar(255)
+  from_date   DateTime  @db.Date
+  to_date     DateTime  @db.Date
+  days        Int       @default(1)
+  reason      String
+  status      String    @default("pending") @db.VarChar(255)
+  approved_by BigInt?
+  remarks     String?
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  students    students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_leave_requests_student_id_foreign")
+}
+
+model student_medical_records {
+  id                  BigInt    @id @default(autoincrement())
+  student_id          BigInt
+  allergies           String?
+  chronic_conditions  String?
+  medications         String?
+  family_doctor       String?   @db.VarChar(255)
+  doctor_mobile       String?   @db.VarChar(255)
+  nearest_hospital    String?   @db.VarChar(255)
+  health_insurance_no String?   @db.VarChar(255)
+  created_at          DateTime? @db.Timestamp(0)
+  updated_at          DateTime? @db.Timestamp(0)
+  students            students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_medical_records_student_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_outpasses {
+  id              BigInt    @id @default(autoincrement())
+  student_id      BigInt
+  pass_number     String    @unique(map: "student_outpasses_pass_number_unique") @db.VarChar(255)
+  out_time        DateTime  @db.Timestamp(0)
+  expected_return DateTime? @db.Timestamp(0)
+  actual_return   DateTime? @db.Timestamp(0)
+  reason          String    @db.VarChar(255)
+  authorized_by   String    @db.VarChar(255)
+  status          String    @default("active") @db.VarChar(255)
+  issued_by       BigInt
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+  users           users     @relation(fields: [issued_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "student_outpasses_issued_by_foreign")
+  students        students  @relation(fields: [student_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "student_outpasses_student_id_foreign")
+}
+
+model student_promotions {
+  id                    BigInt    @id @default(autoincrement())
+  student_id            BigInt
+  from_class_id         BigInt
+  to_class_id           BigInt?
+  from_academic_year_id BigInt
+  to_academic_year_id   BigInt?
+  status                String    @db.VarChar(255)
+  promoted_by           BigInt?
+  remarks               String?
+  promoted_at           DateTime  @db.Timestamp(0)
+  created_at            DateTime? @db.Timestamp(0)
+  updated_at            DateTime? @db.Timestamp(0)
+  students              students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_promotions_student_id_foreign")
+}
+
+model student_vaccinations {
+  id           BigInt    @id @default(autoincrement())
+  student_id   BigInt
+  vaccine_name String    @db.VarChar(255)
+  date_given   DateTime  @db.Date
+  dose         String?   @db.VarChar(255)
+  created_at   DateTime? @db.Timestamp(0)
+  updated_at   DateTime? @db.Timestamp(0)
+  students     students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "student_vaccinations_student_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model students {
+  id                           BigInt                      @id @default(autoincrement())
+  admission_no                 String                      @unique(map: "students_admission_no_unique") @db.VarChar(255)
+  admission_date               DateTime                    @db.Date
+  first_name                   String                      @db.VarChar(255)
+  middle_name                  String?                     @db.VarChar(255)
+  last_name                    String                      @db.VarChar(255)
+  dob                          DateTime                    @db.Date
+  gender                       String                      @db.VarChar(255)
+  nationality                  String                      @default("Indian") @db.VarChar(255)
+  religion                     String?                     @db.VarChar(255)
+  caste                        String?                     @db.VarChar(255)
+  sub_caste                    String?                     @db.VarChar(255)
+  category                     String                      @default("general") @db.VarChar(255)
+  mother_tongue                String?                     @db.VarChar(255)
+  blood_group                  String?                     @db.VarChar(5)
+  aadhaar_no                   String?                     @db.VarChar(12)
+  photo                        String?                     @db.VarChar(255)
+  is_disabled                  Boolean                     @default(false)
+  disability_description       String?
+  email                        String?                     @db.VarChar(255)
+  mobile                       String?                     @db.VarChar(15)
+  residential_address          String?
+  permanent_address            String?
+  pincode                      String?                     @db.VarChar(10)
+  father_name                  String?                     @db.VarChar(255)
+  father_occupation            String?                     @db.VarChar(255)
+  father_mobile                String?                     @db.VarChar(15)
+  father_email                 String?                     @db.VarChar(255)
+  father_aadhaar               String?                     @db.VarChar(12)
+  mother_name                  String?                     @db.VarChar(255)
+  mother_occupation            String?                     @db.VarChar(255)
+  mother_mobile                String?                     @db.VarChar(15)
+  mother_email                 String?                     @db.VarChar(255)
+  guardian_name                String?                     @db.VarChar(255)
+  guardian_relation            String?                     @db.VarChar(255)
+  guardian_mobile              String?                     @db.VarChar(15)
+  emergency_contact_name       String?                     @db.VarChar(255)
+  emergency_contact_mobile     String?                     @db.VarChar(15)
+  annual_family_income         Decimal?                    @db.Decimal(10, 2)
+  previous_school_name         String?                     @db.VarChar(255)
+  previous_school_board        String?                     @db.VarChar(255)
+  tc_number                    String?                     @db.VarChar(255)
+  tc_date                      DateTime?                   @db.Date
+  allergies                    String?
+  medical_conditions           String?
+  doctor_name                  String?                     @db.VarChar(255)
+  doctor_phone                 String?                     @db.VarChar(15)
+  status                       String                      @default("active") @db.VarChar(255)
+  student_type                 String                      @default("day_scholar") @db.VarChar(255)
+  sibling_group_id             BigInt?
+  deleted_at                   DateTime?                   @db.Timestamp(0)
+  created_at                   DateTime?                   @db.Timestamp(0)
+  updated_at                   DateTime?                   @db.Timestamp(0)
+  previous_percentage          Decimal?                    @db.Decimal(5, 2)
+  migration_certificate_number String?                     @db.VarChar(50)
+  migration_certificate_date   DateTime?                   @db.Date
+  parent_employee_id           BigInt?
+  leaving_date                 DateTime?                   @db.Date
+  leaving_reason               String?                     @db.VarChar(255)
+  tc_document                  String?                     @db.VarChar(255)
+  marksheet_document           String?                     @db.VarChar(255)
+  migration_document           String?                     @db.VarChar(255)
+  scholarship_name             String?                     @db.VarChar(255)
+  scholarship_amount           Decimal?                    @db.Decimal(10, 2)
+  scholarship_sanction_letter  String?                     @db.VarChar(255)
+  passport_number              String?                     @db.VarChar(50)
+  passport_expiry              DateTime?                   @db.Date
+  portal_blocked               Boolean                     @default(false)
+  portal_block_reason          String?                     @db.VarChar(255)
+  portal_blocked_at            DateTime?                   @db.Timestamp(0)
+  library_suspended            Boolean                     @default(false)
+  library_suspension_reason    String?                     @db.VarChar(255)
+  activity_learning_records    activity_learning_records[]
+  alumni                       alumni[]
+  attendance_condonations      attendance_condonations[]
+  attendance_records           attendance_records[]
+  book_issues                  book_issues[]
+  competency_assessments       competency_assessments[]
+  coscholastic_assessments     coscholastic_assessments[]
+  exam_marks                   exam_marks[]
+  fee_advance_payments         fee_advance_payments[]
+  fee_carry_forwards           fee_carry_forwards[]
+  fee_payments                 fee_payments[]
+  homework_submissions         homework_submissions[]
+  hostel_allotments            hostel_allotments[]
+  hostel_disciplinary          hostel_disciplinary[]
+  hostel_outpasses             hostel_outpasses[]
+  marks_recheck_requests       marks_recheck_requests[]
+  mess_feedback                mess_feedback[]
+  online_exam_attempts         online_exam_attempts[]
+  student_concessions          student_concessions[]
+  student_custom_fees          student_custom_fees[]
+  student_disciplinaries       student_disciplinaries[]
+  student_disciplinary         student_disciplinary[]
+  student_documents            student_documents[]
+  student_enrollments          student_enrollments[]
+  student_fee_charges          student_fee_charges[]
+  student_leave_requests       student_leave_requests[]
+  student_medical_records      student_medical_records[]
+  student_outpasses            student_outpasses[]
+  student_promotions           student_promotions[]
+  student_vaccinations         student_vaccinations[]
+  employees                    employees?                  @relation(fields: [parent_employee_id], references: [id], onUpdate: NoAction, map: "students_parent_employee_id_foreign")
+  tc_requests                  tc_requests[]
+  transport_allotments         transport_allotments[]
+
+  @@index([sibling_group_id], map: "students_sibling_group_id_index")
+  @@index([status, gender, category], map: "students_status_gender_category_index")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model subjects {
+  id                          BigInt                        @id @default(autoincrement())
+  name                        String                        @db.VarChar(255)
+  code                        String?                       @db.VarChar(20)
+  type                        String                        @default("theory") @db.VarChar(255)
+  language_level              String?                       @db.VarChar(255)
+  is_elective                 Boolean                       @default(false)
+  is_active                   Boolean                       @default(true)
+  credit_hours                Int                           @default(1)
+  medium                      String                        @default("English") @db.VarChar(255)
+  created_at                  DateTime?                     @db.Timestamp(0)
+  updated_at                  DateTime?                     @db.Timestamp(0)
+  language_type               String                        @default("none") @db.VarChar(255)
+  board_curriculum            String                        @default("cbse") @db.VarChar(255)
+  stream                      String?                       @db.VarChar(20)
+  is_coscholastic             Boolean                       @default(false)
+  competencies                competencies[]
+  exam_schedules              exam_schedules[]
+  homework                    homework[]
+  lesson_plans                lesson_plans[]
+  question_bank               question_bank[]
+  question_papers             question_papers[]
+  syllabus                    syllabus[]
+  teacher_subject_allocations teacher_subject_allocations[]
+  timetables                  timetables[]
+}
+
+model substitutions {
+  id                                                       BigInt    @id @default(autoincrement())
+  date                                                     DateTime  @db.Date
+  absent_teacher_id                                        BigInt
+  substitute_teacher_id                                    BigInt
+  class_id                                                 BigInt
+  section_id                                               BigInt?
+  subject_id                                               BigInt?
+  period_number                                            Int
+  start_time                                               String?   @db.VarChar(255)
+  end_time                                                 String?   @db.VarChar(255)
+  remarks                                                  String?
+  arranged_by                                              BigInt
+  created_at                                               DateTime? @db.Timestamp(0)
+  updated_at                                               DateTime? @db.Timestamp(0)
+  employees_substitutions_absent_teacher_idToemployees     employees @relation("substitutions_absent_teacher_idToemployees", fields: [absent_teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "substitutions_absent_teacher_id_foreign")
+  classes                                                  classes   @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "substitutions_class_id_foreign")
+  employees_substitutions_substitute_teacher_idToemployees employees @relation("substitutions_substitute_teacher_idToemployees", fields: [substitute_teacher_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "substitutions_substitute_teacher_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model syllabus {
+  id               BigInt         @id @default(autoincrement())
+  class_id         BigInt
+  subject_id       BigInt
+  academic_year_id BigInt
+  chapter_number   String?        @db.VarChar(10)
+  chapter_title    String         @db.VarChar(255)
+  topics           String?
+  status           String         @default("pending") @db.VarChar(255)
+  planned_date     DateTime?      @db.Date
+  completed_date   DateTime?      @db.Date
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  term             String?        @db.VarChar(255)
+  document_path    String?        @db.VarChar(255)
+  lesson_plans     lesson_plans[]
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "syllabus_academic_year_id_foreign")
+  classes          classes        @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "syllabus_class_id_foreign")
+  subjects         subjects       @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "syllabus_subject_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model tc_requests {
+  id                                             BigInt    @id @default(autoincrement())
+  student_id                                     BigInt
+  requested_by_type                              String    @default("parent") @db.VarChar(255)
+  requested_by_user                              BigInt?
+  reason                                         String?
+  status                                         String    @default("pending") @db.VarChar(255)
+  hod_approved_by                                BigInt?
+  hod_approved_at                                DateTime? @db.Timestamp(0)
+  principal_approved_by                          BigInt?
+  principal_approved_at                          DateTime? @db.Timestamp(0)
+  issued_by                                      BigInt?
+  issued_at                                      DateTime? @db.Timestamp(0)
+  rejection_reason                               String?
+  rejected_by                                    BigInt?
+  created_at                                     DateTime? @db.Timestamp(0)
+  updated_at                                     DateTime? @db.Timestamp(0)
+  users_tc_requests_hod_approved_byTousers       users?    @relation("tc_requests_hod_approved_byTousers", fields: [hod_approved_by], references: [id], onUpdate: NoAction, map: "tc_requests_hod_approved_by_foreign")
+  users_tc_requests_issued_byTousers             users?    @relation("tc_requests_issued_byTousers", fields: [issued_by], references: [id], onUpdate: NoAction, map: "tc_requests_issued_by_foreign")
+  users_tc_requests_principal_approved_byTousers users?    @relation("tc_requests_principal_approved_byTousers", fields: [principal_approved_by], references: [id], onUpdate: NoAction, map: "tc_requests_principal_approved_by_foreign")
+  users_tc_requests_rejected_byTousers           users?    @relation("tc_requests_rejected_byTousers", fields: [rejected_by], references: [id], onUpdate: NoAction, map: "tc_requests_rejected_by_foreign")
+  users_tc_requests_requested_by_userTousers     users?    @relation("tc_requests_requested_by_userTousers", fields: [requested_by_user], references: [id], onUpdate: NoAction, map: "tc_requests_requested_by_user_foreign")
+  students                                       students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "tc_requests_student_id_foreign")
+}
+
+model teacher_subject_allocations {
+  id               BigInt    @id @default(autoincrement())
+  employee_id      BigInt
+  subject_id       BigInt
+  class_id         BigInt
+  section_id       BigInt?
+  academic_year_id BigInt?
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+  classes          classes   @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "teacher_subject_allocations_class_id_foreign")
+  employees        employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "teacher_subject_allocations_employee_id_foreign")
+  subjects         subjects  @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "teacher_subject_allocations_subject_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model timetables {
+  id               BigInt         @id @default(autoincrement())
+  class_id         BigInt
+  section_id       BigInt?
+  subject_id       BigInt
+  teacher_id       BigInt?
+  academic_year_id BigInt
+  day_of_week      Int            @db.SmallInt
+  start_time       DateTime       @db.Time(0)
+  end_time         DateTime       @db.Time(0)
+  room             String?        @db.VarChar(255)
+  is_active        Boolean        @default(true)
+  created_at       DateTime?      @db.Timestamp(0)
+  updated_at       DateTime?      @db.Timestamp(0)
+  period_type      String         @default("class") @db.VarChar(255)
+  effective_from   DateTime?      @db.Date
+  academic_years   academic_years @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "timetables_academic_year_id_foreign")
+  classes          classes        @relation(fields: [class_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "timetables_class_id_foreign")
+  sections         sections?      @relation(fields: [section_id], references: [id], onUpdate: NoAction, map: "timetables_section_id_foreign")
+  subjects         subjects       @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "timetables_subject_id_foreign")
+  employees        employees?     @relation(fields: [teacher_id], references: [id], onUpdate: NoAction, map: "timetables_teacher_id_foreign")
+}
+
+model transport_allotments {
+  id               BigInt           @id @default(autoincrement())
+  student_id       BigInt
+  route_id         BigInt
+  pickup_stop      String?          @db.VarChar(255)
+  academic_year_id BigInt
+  is_active        Boolean          @default(true)
+  created_at       DateTime?        @db.Timestamp(0)
+  updated_at       DateTime?        @db.Timestamp(0)
+  enrollment_id    BigInt?
+  stop_id          BigInt?
+  vehicle_id       BigInt?
+  fee              Decimal?         @db.Decimal(8, 2)
+  pickup_time      DateTime?        @db.Time(0)
+  drop_time        DateTime?        @db.Time(0)
+  boarding_stop    String?          @db.VarChar(255)
+  academic_years   academic_years   @relation(fields: [academic_year_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "transport_allotments_academic_year_id_foreign")
+  transport_routes transport_routes @relation(fields: [route_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "transport_allotments_route_id_foreign")
+  students         students         @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "transport_allotments_student_id_foreign")
+
+  @@unique([student_id, academic_year_id], map: "transport_allotments_student_id_academic_year_id_unique")
+}
+
+model transport_attendants {
+  id               BigInt            @id @default(autoincrement())
+  name             String            @db.VarChar(255)
+  mobile           String?           @db.VarChar(15)
+  aadhaar          String?           @db.VarChar(12)
+  photo            String?           @db.VarChar(255)
+  vehicle_id       BigInt?
+  route_id         BigInt?
+  is_active        Boolean           @default(true)
+  created_at       DateTime?         @db.Timestamp(0)
+  updated_at       DateTime?         @db.Timestamp(0)
+  transport_routes transport_routes? @relation(fields: [route_id], references: [id], onUpdate: NoAction, map: "transport_attendants_route_id_foreign")
+  vehicles         vehicles?         @relation(fields: [vehicle_id], references: [id], onUpdate: NoAction, map: "transport_attendants_vehicle_id_foreign")
+}
+
+model transport_emergency_contacts {
+  id               BigInt           @id @default(autoincrement())
+  route_id         BigInt
+  name             String           @db.VarChar(255)
+  phone            String           @db.VarChar(20)
+  relationship     String?          @db.VarChar(255)
+  designation      String?          @db.VarChar(255)
+  is_primary       Boolean          @default(false)
+  notes            String?          @db.VarChar(255)
+  created_at       DateTime?        @db.Timestamp(0)
+  updated_at       DateTime?        @db.Timestamp(0)
+  transport_routes transport_routes @relation(fields: [route_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "transport_emergency_contacts_route_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model transport_incidents {
+  id               BigInt            @id @default(autoincrement())
+  vehicle_id       BigInt?
+  route_id         BigInt?
+  incident_date    DateTime          @db.Date
+  incident_type    String            @db.VarChar(255)
+  location         String?           @db.VarChar(255)
+  description      String
+  severity         String            @default("minor") @db.VarChar(255)
+  action_taken     String?
+  reported_by      String?           @db.VarChar(255)
+  fir_number       String?           @db.VarChar(255)
+  estimated_loss   Decimal?          @db.Decimal(10, 2)
+  status           String            @default("open") @db.VarChar(255)
+  resolution_notes String?           @db.VarChar(255)
+  resolved_date    DateTime?         @db.Date
+  created_at       DateTime?         @db.Timestamp(0)
+  updated_at       DateTime?         @db.Timestamp(0)
+  transport_routes transport_routes? @relation(fields: [route_id], references: [id], onUpdate: NoAction, map: "transport_incidents_route_id_foreign")
+  vehicles         vehicles?         @relation(fields: [vehicle_id], references: [id], onUpdate: NoAction, map: "transport_incidents_vehicle_id_foreign")
+}
+
+model transport_routes {
+  id                           BigInt                         @id @default(autoincrement())
+  route_name                   String                         @db.VarChar(255)
+  route_number                 String?                        @unique(map: "transport_routes_route_number_unique") @db.VarChar(20)
+  from_location                String                         @db.VarChar(255)
+  to_location                  String                         @db.VarChar(255)
+  stops                        String?
+  departure_time               DateTime?                      @db.Time(0)
+  arrival_time                 DateTime?                      @db.Time(0)
+  distance_km                  Decimal?                       @db.Decimal(6, 2)
+  fee                          Decimal                        @default(0) @db.Decimal(8, 2)
+  is_active                    Boolean                        @default(true)
+  created_at                   DateTime?                      @db.Timestamp(0)
+  updated_at                   DateTime?                      @db.Timestamp(0)
+  transport_allotments         transport_allotments[]
+  transport_attendants         transport_attendants[]
+  transport_emergency_contacts transport_emergency_contacts[]
+  transport_incidents          transport_incidents[]
+  transport_stops              transport_stops[]
+  vehicles                     vehicles[]
+}
+
+model transport_stops {
+  id               BigInt            @id @default(autoincrement())
+  route_id         BigInt?
+  name             String            @db.VarChar(255)
+  stop_order       Int               @default(0)
+  distance_km      Decimal?          @db.Decimal(8, 2)
+  arrival_time     DateTime?         @db.Time(0)
+  created_at       DateTime?         @db.Timestamp(0)
+  updated_at       DateTime?         @db.Timestamp(0)
+  pickup_time      DateTime?         @db.Time(0)
+  drop_time        DateTime?         @db.Time(0)
+  fare             Decimal?          @db.Decimal(8, 2)
+  landmark         String?           @db.VarChar(255)
+  transport_routes transport_routes? @relation(fields: [route_id], references: [id], onUpdate: NoAction, map: "transport_stops_route_id_foreign")
+}
+
+model users {
+  id                                                                   BigInt                    @id @default(autoincrement())
+  name                                                                 String                    @db.VarChar(255)
+  email                                                                String                    @unique(map: "users_email_unique") @db.VarChar(255)
+  mobile                                                               String?                   @unique(map: "users_mobile_unique") @db.VarChar(15)
+  email_verified_at                                                    DateTime?                 @db.Timestamp(0)
+  password                                                             String                    @db.VarChar(255)
+  avatar                                                               String?                   @db.VarChar(255)
+  employee_id                                                          BigInt?
+  student_id                                                           BigInt?
+  is_active                                                            Boolean                   @default(true)
+  last_login_at                                                        DateTime?                 @db.Timestamp(0)
+  remember_token                                                       String?                   @db.VarChar(100)
+  created_at                                                           DateTime?                 @db.Timestamp(0)
+  updated_at                                                           DateTime?                 @db.Timestamp(0)
+  attendance_condonations                                              attendance_condonations[]
+  attendance_records_attendance_records_cutoff_override_byTousers      attendance_records[]      @relation("attendance_records_cutoff_override_byTousers")
+  attendance_records_attendance_records_marked_byTousers               attendance_records[]      @relation("attendance_records_marked_byTousers")
+  audit_logs                                                           audit_logs[]
+  book_issues_book_issues_issued_byTousers                             book_issues[]             @relation("book_issues_issued_byTousers")
+  book_issues_book_issues_returned_toTousers                           book_issues[]             @relation("book_issues_returned_toTousers")
+  employee_appraisals_employee_appraisals_appraised_byTousers          employee_appraisals[]     @relation("employee_appraisals_appraised_byTousers")
+  employee_appraisals_employee_appraisals_increment_approved_byTousers employee_appraisals[]     @relation("employee_appraisals_increment_approved_byTousers")
+  employee_documents                                                   employee_documents[]
+  employee_loans                                                       employee_loans[]
+  enquiries_enquiries_assigned_toTousers                               enquiries[]               @relation("enquiries_assigned_toTousers")
+  enquiries_enquiries_created_byTousers                                enquiries[]               @relation("enquiries_created_byTousers")
+  enquiry_follow_ups                                                   enquiry_follow_ups[]
+  event_photos                                                         event_photos[]
+  event_rsvps                                                          event_rsvps[]
+  events                                                               events[]
+  exam_marks                                                           exam_marks[]
+  exams                                                                exams[]
+  fee_carry_forwards                                                   fee_carry_forwards[]
+  fee_payments                                                         fee_payments[]
+  gate_blacklist                                                       gate_blacklist[]
+  gate_visitors                                                        gate_visitors[]
+  grn_records                                                          grn_records[]
+  homework                                                             homework[]
+  homework_submissions                                                 homework_submissions[]
+  hostel_outpasses                                                     hostel_outpasses[]
+  ip_whitelist                                                         ip_whitelist[]
+  leave_encashments                                                    leave_encashments[]
+  leave_requests                                                       leave_requests[]
+  lesson_plans_lesson_plans_created_byTousers                          lesson_plans[]            @relation("lesson_plans_created_byTousers")
+  lesson_plans_lesson_plans_hod_reviewed_byTousers                     lesson_plans[]            @relation("lesson_plans_hod_reviewed_byTousers")
+  marks_recheck_requests_marks_recheck_requests_requested_byTousers    marks_recheck_requests[]  @relation("marks_recheck_requests_requested_byTousers")
+  marks_recheck_requests_marks_recheck_requests_reviewed_byTousers     marks_recheck_requests[]  @relation("marks_recheck_requests_reviewed_byTousers")
+  night_duty_staff                                                     night_duty_staff[]
+  payroll_records                                                      payroll_records[]
+  purchase_orders                                                      purchase_orders[]
+  purchase_requisitions_purchase_requisitions_approved_byTousers       purchase_requisitions[]   @relation("purchase_requisitions_approved_byTousers")
+  purchase_requisitions_purchase_requisitions_requested_byTousers      purchase_requisitions[]   @relation("purchase_requisitions_requested_byTousers")
+  salary_advances                                                      salary_advances[]
+  sections_sections_class_teacher_idTousers                            sections[]                @relation("sections_class_teacher_idTousers")
+  sections_sections_co_class_teacher_idTousers                         sections[]                @relation("sections_co_class_teacher_idTousers")
+  stock_issuances                                                      stock_issuances[]
+  student_custom_fees                                                  student_custom_fees[]
+  student_disciplinaries                                               student_disciplinaries[]
+  student_outpasses                                                    student_outpasses[]
+  tc_requests_tc_requests_hod_approved_byTousers                       tc_requests[]             @relation("tc_requests_hod_approved_byTousers")
+  tc_requests_tc_requests_issued_byTousers                             tc_requests[]             @relation("tc_requests_issued_byTousers")
+  tc_requests_tc_requests_principal_approved_byTousers                 tc_requests[]             @relation("tc_requests_principal_approved_byTousers")
+  tc_requests_tc_requests_rejected_byTousers                           tc_requests[]             @relation("tc_requests_rejected_byTousers")
+  tc_requests_tc_requests_requested_by_userTousers                     tc_requests[]             @relation("tc_requests_requested_by_userTousers")
+
+  @@index([employee_id], map: "users_employee_id_index")
+  @@index([student_id], map: "users_student_id_index")
+}
+
+model vehicle_fuel_logs {
+  id               BigInt    @id @default(autoincrement())
+  vehicle_id       BigInt
+  log_date         DateTime  @db.Date
+  quantity_litres  Decimal   @db.Decimal(8, 2)
+  cost_per_litre   Decimal?  @db.Decimal(6, 2)
+  total_cost       Decimal   @default(0) @db.Decimal(10, 2)
+  odometer_reading Int?
+  filled_by        String?   @db.VarChar(255)
+  created_at       DateTime? @db.Timestamp(0)
+  updated_at       DateTime? @db.Timestamp(0)
+  vehicles         vehicles  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "vehicle_fuel_logs_vehicle_id_foreign")
+}
+
+model vehicle_maintenance {
+  id                BigInt    @id @default(autoincrement())
+  vehicle_id        BigInt
+  maintenance_date  DateTime  @db.Date
+  maintenance_type  String    @db.VarChar(255)
+  work_done         String
+  vendor            String?   @db.VarChar(255)
+  cost              Decimal   @default(0) @db.Decimal(10, 2)
+  next_service_date DateTime? @db.Date
+  remarks           String?
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+  current_km        Int?
+  next_service_km   Int?
+  vehicles          vehicles  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "vehicle_maintenance_vehicle_id_foreign")
+}
+
+model vehicle_maintenances {
+  id                BigInt    @id @default(autoincrement())
+  vehicle_id        BigInt
+  maintenance_type  String    @db.VarChar(50)
+  service_date      DateTime  @db.Date
+  odometer          Int?
+  cost              Decimal?  @db.Decimal(10, 2)
+  vendor            String?   @db.VarChar(255)
+  description       String?
+  work_done         String?
+  next_service_date DateTime? @db.Date
+  remarks           String?   @db.VarChar(255)
+  created_at        DateTime? @db.Timestamp(0)
+  updated_at        DateTime? @db.Timestamp(0)
+  vehicles          vehicles  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "vehicle_maintenances_vehicle_id_foreign")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model vehicles {
+  id                         BigInt                 @id @default(autoincrement())
+  vehicle_number             String                 @unique(map: "vehicles_vehicle_number_unique") @db.VarChar(255)
+  vehicle_type               String                 @db.VarChar(50)
+  make                       String?                @db.VarChar(255)
+  model                      String?                @db.VarChar(255)
+  seating_capacity           Int                    @default(0)
+  driver_name                String?                @db.VarChar(255)
+  driver_mobile              String?                @db.VarChar(15)
+  driver_license             String?                @db.VarChar(255)
+  rc_expiry                  DateTime?              @db.Date
+  insurance_expiry           DateTime?              @db.Date
+  fitness_expiry             DateTime?              @db.Date
+  route_id                   BigInt?
+  is_active                  Boolean                @default(true)
+  created_at                 DateTime?              @db.Timestamp(0)
+  updated_at                 DateTime?              @db.Timestamp(0)
+  permit_expiry              DateTime?              @db.Date
+  puc_expiry                 DateTime?              @db.Date
+  tax_expiry                 DateTime?              @db.Date
+  driver_license_expiry      DateTime?              @db.Date
+  police_verification_status String                 @default("pending") @db.VarChar(255)
+  police_verification_date   DateTime?              @db.Date
+  police_verification_notes  String?                @db.VarChar(255)
+  registration_number        String?                @db.VarChar(30)
+  capacity                   Int                    @default(0)
+  driver_contact             String?                @db.VarChar(20)
+  license_number             String?                @db.VarChar(30)
+  license_expiry             DateTime?              @db.Date
+  status                     String                 @default("active") @db.VarChar(20)
+  transport_attendants       transport_attendants[]
+  transport_incidents        transport_incidents[]
+  vehicle_fuel_logs          vehicle_fuel_logs[]
+  vehicle_maintenance        vehicle_maintenance[]
+  vehicle_maintenances       vehicle_maintenances[]
+  transport_routes           transport_routes?      @relation(fields: [route_id], references: [id], onUpdate: NoAction, map: "vehicles_route_id_foreign")
+}
+
+model vendors {
+  id              BigInt            @id @default(autoincrement())
+  name            String            @db.VarChar(255)
+  code            String?           @unique(map: "vendors_code_unique") @db.VarChar(255)
+  contact_person  String?           @db.VarChar(255)
+  phone           String?           @db.VarChar(255)
+  email           String?           @db.VarChar(255)
+  address         String?
+  gstin           String?           @db.VarChar(255)
+  pan             String?           @db.VarChar(255)
+  is_active       Boolean           @default(true)
+  created_at      DateTime?         @db.Timestamp(0)
+  updated_at      DateTime?         @db.Timestamp(0)
+  purchase_orders purchase_orders[]
+}

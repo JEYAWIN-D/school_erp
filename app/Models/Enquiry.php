@@ -1,0 +1,88 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Enquiry extends Model
+{
+    use SoftDeletes;
+
+    protected $fillable = [
+        'enquiry_number', 'student_name', 'dob', 'gender',
+        'class_id', 'parent_name', 'parent_mobile', 'parent_email',
+        'address', 'source', 'notes', 'status', 'follow_up_date',
+        'academic_year_id', 'assigned_to', 'created_by',
+        'previous_school', 'previous_class', 'previous_percentage',
+        'rejection_reason', 'waitlist_position',
+        'entrance_test_date', 'entrance_test_time', 'entrance_test_venue', 'entrance_test_invigilator', 'entrance_test_marks',
+        'interview_date', 'interview_time', 'interview_interviewer', 'interview_feedback',
+        'documents', 'doc_checklist', 'referral_name',
+        'missing_docs', 'docs_flag_note',
+    ];
+
+    protected $casts = [
+        'dob'                 => 'date',
+        'follow_up_date'      => 'date',
+        'entrance_test_date'  => 'date',
+        'interview_date'      => 'date',
+        'documents'           => 'array',
+        'doc_checklist'       => 'array',
+        'missing_docs'        => 'array',
+    ];
+
+    public function class(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Classes::class, 'class_id');
+    }
+
+    public function academicYear(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class);
+    }
+
+    public function assignedTo(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function createdBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function followUps(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(EnquiryFollowUp::class);
+    }
+
+    public static function generateNumber(): string
+    {
+        $year = date('Y');
+        $last = static::whereYear('created_at', $year)->max('id') ?? 0;
+        return 'ENQ-' . $year . '-' . str_pad($last + 1, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function getStatusColorAttribute(): string
+    {
+        return match($this->status) {
+            'new'        => 'badge-blue',
+            'follow_up'  => 'badge-amber',
+            'converted'  => 'badge-green',
+            'lost'       => 'badge-red',
+            default      => 'badge-slate',
+        };
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match($this->status) {
+            'new'        => 'New',
+            'follow_up'  => 'Follow Up',
+            'converted'  => 'Converted',
+            'lost'       => 'Lost',
+            default      => ucfirst($this->status),
+        };
+    }
+}
