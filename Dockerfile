@@ -1,85 +1,239 @@
-FROM php:8.2-apache
+# ============================================================
+# Laravel 12 + Vite + PostgreSQL
+# Render deployment
+# ============================================================
 
-# Install system dependencies + PHP extensions
+FROM php:8.3-apache
+
+# ------------------------------------------------------------
+# 1. Install system dependencies and PHP extensions
+# ------------------------------------------------------------
 RUN apt-get update && apt-get install -y \
-    libpng-dev libjpeg-dev libfreetype6-dev \
-    libzip-dev libpq-dev \
-    zip unzip git curl gnupg2 ca-certificates \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_pgsql pgsql gd zip pcntl bcmath \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    libpq-dev \
+    libicu-dev \
+    libonig-dev \
+    zip \
+    unzip \
+    git \
+    curl \
+    gnupg2 \
+    ca-certificates \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+    && docker-php-ext-install \
+        pdo \
+        pdo_pgsql \
+        pgsql \
+        gd \
+        zip \
+        pcntl \
+        bcmath \
+        intl \
+        mbstring \
+        exif \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Enable Apache modules
+
+# ------------------------------------------------------------
+# 2. Enable Apache modules required by Laravel
+# ------------------------------------------------------------
 RUN a2enmod rewrite headers
 
-# Set the Apache document root to Laravel's public directory
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-# Allow .htaccess overrides
+# ------------------------------------------------------------
+# 3. Configure Apache to serve Laravel /public
+# ------------------------------------------------------------
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+
+RUN sed -ri \
+    -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
+    /etc/apache2/sites-available/*.conf
+
+RUN sed -ri \
+    -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' \
+    /etc/apache2/apache2.conf \
+    /etc/apache2/conf-available/*.conf
+
+
+# ------------------------------------------------------------
+# 4. Allow Laravel .htaccess
+# ------------------------------------------------------------
 RUN echo '<Directory /var/www/html/public>\n\
     AllowOverride All\n\
     Require all granted\n\
-</Directory>' > /etc/apache2/conf-available/laravel.conf \
+</Directory>' \
+    > /etc/apache2/conf-available/laravel.conf \
     && a2enconf laravel
 
+
+# ------------------------------------------------------------
+# 5. Application directory
+# ------------------------------------------------------------
 WORKDIR /var/www/html
 
-# Install Composer
-COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 
-# Copy composer files first (better Docker layer caching)
+# ------------------------------------------------------------
+# 6. Install Composer
+# ------------------------------------------------------------
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+
+# ------------------------------------------------------------
+# 7. Install Laravel PHP dependencies
+# ------------------------------------------------------------
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 
-# Install Node.js 20 for Vite build
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --prefer-dist \
+    --no-scripts
+
+
+# ------------------------------------------------------------
+# 8. Install Node.js 20
+# ------------------------------------------------------------
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get update \
     && apt-get install -y nodejs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy package files and build frontend assets
+
+# ------------------------------------------------------------
+# 9. Install frontend dependencies
+# ------------------------------------------------------------
 COPY package.json package-lock.json ./
+
 RUN npm ci
 
-# Copy everything else
+
+# ------------------------------------------------------------
+# 10. Copy the Laravel application
+# ------------------------------------------------------------
 COPY . .
 
-# Run composer scripts (package discovery, etc.)
-RUN composer run-script post-autoload-dump --no-interaction || true
 
-# Build Vite frontend assets
+# ------------------------------------------------------------
+# 11. Run Composer package discovery
+# ------------------------------------------------------------
+RUN composer dump-autoload \
+    --optimize \
+    --no-interaction
+
+
+# ------------------------------------------------------------
+# 12. Build Vite production assets
+# ------------------------------------------------------------
 RUN npm run build
 
-# Set correct file permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
 
-# Create startup script that sets up /tmp storage and starts Apache
-RUN echo '#!/bin/bash\n\
-set -e\n\
-\n\
-# Create writable storage directories in /tmp (Render has read-only filesystem)\n\
-mkdir -p /tmp/storage/framework/cache/data\n\
-mkdir -p /tmp/storage/framework/sessions\n\
-mkdir -p /tmp/storage/framework/views\n\
-mkdir -p /tmp/storage/framework/testing\n\
-mkdir -p /tmp/storage/logs\n\
-mkdir -p /tmp/storage/app/public\n\
-mkdir -p /tmp/bootstrap/cache\n\
-chmod -R 777 /tmp/storage /tmp/bootstrap\n\
-\n\
-# Clear and cache config for production\n\
-php artisan config:cache --no-interaction || true\n\
-php artisan route:cache --no-interaction || true\n\
-php artisan view:cache --no-interaction || true\n\
-\n\
-# Start Apache\n\
-exec apache2-foreground\n\
-' > /usr/local/bin/start.sh \
-    && chmod +x /usr/local/bin/start.sh
+# ------------------------------------------------------------
+# 13. Create Laravel writable directories
+# ------------------------------------------------------------
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    storage/app/public \
+    bootstrap/cache
 
-EXPOSE 80
 
+# ------------------------------------------------------------
+# 14. Set permissions
+# ------------------------------------------------------------
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
+
+RUN chmod -R 775 \
+    storage \
+    bootstrap/cache
+
+
+# ------------------------------------------------------------
+# 15. Create Laravel startup script
+# ------------------------------------------------------------
+RUN cat <<'EOF' > /usr/local/bin/start.sh
+#!/bin/bash
+
+set -e
+
+echo "=========================================="
+echo "Starting Laravel application"
+echo "=========================================="
+
+# Render supplies PORT.
+# Use 10000 if PORT is not supplied.
+PORT=${PORT:-10000}
+
+echo "Using port: ${PORT}"
+
+# ----------------------------------------------------------
+# Configure Apache to use Render's PORT
+# ----------------------------------------------------------
+
+sed -i "s/^Listen 80$/Listen ${PORT}/" \
+    /etc/apache2/ports.conf
+
+sed -i "s/<VirtualHost \\*:80>/<VirtualHost *:${PORT}>/" \
+    /etc/apache2/sites-available/000-default.conf
+
+# ----------------------------------------------------------
+# Laravel storage link
+# ----------------------------------------------------------
+
+php artisan storage:link || true
+
+# ----------------------------------------------------------
+# Clear old cached configuration
+# ----------------------------------------------------------
+
+php artisan optimize:clear || true
+
+# ----------------------------------------------------------
+# Cache Laravel configuration
+# ----------------------------------------------------------
+
+php artisan config:cache --no-interaction || true
+
+# Route cache can fail if routes contain closures,
+# therefore don't stop deployment if it fails.
+php artisan route:cache --no-interaction || true
+
+# View cache
+php artisan view:cache --no-interaction || true
+
+echo "=========================================="
+echo "Starting Apache"
+echo "=========================================="
+
+# Start Apache in foreground
+exec apache2-foreground
+EOF
+
+
+# ------------------------------------------------------------
+# 16. Make startup script executable
+# ------------------------------------------------------------
+RUN chmod +x /usr/local/bin/start.sh
+
+
+# ------------------------------------------------------------
+# 17. Render listens on port 10000
+# ------------------------------------------------------------
+EXPOSE 10000
+
+
+# ------------------------------------------------------------
+# 18. Start application
+# ------------------------------------------------------------
 CMD ["/usr/local/bin/start.sh"]
