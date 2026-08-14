@@ -85,60 +85,274 @@ class AcademicController extends Controller
 
     public function syllabus(Request $request)
     {
-        $classes  = Classes::active()->get();
-        $subjects = Subject::where('is_active', true)->orderBy('name')->get();
+        $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+        
+        // Fetch all active classes with their overall syllabus completion progress
+        $classes = Classes::active()->get()->map(function ($c) use ($currentYear) {
+            $base = \App\Models\Syllabus::where('class_id', $c->id);
+            $total = (clone $base)->count();
+            $completed = (clone $base)->where('status', 'completed')->count();
+            $inProgress = (clone $base)->where('status', 'in_progress')->count();
+
+            $c->total_chapters = $total;
+            $c->completed_chapters = $completed;
+            $c->in_progress_chapters = $inProgress;
+            $c->progress_pct = $total > 0 ? round(($completed / $total) * 100) : 0;
+            return $c;
+        });
+
+        // Determine selected class (default to request class_id, or first class in list)
+        $selectedClass = null;
+        if ($request->filled('class_id')) {
+            $selectedClass = $classes->firstWhere('id', (int)$request->class_id);
+        }
+        if (!$selectedClass && $classes->isNotEmpty()) {
+            $selectedClass = $classes->first();
+        }
+
+        $allSubjects = Subject::where('is_active', true)->orderBy('name')->get();
+        $classSubjects = collect();
         $syllabus = collect();
+        $termStats = [
+            'Term 1' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
+            'Term 2' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
+            'Term 3' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
+        ];
+        $classOverallStats = [
+            'total' => 0,
+            'completed' => 0,
+            'in_progress' => 0,
+            'pending' => 0,
+            'pct' => 0,
+        ];
 
-        if ($request->class_id && $request->subject_id) {
-            $syllabus = \App\Models\Syllabus::where('class_id', $request->class_id)
-                ->where('subject_id', $request->subject_id)
-                ->orderBy('chapter_number')->get();
+        if ($selectedClass) {
+            // Get ONLY the subjects that exist for this standard
+            $classSubjectIds = \App\Models\Syllabus::where('class_id', $selectedClass->id)
+                ->pluck('subject_id')
+                ->unique();
+
+            $classSubjects = Subject::whereIn('id', $classSubjectIds)
+                ->orderBy('name')
+                ->get()
+                ->map(function ($s) use ($selectedClass) {
+                    $sBase = \App\Models\Syllabus::where('class_id', $selectedClass->id)->where('subject_id', $s->id);
+                    $sTotal = (clone $sBase)->count();
+                    $sCompleted = (clone $sBase)->where('status', 'completed')->count();
+                    $sInProgress = (clone $sBase)->where('status', 'in_progress')->count();
+
+                    $s->total_chapters = $sTotal;
+                    $s->completed_chapters = $sCompleted;
+                    $s->in_progress_chapters = $sInProgress;
+                    $s->progress_pct = $sTotal > 0 ? round(($sCompleted / $sTotal) * 100) : 0;
+                    return $s;
+                });
+
+            // Calculate Term 1, Term 2, Term 3 statistics for this class
+            foreach (['Term 1', 'Term 2', 'Term 3'] as $t) {
+                $tBase = \App\Models\Syllabus::where('class_id', $selectedClass->id)->where('term', $t);
+                $tTotal = (clone $tBase)->count();
+                $tCompleted = (clone $tBase)->where('status', 'completed')->count();
+                $tInProgress = (clone $tBase)->where('status', 'in_progress')->count();
+
+                $termStats[$t] = [
+                    'total'       => $tTotal,
+                    'completed'   => $tCompleted,
+                    'in_progress' => $tInProgress,
+                    'pending'     => max(0, $tTotal - $tCompleted - $tInProgress),
+                    'pct'         => $tTotal > 0 ? round(($tCompleted / $tTotal) * 100) : 0,
+                ];
+            }
+
+            // Overall class stats
+            $cTotal = \App\Models\Syllabus::where('class_id', $selectedClass->id)->count();
+            $cCompleted = \App\Models\Syllabus::where('class_id', $selectedClass->id)->where('status', 'completed')->count();
+            $cInProgress = \App\Models\Syllabus::where('class_id', $selectedClass->id)->where('status', 'in_progress')->count();
+
+            $classOverallStats = [
+                'total'       => $cTotal,
+                'completed'   => $cCompleted,
+                'in_progress' => $cInProgress,
+                'pending'     => max(0, $cTotal - $cCompleted - $cInProgress),
+                'pct'         => $cTotal > 0 ? round(($cCompleted / $cTotal) * 100) : 0,
+            ];
+
+            // Fetch the filtered syllabus list
+            $syllabus = \App\Models\Syllabus::with(['subject', 'class'])
+                ->where('class_id', $selectedClass->id)
+                ->when($request->filled('subject_id'), fn($q) => $q->where('subject_id', $request->subject_id))
+                ->when($request->filled('term') && in_array($request->term, ['Term 1', 'Term 2', 'Term 3']), fn($q) => $q->where('term', $request->term))
+                ->when($request->filled('status'), fn($q) => $q->where('status', $request->status))
+                ->orderBy('term')
+                ->orderBy('sort_order')
+                ->orderBy('chapter_number')
+                ->get();
         }
 
-        return view('academics.syllabus', compact('classes', 'subjects', 'syllabus'));
+        return view('academics.syllabus', compact(
+            'classes',
+            'selectedClass',
+            'classSubjects',
+            'allSubjects',
+            'syllabus',
+            'termStats',
+            'classOverallStats'
+        ));
     }
 
-    public function homework(Request $request)
+    public function batchStoreSyllabus(Request $request)
     {
-        $classes  = Classes::active()->get();
-        $subjects = Subject::where('is_active', true)->orderBy('name')->get();
-        $homework = \App\Models\Homework::with(['class', 'subject'])
-            ->withCount('submissions')
-            ->when($request->class_id,   fn($q, $v) => $q->where('class_id', $v))
-            ->when($request->subject_id, fn($q, $v) => $q->where('subject_id', $v))
-            ->when($request->date,       fn($q, $v) => $q->whereDate('due_date', $v))
-            ->where('is_active', true)->latest()->paginate(20);
+        $request->validate([
+            'class_id'    => 'required|exists:classes,id',
+            'subject_id'  => 'required|exists:subjects,id',
+            'term'        => 'required|string|in:Term 1,Term 2,Term 3',
+            'topics_list' => 'required|string|min:3',
+        ]);
 
-        return view('academics.homework', compact('classes', 'subjects', 'homework'));
-    }
+        $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+        $lines = preg_split('/\r\n|\r|\n/', trim($request->topics_list));
+        $lines = array_filter(array_map('trim', $lines));
 
-    public function saveTimetable(Request $request)
-    {
-        $request->validate(['class_id' => 'required|exists:classes,id', 'entries' => 'required|array']);
-        foreach ($request->entries as $entry) {
-            \App\Models\Timetable::updateOrCreate(
-                ['class_id' => $entry['class_id'], 'section_id' => $entry['section_id'] ?? null, 'day_of_week' => $entry['day_of_week'], 'period_number' => $entry['period_number']],
-                [
-                    'subject_id'    => $entry['subject_id'] ?? null,
-                    'teacher_id'    => $entry['teacher_id'] ?? $entry['employee_id'] ?? null,
-                    'start_time'    => $entry['start_time'] ?? null,
-                    'end_time'      => $entry['end_time'] ?? null,
-                    'period_type'   => $entry['period_type'] ?? 'class',
-                    'effective_from'=> $entry['effective_from'] ?? null,
-                ]
-            );
+        $maxOrder = \App\Models\Syllabus::where('class_id', $request->class_id)
+            ->where('subject_id', $request->subject_id)
+            ->max('sort_order') ?? 0;
+
+        $created = 0;
+        foreach ($lines as $line) {
+            if (empty($line)) continue;
+            $maxOrder++;
+            
+            // Try extracting chapter number if written like "1. Title" or "Chapter 1: Title"
+            $chapterNum = (string)$maxOrder;
+            $title = $line;
+            if (preg_match('/^(?:Chapter\s*)?([0-9A-Za-z]+)[\.\:\-]\s*(.+)$/i', $line, $m)) {
+                $chapterNum = $m[1];
+                $title = trim($m[2]);
+            }
+
+            \App\Models\Syllabus::create([
+                'class_id'         => $request->class_id,
+                'subject_id'       => $request->subject_id,
+                'academic_year_id' => $currentYear?->id ?? 1,
+                'chapter_number'   => $chapterNum,
+                'chapter_title'    => $title,
+                'term'             => $request->term,
+                'status'           => 'pending',
+                'sort_order'       => $maxOrder,
+            ]);
+            $created++;
         }
-        return back()->with('success', 'Timetable saved.');
+
+        return back()->with('success', "{$created} chapters added to {$request->term}.");
+    }
+
+    public function printSyllabus(Request $request)
+    {
+        $request->validate(['class_id' => 'required|exists:classes,id']);
+        $class = Classes::findOrFail($request->class_id);
+        $school = \App\Models\SchoolSetting::first();
+        $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+
+        $syllabus = \App\Models\Syllabus::with(['subject'])
+            ->where('class_id', $class->id)
+            ->when($request->filled('term'), fn($q) => $q->where('term', $request->term))
+            ->when($request->filled('subject_id'), fn($q) => $q->where('subject_id', $request->subject_id))
+            ->orderBy('term')
+            ->orderBy('subject_id')
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy(['term', 'subject.name']);
+
+        return view('academics.syllabus-print', compact('class', 'school', 'currentYear', 'syllabus'));
     }
 
     public function saveSyllabus(Request $request)
     {
-        $request->validate(['class_id' => 'required|exists:classes,id', 'subject_id' => 'required|exists:subjects,id', 'chapter_number' => 'required|integer', 'chapter_title' => 'required|string|max:200']);
-        \App\Models\Syllabus::updateOrCreate(
-            ['class_id' => $request->class_id, 'subject_id' => $request->subject_id, 'chapter_number' => $request->chapter_number],
-            $request->only(['chapter_title', 'description', 'status', 'start_date', 'end_date'])
-        );
-        return back()->with('success', 'Syllabus entry saved.');
+        $request->validate([
+            'class_id'      => 'required|exists:classes,id',
+            'subject_id'    => 'required|exists:subjects,id',
+            'chapter_title' => 'required|string|max:200',
+            'chapter_number'=> 'nullable|string|max:10',
+            'topics'        => 'nullable|string',
+            'description'   => 'nullable|string',
+            'status'        => 'nullable|in:pending,in_progress,completed',
+            'planned_date'  => 'nullable|date',
+            'term'          => 'nullable|string|max:50',
+        ]);
+
+        $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+
+        // Determine sort order (append to end)
+        $maxOrder = \App\Models\Syllabus::where('class_id', $request->class_id)
+            ->where('subject_id', $request->subject_id)
+            ->max('sort_order') ?? 0;
+
+        \App\Models\Syllabus::create(array_merge(
+            $request->only(['class_id', 'subject_id', 'chapter_number', 'chapter_title', 'topics', 'description', 'status', 'planned_date', 'term']),
+            [
+                'academic_year_id' => $currentYear?->id ?? 1,
+                'sort_order'       => $maxOrder + 1,
+                'status'           => $request->status ?? 'pending',
+                'term'             => $request->term ?: 'Term 1',
+            ]
+        ));
+
+        return back()->with('success', 'Chapter added to syllabus.');
+    }
+
+    public function updateSyllabus(Request $request, int $id)
+    {
+        $request->validate([
+            'chapter_title' => 'required|string|max:200',
+            'chapter_number'=> 'nullable|string|max:10',
+            'topics'        => 'nullable|string',
+            'description'   => 'nullable|string',
+            'status'        => 'nullable|in:pending,in_progress,completed',
+            'planned_date'  => 'nullable|date',
+            'completed_date'=> 'nullable|date',
+            'term'          => 'nullable|string|max:50',
+        ]);
+
+        $syllabus = \App\Models\Syllabus::findOrFail($id);
+        $syllabus->update($request->only([
+            'chapter_number', 'chapter_title', 'topics', 'description',
+            'status', 'planned_date', 'completed_date', 'term',
+        ]));
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Chapter updated.']);
+        }
+        return back()->with('success', 'Chapter updated.');
+    }
+
+    public function deleteSyllabus(int $id)
+    {
+        \App\Models\Syllabus::findOrFail($id)->delete();
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+        return back()->with('success', 'Chapter removed.');
+    }
+
+    public function updateSyllabusStatus(Request $request, int $id)
+    {
+        $request->validate(['status' => 'required|in:pending,in_progress,completed']);
+        $syllabus = \App\Models\Syllabus::findOrFail($id);
+        $updates  = ['status' => $request->status];
+        if ($request->status === 'completed' && !$syllabus->completed_date) {
+            $updates['completed_date'] = now()->toDateString();
+        }
+        $syllabus->update($updates);
+        return response()->json(['success' => true, 'status' => $request->status]);
+    }
+
+    public function reorderSyllabus(Request $request)
+    {
+        $request->validate(['order' => 'required|array', 'order.*.id' => 'required|integer', 'order.*.sort_order' => 'required|integer']);
+        foreach ($request->order as $item) {
+            \App\Models\Syllabus::where('id', $item['id'])->update(['sort_order' => $item['sort_order']]);
+        }
+        return response()->json(['success' => true]);
     }
 
     public function uploadSyllabusDocument(Request $request, int $id)
@@ -155,6 +369,7 @@ class AcademicController extends Controller
         ]);
         return back()->with('success', 'Syllabus document uploaded.');
     }
+
 
     public function saveHomework(Request $request)
     {
@@ -216,15 +431,57 @@ class AcademicController extends Controller
 
     public function storeSubject(Request $request)
     {
-        $request->validate(['name' => 'required|string|max:100', 'credit_hours' => 'nullable|integer|min:0|max:40']);
-        Subject::create(array_merge(
-            $request->only(['name', 'code', 'type', 'medium', 'language_type', 'board_curriculum', 'credit_hours', 'stream']),
-            [
-                'is_active'       => true,
-                'is_elective'     => $request->boolean('is_elective'),
-                'is_coscholastic' => $request->boolean('is_coscholastic'),
-            ]
-        ));
+        $request->validate([
+            'name'         => 'required|string|max:100',
+            'code'         => 'nullable|string|max:20',
+            'type'         => 'nullable|in:theory,practical,activity,language',
+            'credit_hours' => 'nullable|integer|min:0|max:40',
+            'class_id'     => 'nullable|exists:classes,id',
+            'term'         => 'nullable|string|in:Term 1,Term 2,Term 3',
+            'first_topic'  => 'nullable|string|max:200',
+        ]);
+
+        $subject = Subject::firstOrCreate(
+            ['name' => $request->name],
+            array_merge(
+                $request->only(['code', 'medium', 'language_type', 'board_curriculum', 'credit_hours', 'stream']),
+                [
+                    'type'            => $request->type ?: 'theory',
+                    'code'            => $request->code ?: strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $request->name), 0, 4)),
+                    'is_active'       => true,
+                    'is_elective'     => $request->boolean('is_elective'),
+                    'is_coscholastic' => $request->boolean('is_coscholastic'),
+                ]
+            )
+        );
+
+        if ($request->class_id) {
+            $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+            $term = $request->term ?: 'Term 1';
+            $title = $request->first_topic ?: ($request->name . ' - Introduction & Basics');
+
+            \App\Models\Syllabus::firstOrCreate(
+                [
+                    'class_id'   => $request->class_id,
+                    'subject_id' => $subject->id,
+                    'term'       => $term,
+                ],
+                [
+                    'academic_year_id' => $currentYear?->id ?? 1,
+                    'chapter_number'   => '1',
+                    'chapter_title'    => $title,
+                    'status'           => 'pending',
+                    'sort_order'       => 1,
+                ]
+            );
+
+            return redirect()->route('academics.syllabus', [
+                'class_id'   => $request->class_id,
+                'subject_id' => $subject->id,
+                'term'       => $term,
+            ])->with('success', "Subject '{$subject->name}' added to this standard.");
+        }
+
         return back()->with('success', 'Subject added.');
     }
 
@@ -841,34 +1098,89 @@ class AcademicController extends Controller
 
     public function syllabusCoverage(Request $request)
     {
-        $classes  = Classes::active()->get();
-        $subjects = Subject::where('is_active', true)->orderBy('name')->get();
-        $coverage = collect();
-        $currentYear = AcademicYear::current();
+        $classes = Classes::active()->get()->map(function ($c) {
+            $base = \App\Models\Syllabus::where('class_id', $c->id);
+            $total = (clone $base)->count();
+            $completed = (clone $base)->where('status', 'completed')->count();
+            $inProgress = (clone $base)->where('status', 'in_progress')->count();
 
-        if ($request->class_id) {
-            $subjectIds = $request->subject_id
-                ? [$request->subject_id]
-                : Subject::where('is_active', true)->pluck('id')->toArray();
+            $c->total_chapters = $total;
+            $c->completed_chapters = $completed;
+            $c->in_progress_chapters = $inProgress;
+            $c->progress_pct = $total > 0 ? round(($completed / $total) * 100) : 0;
+            return $c;
+        });
+
+        // Determine selected class (default to request class_id, or first class)
+        $selectedClass = null;
+        if ($request->filled('class_id')) {
+            $selectedClass = $classes->firstWhere('id', (int)$request->class_id);
+        }
+        if (!$selectedClass && $classes->isNotEmpty()) {
+            $selectedClass = $classes->first();
+        }
+
+        $coverage = collect();
+        $classSubjects = collect();
+        $termCoverage = [
+            'Term 1' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
+            'Term 2' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
+            'Term 3' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
+        ];
+
+        if ($selectedClass) {
+            $subjectIds = \App\Models\Syllabus::where('class_id', $selectedClass->id)
+                ->pluck('subject_id')
+                ->unique();
+
+            $classSubjects = Subject::whereIn('id', $subjectIds)->orderBy('name')->get();
+
+            if ($request->filled('subject_id')) {
+                $subjectIds = [$request->subject_id];
+            }
 
             foreach ($subjectIds as $sid) {
-                $total     = \App\Models\Syllabus::where('class_id', $request->class_id)->where('subject_id', $sid)->count();
-                $completed = \App\Models\Syllabus::where('class_id', $request->class_id)->where('subject_id', $sid)->where('status', 'completed')->count();
+                $query = \App\Models\Syllabus::where('class_id', $selectedClass->id)
+                    ->where('subject_id', $sid)
+                    ->when($request->filled('term'), fn($q) => $q->where('term', $request->term));
+
+                $total      = (clone $query)->count();
+                $completed  = (clone $query)->where('status', 'completed')->count();
+                $inProgress = (clone $query)->where('status', 'in_progress')->count();
+                $pending    = max(0, $total - $completed - $inProgress);
+
                 if ($total > 0) {
-                    $subject = Subject::find($sid);
                     $coverage->push([
-                        'subject'    => $subject,
-                        'total'      => $total,
-                        'completed'  => $completed,
-                        'pending'    => $total - $completed,
-                        'percentage' => round($completed / $total * 100, 1),
+                        'subject'     => Subject::find($sid),
+                        'total'       => $total,
+                        'completed'   => $completed,
+                        'in_progress' => $inProgress,
+                        'pending'     => $pending,
+                        'percentage'  => round(($completed / $total) * 100, 1),
                     ]);
                 }
             }
+
+            // Calculate Term 1, Term 2, Term 3 statistics
+            foreach (['Term 1', 'Term 2', 'Term 3'] as $t) {
+                $tQuery = \App\Models\Syllabus::where('class_id', $selectedClass->id)->where('term', $t);
+                $tTotal = (clone $tQuery)->count();
+                $tCompleted = (clone $tQuery)->where('status', 'completed')->count();
+                $tInProgress = (clone $tQuery)->where('status', 'in_progress')->count();
+
+                $termCoverage[$t] = [
+                    'total'       => $tTotal,
+                    'completed'   => $tCompleted,
+                    'in_progress' => $tInProgress,
+                    'pending'     => max(0, $tTotal - $tCompleted - $tInProgress),
+                    'pct'         => $tTotal > 0 ? round(($tCompleted / $tTotal) * 100) : 0,
+                ];
+            }
         }
 
-        return view('academics.syllabus-coverage', compact('classes', 'subjects', 'coverage'));
+        return view('academics.syllabus-coverage', compact('classes', 'selectedClass', 'classSubjects', 'coverage', 'termCoverage'));
     }
+
 
     /* ------------------------------------------------------------------ */
     /*  Section Management                                                  */

@@ -1,7 +1,6 @@
-@extends('layouts.app')
-@section('title', 'Syllabus & Curriculum Management')
+<?php $__env->startSection('title', 'Syllabus & Curriculum Management'); ?>
 
-@push('head')
+<?php $__env->startPush('head'); ?>
 <style>
   /* ── Ultra-Premium Syllabus Design System ────────── */
   .syllabus-hero {
@@ -157,12 +156,12 @@
   .subject-tile.active .tile-track { background-color: rgba(255, 255, 255, 0.25) !important; }
   .subject-tile.active .tile-bar { background-color: #34d399 !important; }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="space-y-6" x-data="syllabusApp()">
 
-  {{-- ── 1. Top Standard / Class Selector Bar ────────────── --}}
+  
   <div class="card p-4">
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2">
@@ -174,43 +173,45 @@
 
     <!-- Scrollable Class Badges -->
     <div class="flex items-center gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar">
-      @foreach($classes as $c)
-        @php
+      <?php $__currentLoopData = $classes; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $c): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <?php
           $isActive = ($selectedClass && $selectedClass->id === $c->id);
           $pct = $c->progress_pct ?? 0;
           $pctColor = $pct >= 75 ? 'text-green-600 bg-green-50' : ($pct >= 40 ? 'text-amber-600 bg-amber-50' : 'text-slate-500 bg-slate-100');
-        @endphp
-        <a href="{{ route('academics.syllabus', ['class_id' => $c->id]) }}"
-           class="class-pill {{ $isActive ? 'active' : '' }} flex-shrink-0">
-          <span class="font-extrabold text-sm tracking-tight {{ $isActive ? 'text-white' : 'text-slate-800' }}">
-            {{ $c->name }}
+        ?>
+        <a href="<?php echo e(route('academics.syllabus', ['class_id' => $c->id])); ?>"
+           class="class-pill <?php echo e($isActive ? 'active' : ''); ?> flex-shrink-0">
+          <span class="font-extrabold text-sm tracking-tight <?php echo e($isActive ? 'text-white' : 'text-slate-800'); ?>">
+            <?php echo e($c->name); ?>
+
           </span>
-          <span class="class-sub-text text-[11px] {{ $isActive ? 'text-indigo-100' : 'text-slate-400' }} mt-0.5 font-medium">
-            {{ $c->total_chapters }} chaps
+          <span class="class-sub-text text-[11px] <?php echo e($isActive ? 'text-indigo-100' : 'text-slate-400'); ?> mt-0.5 font-medium">
+            <?php echo e($c->total_chapters); ?> chaps
           </span>
-          <span class="class-pct-badge text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 {{ $isActive ? '' : $pctColor }}">
-            {{ $pct }}%
+          <span class="class-pct-badge text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-1.5 <?php echo e($isActive ? '' : $pctColor); ?>">
+            <?php echo e($pct); ?>%
           </span>
         </a>
-      @endforeach
+      <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
     </div>
   </div>
 
-  @if($selectedClass)
-    {{-- ── 2. Standard Hero & Progress Header ──────────────── --}}
+  <?php if($selectedClass): ?>
+    
     <div class="syllabus-hero">
       <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <div class="flex items-center gap-2 mb-1.5">
             <span class="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-xs font-bold backdrop-blur-sm">
-              Standard: {{ $selectedClass->name }}
+              Standard: <?php echo e($selectedClass->name); ?>
+
             </span>
             <span class="text-indigo-200 text-xs font-medium">
-              {{ $classSubjects->count() }} Subjects Configured
+              <?php echo e($classSubjects->count()); ?> Subjects Configured
             </span>
           </div>
           <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {{ $selectedClass->display_name ?? 'Class ' . $selectedClass->name }} Curriculum
+            <?php echo e($selectedClass->display_name ?? 'Class ' . $selectedClass->name); ?> Curriculum
           </h1>
           <p class="text-indigo-100 text-xs sm:text-sm mt-1 max-w-xl">
             Term-wise chapter planning, learning outcomes & syllabus completion tracking
@@ -220,13 +221,13 @@
           <div class="mt-4 max-w-md">
             <div class="flex items-center justify-between text-xs font-bold text-white mb-1.5">
               <span>Overall Completion Progress</span>
-              <span>{{ $classOverallStats['completed'] }} / {{ $classOverallStats['total'] }} Chapters ({{ $classOverallStats['pct'] }}%)</span>
+              <span><?php echo e($classOverallStats['completed']); ?> / <?php echo e($classOverallStats['total']); ?> Chapters (<?php echo e($classOverallStats['pct']); ?>%)</span>
             </div>
             <div class="h-2.5 bg-white/20 rounded-full overflow-hidden flex backdrop-blur-sm p-0.5">
               <div class="bg-emerald-400 h-full rounded-full transition-all duration-500"
-                   style="width: {{ $classOverallStats['pct'] }}%"></div>
+                   style="width: <?php echo e($classOverallStats['pct']); ?>%"></div>
               <div class="bg-amber-300 h-full transition-all duration-500"
-                   style="width: {{ $classOverallStats['total'] > 0 ? round(($classOverallStats['in_progress'] / $classOverallStats['total']) * 100) : 0 }}%"></div>
+                   style="width: <?php echo e($classOverallStats['total'] > 0 ? round(($classOverallStats['in_progress'] / $classOverallStats['total']) * 100) : 0); ?>%"></div>
             </div>
           </div>
         </div>
@@ -241,7 +242,7 @@
           </button>
 
           <!-- Print Sheet -->
-          <a href="{{ route('academics.syllabus.print', ['class_id' => $selectedClass->id, 'term' => request('term'), 'subject_id' => request('subject_id')]) }}"
+          <a href="<?php echo e(route('academics.syllabus.print', ['class_id' => $selectedClass->id, 'term' => request('term'), 'subject_id' => request('subject_id')])); ?>"
              target="_blank"
              class="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold backdrop-blur-sm border border-white/20 transition flex items-center gap-1.5 shadow-sm">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -249,7 +250,7 @@
           </a>
 
           <!-- Coverage Report -->
-          <a href="{{ route('academics.syllabus-coverage', ['class_id' => $selectedClass->id]) }}"
+          <a href="<?php echo e(route('academics.syllabus-coverage', ['class_id' => $selectedClass->id])); ?>"
              class="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold backdrop-blur-sm border border-white/20 transition flex items-center gap-1.5 shadow-sm">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             Coverage Report
@@ -258,97 +259,98 @@
       </div>
     </div>
 
-    {{-- ── 3. Term Division Cards (Term 1, Term 2, Term 3) ── --}}
+    
     <div>
       <div class="flex items-center justify-between mb-2.5">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
           <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           3-Term Curriculum Breakdown
         </h3>
-        @if(request('term'))
-          <a href="{{ route('academics.syllabus', ['class_id' => $selectedClass->id, 'subject_id' => request('subject_id')]) }}"
+        <?php if(request('term')): ?>
+          <a href="<?php echo e(route('academics.syllabus', ['class_id' => $selectedClass->id, 'subject_id' => request('subject_id')])); ?>"
              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
             View All Terms
           </a>
-        @endif
+        <?php endif; ?>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
-        @php
+        <?php
           $termMeta = [
             'Term 1' => ['label' => 'Term 1', 'subtitle' => 'Jun – Sep (Quarterly)', 'color' => 'indigo'],
             'Term 2' => ['label' => 'Term 2', 'subtitle' => 'Oct – Dec (Half-Yearly)', 'color' => 'amber'],
             'Term 3' => ['label' => 'Term 3', 'subtitle' => 'Jan – Apr (Annual)', 'color' => 'emerald'],
           ];
-        @endphp
+        ?>
 
         <!-- All Terms Overview Card -->
-        <a href="{{ route('academics.syllabus', ['class_id' => $selectedClass->id, 'subject_id' => request('subject_id')]) }}"
-           class="term-card {{ !request('term') ? 'active' : '' }}">
+        <a href="<?php echo e(route('academics.syllabus', ['class_id' => $selectedClass->id, 'subject_id' => request('subject_id')])); ?>"
+           class="term-card <?php echo e(!request('term') ? 'active' : ''); ?>">
           <div class="flex items-start justify-between">
             <div>
               <p class="font-extrabold text-sm text-slate-800">All Terms</p>
               <p class="text-[11px] text-slate-400 mt-0.5">Complete Academic Year</p>
             </div>
             <span class="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-              {{ $classOverallStats['pct'] }}%
+              <?php echo e($classOverallStats['pct']); ?>%
             </span>
           </div>
           <div class="mt-3">
             <div class="flex justify-between text-[11px] text-slate-500 font-medium mb-1">
-              <span>{{ $classOverallStats['completed'] }}/{{ $classOverallStats['total'] }} Chaps</span>
-              <span>{{ $classOverallStats['total'] - $classOverallStats['completed'] }} Remaining</span>
+              <span><?php echo e($classOverallStats['completed']); ?>/<?php echo e($classOverallStats['total']); ?> Chaps</span>
+              <span><?php echo e($classOverallStats['total'] - $classOverallStats['completed']); ?> Remaining</span>
             </div>
             <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div class="h-full bg-indigo-600 rounded-full" style="width: {{ $classOverallStats['pct'] }}%"></div>
+              <div class="h-full bg-indigo-600 rounded-full" style="width: <?php echo e($classOverallStats['pct']); ?>%"></div>
             </div>
           </div>
         </a>
 
         <!-- Term 1, 2, 3 Cards -->
-        @foreach(['Term 1', 'Term 2', 'Term 3'] as $t)
-          @php
+        <?php $__currentLoopData = ['Term 1', 'Term 2', 'Term 3']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+          <?php
             $stats = $termStats[$t] ?? ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pct' => 0];
             $meta = $termMeta[$t];
             $isSelectedTerm = (request('term') === $t);
-          @endphp
-          <a href="{{ route('academics.syllabus', ['class_id' => $selectedClass->id, 'term' => $t, 'subject_id' => request('subject_id')]) }}"
-             class="term-card {{ $isSelectedTerm ? 'active' : '' }}">
+          ?>
+          <a href="<?php echo e(route('academics.syllabus', ['class_id' => $selectedClass->id, 'term' => $t, 'subject_id' => request('subject_id')])); ?>"
+             class="term-card <?php echo e($isSelectedTerm ? 'active' : ''); ?>">
             <div class="flex items-start justify-between">
               <div>
-                <p class="font-extrabold text-sm text-slate-800">{{ $meta['label'] }}</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">{{ $meta['subtitle'] }}</p>
+                <p class="font-extrabold text-sm text-slate-800"><?php echo e($meta['label']); ?></p>
+                <p class="text-[11px] text-slate-400 mt-0.5"><?php echo e($meta['subtitle']); ?></p>
               </div>
-              <span class="text-xs font-extrabold text-{{ $meta['color'] }}-600 bg-{{ $meta['color'] }}-50 px-2 py-0.5 rounded-full">
-                {{ $stats['pct'] }}%
+              <span class="text-xs font-extrabold text-<?php echo e($meta['color']); ?>-600 bg-<?php echo e($meta['color']); ?>-50 px-2 py-0.5 rounded-full">
+                <?php echo e($stats['pct']); ?>%
               </span>
             </div>
             <div class="mt-3">
               <div class="flex justify-between text-[11px] text-slate-500 font-medium mb-1">
-                <span>{{ $stats['completed'] }}/{{ $stats['total'] }} Done</span>
-                <span>{{ $stats['in_progress'] }} In-Progress</span>
+                <span><?php echo e($stats['completed']); ?>/<?php echo e($stats['total']); ?> Done</span>
+                <span><?php echo e($stats['in_progress']); ?> In-Progress</span>
               </div>
               <div class="h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
-                <div class="h-full bg-emerald-500" style="width: {{ $stats['pct'] }}%"></div>
-                <div class="h-full bg-amber-400" style="width: {{ $stats['total'] > 0 ? round(($stats['in_progress'] / $stats['total']) * 100) : 0 }}%"></div>
+                <div class="h-full bg-emerald-500" style="width: <?php echo e($stats['pct']); ?>%"></div>
+                <div class="h-full bg-amber-400" style="width: <?php echo e($stats['total'] > 0 ? round(($stats['in_progress'] / $stats['total']) * 100) : 0); ?>%"></div>
               </div>
             </div>
           </a>
-        @endforeach
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
       </div>
     </div>
 
-    {{-- ── 4. Standard-Specific Subject Grid & Actions ── --}}
+    
     <div class="card p-5 sm:p-6">
       <div class="flex items-center justify-between mb-4 flex-wrap gap-3 pb-3.5 border-b border-slate-100">
         <div>
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
             <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">
-              Subjects in {{ $selectedClass->name }}
+              Subjects in <?php echo e($selectedClass->name); ?>
+
             </h3>
             <span class="text-xs font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
-              {{ $classSubjects->count() }} Subjects
+              <?php echo e($classSubjects->count()); ?> Subjects
             </span>
           </div>
           <p class="text-xs text-slate-400 mt-0.5">Click any subject card to filter chapters or view full curriculum</p>
@@ -363,7 +365,7 @@
           </button>
 
           <!-- Add Chapter Button -->
-          <button type="button" @click="openAddModal('{{ request('subject_id') }}')"
+          <button type="button" @click="openAddModal('<?php echo e(request('subject_id')); ?>')"
                   class="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1.5 px-4 py-2 rounded-xl shadow-xs transition">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add Chapter
@@ -374,15 +376,15 @@
       <!-- Spacious Responsive Subject Tiles Grid -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5">
         <!-- All Subjects Tile -->
-        @php $isAllActive = !request('subject_id'); @endphp
-        <a href="{{ route('academics.syllabus', ['class_id' => $selectedClass->id, 'term' => request('term')]) }}"
-           class="subject-tile {{ $isAllActive ? 'active' : '' }}">
+        <?php $isAllActive = !request('subject_id'); ?>
+        <a href="<?php echo e(route('academics.syllabus', ['class_id' => $selectedClass->id, 'term' => request('term')])); ?>"
+           class="subject-tile <?php echo e($isAllActive ? 'active' : ''); ?>">
           <div class="flex items-center justify-between gap-1 mb-2">
-            <span class="text-[10px] font-bold uppercase tracking-wider tile-badge px-2 py-0.5 rounded-full {{ $isAllActive ? '' : 'bg-slate-100 text-slate-500' }}">
+            <span class="text-[10px] font-bold uppercase tracking-wider tile-badge px-2 py-0.5 rounded-full <?php echo e($isAllActive ? '' : 'bg-slate-100 text-slate-500'); ?>">
               Overview
             </span>
-            <span class="text-[11px] font-extrabold tile-badge px-2 py-0.5 rounded-full {{ $isAllActive ? '' : 'bg-indigo-50 text-indigo-700' }}">
-              {{ $syllabus->count() }} ch
+            <span class="text-[11px] font-extrabold tile-badge px-2 py-0.5 rounded-full <?php echo e($isAllActive ? '' : 'bg-indigo-50 text-indigo-700'); ?>">
+              <?php echo e($syllabus->count()); ?> ch
             </span>
           </div>
 
@@ -393,92 +395,94 @@
             <p class="text-[11px] tile-text-muted text-slate-400 mt-0.5">Full Standard</p>
           </div>
 
-          <div class="mt-2.5 pt-2 border-t {{ $isAllActive ? 'border-white/20' : 'border-slate-100' }}">
+          <div class="mt-2.5 pt-2 border-t <?php echo e($isAllActive ? 'border-white/20' : 'border-slate-100'); ?>">
             <div class="flex justify-between items-center text-[10px] font-bold mb-1">
               <span class="tile-text-muted text-slate-400">Total Progress</span>
-              <span>{{ $classOverallStats['pct'] }}%</span>
+              <span><?php echo e($classOverallStats['pct']); ?>%</span>
             </div>
-            <div class="h-1.5 rounded-full overflow-hidden tile-track {{ $isAllActive ? '' : 'bg-slate-100' }}">
-              <div class="h-full rounded-full tile-bar {{ $isAllActive ? '' : 'bg-indigo-600' }}" style="width: {{ $classOverallStats['pct'] }}%"></div>
+            <div class="h-1.5 rounded-full overflow-hidden tile-track <?php echo e($isAllActive ? '' : 'bg-slate-100'); ?>">
+              <div class="h-full rounded-full tile-bar <?php echo e($isAllActive ? '' : 'bg-indigo-600'); ?>" style="width: <?php echo e($classOverallStats['pct']); ?>%"></div>
             </div>
           </div>
         </a>
 
         <!-- Individual Class Subject Tiles -->
-        @foreach($classSubjects as $sub)
-          @php
+        <?php $__currentLoopData = $classSubjects; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $sub): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+          <?php
             $isSubActive = (request('subject_id') == $sub->id);
             $dotColor = $sub->progress_pct >= 80 ? 'bg-emerald-500' : ($sub->progress_pct >= 40 ? 'bg-amber-400' : 'bg-slate-300');
-          @endphp
-          <a href="{{ route('academics.syllabus', ['class_id' => $selectedClass->id, 'subject_id' => $sub->id, 'term' => request('term')]) }}"
-             class="subject-tile {{ $isSubActive ? 'active' : '' }}">
+          ?>
+          <a href="<?php echo e(route('academics.syllabus', ['class_id' => $selectedClass->id, 'subject_id' => $sub->id, 'term' => request('term')])); ?>"
+             class="subject-tile <?php echo e($isSubActive ? 'active' : ''); ?>">
             <div class="flex items-center justify-between gap-1 mb-2">
               <span class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full tile-dot {{ $dotColor }}"></span>
+                <span class="w-2 h-2 rounded-full tile-dot <?php echo e($dotColor); ?>"></span>
                 <span class="text-[10px] font-bold uppercase tracking-wider tile-text-muted text-slate-400">
-                  {{ $sub->type ?? 'Subject' }}
+                  <?php echo e($sub->type ?? 'Subject'); ?>
+
                 </span>
               </span>
-              <span class="text-[11px] font-extrabold tile-badge px-2 py-0.5 rounded-full {{ $isSubActive ? '' : 'bg-slate-100 text-slate-600' }}">
-                {{ $sub->total_chapters }} ch
+              <span class="text-[11px] font-extrabold tile-badge px-2 py-0.5 rounded-full <?php echo e($isSubActive ? '' : 'bg-slate-100 text-slate-600'); ?>">
+                <?php echo e($sub->total_chapters); ?> ch
               </span>
             </div>
 
             <div class="my-auto py-1">
-              <h4 class="font-extrabold text-sm tracking-tight leading-snug line-clamp-2" title="{{ $sub->name }}">
-                {{ $sub->name }}
+              <h4 class="font-extrabold text-sm tracking-tight leading-snug line-clamp-2" title="<?php echo e($sub->name); ?>">
+                <?php echo e($sub->name); ?>
+
               </h4>
             </div>
 
-            <div class="mt-2.5 pt-2 border-t {{ $isSubActive ? 'border-white/20' : 'border-slate-100' }}">
+            <div class="mt-2.5 pt-2 border-t <?php echo e($isSubActive ? 'border-white/20' : 'border-slate-100'); ?>">
               <div class="flex justify-between items-center text-[10px] font-bold mb-1">
-                <span class="tile-text-muted text-slate-400">{{ $sub->total_chapters }} Chapters</span>
-                <span>{{ $sub->progress_pct }}%</span>
+                <span class="tile-text-muted text-slate-400"><?php echo e($sub->total_chapters); ?> Chapters</span>
+                <span><?php echo e($sub->progress_pct); ?>%</span>
               </div>
-              <div class="h-1.5 rounded-full overflow-hidden tile-track {{ $isSubActive ? '' : 'bg-slate-100' }}">
-                <div class="h-full rounded-full tile-bar {{ $isSubActive ? '' : 'bg-emerald-500' }}" style="width: {{ $sub->progress_pct }}%"></div>
+              <div class="h-1.5 rounded-full overflow-hidden tile-track <?php echo e($isSubActive ? '' : 'bg-slate-100'); ?>">
+                <div class="h-full rounded-full tile-bar <?php echo e($isSubActive ? '' : 'bg-emerald-500'); ?>" style="width: <?php echo e($sub->progress_pct); ?>%"></div>
               </div>
             </div>
           </a>
-        @endforeach
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
       </div>
 
-      @if(request('subject_id'))
-        @php
+      <?php if(request('subject_id')): ?>
+        <?php
           $currentSubject = $classSubjects->firstWhere('id', request('subject_id'));
-        @endphp
-        @if($currentSubject)
+        ?>
+        <?php if($currentSubject): ?>
           <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 flex-wrap gap-2">
             <div class="flex items-center gap-2">
-              <span class="font-bold text-slate-800">{{ $currentSubject->name }}</span>
+              <span class="font-bold text-slate-800"><?php echo e($currentSubject->name); ?></span>
               <span>•</span>
-              <span>{{ $currentSubject->total_chapters }} Chapters in {{ $selectedClass->name }}</span>
+              <span><?php echo e($currentSubject->total_chapters); ?> Chapters in <?php echo e($selectedClass->name); ?></span>
               <span>•</span>
-              <span class="text-indigo-600 font-bold">{{ $currentSubject->progress_pct }}% Completed</span>
+              <span class="text-indigo-600 font-bold"><?php echo e($currentSubject->progress_pct); ?>% Completed</span>
             </div>
-            <a href="{{ route('academics.syllabus', ['class_id' => $selectedClass->id, 'term' => request('term')]) }}"
+            <a href="<?php echo e(route('academics.syllabus', ['class_id' => $selectedClass->id, 'term' => request('term')])); ?>"
                class="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline">
               ← View All Subjects
             </a>
           </div>
-        @endif
-      @endif
+        <?php endif; ?>
+      <?php endif; ?>
     </div>
 
-    {{-- ── 5. Chapter Cards List with Rich Metadata & Status Cycler ── --}}
+    
     <div class="space-y-3.5">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2.5">
           <h3 class="text-sm font-bold text-slate-700">
-            @if(request('term') && request('subject_id'))
-              {{ request('term') }} • {{ $classSubjects->firstWhere('id', request('subject_id'))?->name }} Chapters
-            @elseif(request('term'))
-              {{ request('term') }} Chapters
-            @elseif(request('subject_id'))
-              {{ $classSubjects->firstWhere('id', request('subject_id'))?->name }} Chapters
-            @else
-              All Curriculum Chapters ({{ $syllabus->count() }})
-            @endif
+            <?php if(request('term') && request('subject_id')): ?>
+              <?php echo e(request('term')); ?> • <?php echo e($classSubjects->firstWhere('id', request('subject_id'))?->name); ?> Chapters
+            <?php elseif(request('term')): ?>
+              <?php echo e(request('term')); ?> Chapters
+            <?php elseif(request('subject_id')): ?>
+              <?php echo e($classSubjects->firstWhere('id', request('subject_id'))?->name); ?> Chapters
+            <?php else: ?>
+              All Curriculum Chapters (<?php echo e($syllabus->count()); ?>)
+            <?php endif; ?>
           </h3>
         </div>
 
@@ -489,66 +493,73 @@
 
       <!-- Chapter Cards Loop -->
       <div id="chapterList" class="space-y-3">
-        @forelse($syllabus as $item)
-          <div class="chapter-card status-{{ $item->status }}" id="chapter-{{ $item->id }}">
+        <?php $__empty_1 = true; $__currentLoopData = $syllabus; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+          <div class="chapter-card status-<?php echo e($item->status); ?>" id="chapter-<?php echo e($item->id); ?>">
             
-            {{-- VIEW MODE --}}
-            <div id="view-{{ $item->id }}">
+            
+            <div id="view-<?php echo e($item->id); ?>">
               <div class="flex items-start gap-3.5">
                 <!-- Chapter Number Box -->
                 <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-col items-center justify-center text-indigo-700 font-extrabold text-sm shadow-xs">
                   <span class="text-[10px] font-semibold text-indigo-400 uppercase leading-none">Ch</span>
-                  <span>{{ $item->chapter_number ?: ($loop->index + 1) }}</span>
+                  <span><?php echo e($item->chapter_number ?: ($loop->index + 1)); ?></span>
                 </div>
 
                 <!-- Main Content -->
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap mb-1">
                     <h4 class="font-bold text-slate-800 text-sm leading-snug">
-                      {{ $item->chapter_title }}
+                      <?php echo e($item->chapter_title); ?>
+
                     </h4>
                     <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[11px] font-bold">
-                      {{ $item->term ?: 'Term 1' }}
+                      <?php echo e($item->term ?: 'Term 1'); ?>
+
                     </span>
                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold">
-                      {{ $item->subject?->name }}
+                      <?php echo e($item->subject?->name); ?>
+
                     </span>
                   </div>
 
-                  @if($item->topics)
+                  <?php if($item->topics): ?>
                     <p class="text-xs text-slate-600 font-medium mt-1 leading-relaxed">
-                      <strong class="text-slate-700">Topics:</strong> {{ $item->topics }}
-                    </p>
-                  @endif
+                      <strong class="text-slate-700">Topics:</strong> <?php echo e($item->topics); ?>
 
-                  @if($item->description && $item->description !== $item->topics)
+                    </p>
+                  <?php endif; ?>
+
+                  <?php if($item->description && $item->description !== $item->topics): ?>
                     <p class="text-xs text-slate-500 mt-1 italic flex items-center gap-1.5">
                       <svg class="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                      {{ $item->description }}
+                      <?php echo e($item->description); ?>
+
                     </p>
-                  @endif
+                  <?php endif; ?>
 
                   <!-- Dates & PDF Info -->
                   <div class="flex items-center gap-4 mt-2.5 text-[11px] text-slate-400 font-medium flex-wrap">
-                    @if($item->planned_date)
+                    <?php if($item->planned_date): ?>
                       <span class="flex items-center gap-1">
                         <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        Planned: {{ \Carbon\Carbon::parse($item->planned_date)->format('d M Y') }}
+                        Planned: <?php echo e(\Carbon\Carbon::parse($item->planned_date)->format('d M Y')); ?>
+
                       </span>
-                    @endif
-                    @if($item->completed_date)
+                    <?php endif; ?>
+                    <?php if($item->completed_date): ?>
                       <span class="flex items-center gap-1 text-emerald-600 font-semibold">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Completed: {{ \Carbon\Carbon::parse($item->completed_date)->format('d M Y') }}
+                        Completed: <?php echo e(\Carbon\Carbon::parse($item->completed_date)->format('d M Y')); ?>
+
                       </span>
-                    @endif
-                    @if($item->document_path)
-                      <a href="{{ asset('storage/' . $item->document_path) }}" target="_blank"
+                    <?php endif; ?>
+                    <?php if($item->document_path): ?>
+                      <a href="<?php echo e(asset('storage/' . $item->document_path)); ?>" target="_blank"
                          class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                         Syllabus PDF
                       </a>
-                    @endif
+                    <?php endif; ?>
                   </div>
                 </div>
 
@@ -556,29 +567,29 @@
                 <div class="flex items-center gap-2 flex-shrink-0">
                   <!-- 1-Click Interactive Status Badge -->
                   <button type="button"
-                          class="status-badge status-{{ $item->status }}"
-                          onclick="cycleStatus({{ $item->id }}, '{{ $item->status }}', this)"
+                          class="status-badge status-<?php echo e($item->status); ?>"
+                          onclick="cycleStatus(<?php echo e($item->id); ?>, '<?php echo e($item->status); ?>', this)"
                           title="Click to toggle status (Pending -> In Progress -> Completed)">
-                    @if($item->status === 'completed')
+                    <?php if($item->status === 'completed'): ?>
                       <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Completed
-                    @elseif($item->status === 'in_progress')
+                    <?php elseif($item->status === 'in_progress'): ?>
                       <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> In Progress
-                    @else
+                    <?php else: ?>
                       <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Pending
-                    @endif
+                    <?php endif; ?>
                   </button>
 
                   <!-- Edit Button -->
-                  <button type="button" onclick="showEdit({{ $item->id }})"
+                  <button type="button" onclick="showEdit(<?php echo e($item->id); ?>)"
                           class="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 transition"
                           title="Edit Chapter Details">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   </button>
 
                   <!-- Delete Button -->
-                  <form method="POST" action="{{ route('academics.syllabus.delete', $item->id) }}"
+                  <form method="POST" action="<?php echo e(route('academics.syllabus.delete', $item->id)); ?>"
                         onsubmit="return confirm('Remove this chapter from syllabus?')" class="inline">
-                    @csrf @method('DELETE')
+                    <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
                     <button type="submit" class="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition" title="Delete">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
@@ -590,12 +601,13 @@
               <div x-data="{ showPdf: false }" class="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                 <button type="button" @click="showPdf = !showPdf" class="text-slate-400 hover:text-indigo-600 font-semibold flex items-center gap-1.5">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                  {{ $item->document_path ? 'Replace Attached PDF' : 'Attach Lesson PDF' }}
+                  <?php echo e($item->document_path ? 'Replace Attached PDF' : 'Attach Lesson PDF'); ?>
+
                 </button>
 
                 <div x-show="showPdf" x-cloak class="w-full mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <form method="POST" action="{{ route('academics.syllabus.document', $item->id) }}" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
-                    @csrf
+                  <form method="POST" action="<?php echo e(route('academics.syllabus.document', $item->id)); ?>" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
+                    <?php echo csrf_field(); ?>
                     <div class="flex-1 min-w-[200px]">
                       <label class="block text-[11px] font-bold text-slate-500 mb-1">Upload PDF (Max 10MB)</label>
                       <input type="file" name="document" accept=".pdf" class="input text-xs py-1" required>
@@ -606,107 +618,107 @@
               </div>
             </div>
 
-            {{-- EDIT MODE (Inline Form) --}}
-            <div id="edit-{{ $item->id }}" class="hidden">
-              <form method="POST" action="{{ route('academics.syllabus.update', $item->id) }}" class="space-y-3">
-                @csrf @method('PUT')
+            
+            <div id="edit-<?php echo e($item->id); ?>" class="hidden">
+              <form method="POST" action="<?php echo e(route('academics.syllabus.update', $item->id)); ?>" class="space-y-3">
+                <?php echo csrf_field(); ?> <?php echo method_field('PUT'); ?>
                 <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span class="text-xs font-bold text-indigo-700 uppercase tracking-wide">Edit Chapter #{{ $item->chapter_number }}</span>
-                  <button type="button" onclick="hideEdit({{ $item->id }})" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+                  <span class="text-xs font-bold text-indigo-700 uppercase tracking-wide">Edit Chapter #<?php echo e($item->chapter_number); ?></span>
+                  <button type="button" onclick="hideEdit(<?php echo e($item->id); ?>)" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label class="label text-xs">Term <span class="text-red-500">*</span></label>
                     <select name="term" class="select text-xs" required>
-                      <option value="Term 1" @selected($item->term === 'Term 1')>Term 1</option>
-                      <option value="Term 2" @selected($item->term === 'Term 2')>Term 2</option>
-                      <option value="Term 3" @selected($item->term === 'Term 3')>Term 3</option>
+                      <option value="Term 1" <?php if($item->term === 'Term 1'): echo 'selected'; endif; ?>>Term 1</option>
+                      <option value="Term 2" <?php if($item->term === 'Term 2'): echo 'selected'; endif; ?>>Term 2</option>
+                      <option value="Term 3" <?php if($item->term === 'Term 3'): echo 'selected'; endif; ?>>Term 3</option>
                     </select>
                   </div>
                   <div>
                     <label class="label text-xs">Chapter No.</label>
-                    <input type="text" name="chapter_number" value="{{ $item->chapter_number }}" class="input text-xs">
+                    <input type="text" name="chapter_number" value="<?php echo e($item->chapter_number); ?>" class="input text-xs">
                   </div>
                   <div>
                     <label class="label text-xs">Status</label>
                     <select name="status" class="select text-xs">
-                      <option value="pending" @selected($item->status === 'pending')>Pending</option>
-                      <option value="in_progress" @selected($item->status === 'in_progress')>In Progress</option>
-                      <option value="completed" @selected($item->status === 'completed')>Completed</option>
+                      <option value="pending" <?php if($item->status === 'pending'): echo 'selected'; endif; ?>>Pending</option>
+                      <option value="in_progress" <?php if($item->status === 'in_progress'): echo 'selected'; endif; ?>>In Progress</option>
+                      <option value="completed" <?php if($item->status === 'completed'): echo 'selected'; endif; ?>>Completed</option>
                     </select>
                   </div>
                   <div class="sm:col-span-3">
                     <label class="label text-xs">Chapter Title <span class="text-red-500">*</span></label>
-                    <input type="text" name="chapter_title" value="{{ $item->chapter_title }}" class="input text-xs" required>
+                    <input type="text" name="chapter_title" value="<?php echo e($item->chapter_title); ?>" class="input text-xs" required>
                   </div>
                   <div class="sm:col-span-3">
                     <label class="label text-xs">Key Topics / Concepts Covered</label>
-                    <textarea name="topics" rows="2" class="input text-xs">{{ $item->topics }}</textarea>
+                    <textarea name="topics" rows="2" class="input text-xs"><?php echo e($item->topics); ?></textarea>
                   </div>
                   <div class="sm:col-span-3">
                     <label class="label text-xs">Teaching Notes & Learning Outcomes</label>
-                    <textarea name="description" rows="2" class="input text-xs">{{ $item->description }}</textarea>
+                    <textarea name="description" rows="2" class="input text-xs"><?php echo e($item->description); ?></textarea>
                   </div>
                   <div>
                     <label class="label text-xs">Planned Date</label>
-                    <input type="date" name="planned_date" value="{{ $item->planned_date?->format('Y-m-d') }}" class="input text-xs">
+                    <input type="date" name="planned_date" value="<?php echo e($item->planned_date?->format('Y-m-d')); ?>" class="input text-xs">
                   </div>
                   <div>
                     <label class="label text-xs">Completed Date</label>
-                    <input type="date" name="completed_date" value="{{ $item->completed_date?->format('Y-m-d') }}" class="input text-xs">
+                    <input type="date" name="completed_date" value="<?php echo e($item->completed_date?->format('Y-m-d')); ?>" class="input text-xs">
                   </div>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                  <button type="button" onclick="hideEdit({{ $item->id }})" class="btn btn-secondary btn-sm">Cancel</button>
+                  <button type="button" onclick="hideEdit(<?php echo e($item->id); ?>)" class="btn btn-secondary btn-sm">Cancel</button>
                   <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
                 </div>
               </form>
             </div>
 
           </div>
-        @empty
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
           <div class="card text-center py-12 text-slate-400">
             <svg class="w-10 h-10 text-slate-300 mx-auto mb-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
             <p class="font-bold text-slate-600 text-sm">No chapters found for the selected criteria</p>
             <p class="text-xs text-slate-400 mt-1">Use the "+ Add Chapter" button to create curriculum chapters.</p>
-            <button type="button" @click="openAddModal('{{ request('subject_id') }}')" class="btn btn-primary btn-sm mt-3 font-bold">
+            <button type="button" @click="openAddModal('<?php echo e(request('subject_id')); ?>')" class="btn btn-primary btn-sm mt-3 font-bold">
               + Add First Chapter
             </button>
           </div>
-        @endforelse
+        <?php endif; ?>
       </div>
 
       <!-- Quick Add Chapter Bottom Card -->
-      @if($syllabus->count() > 0)
+      <?php if($syllabus->count() > 0): ?>
         <div class="card p-3.5 border-2 border-dashed border-slate-200 hover:border-indigo-300 transition text-center cursor-pointer bg-slate-50/50 hover:bg-indigo-50/30"
-             @click="openAddModal('{{ request('subject_id') }}')">
+             @click="openAddModal('<?php echo e(request('subject_id')); ?>')">
           <p class="text-xs font-bold text-indigo-600 flex items-center justify-center gap-1.5">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Add Another Chapter @if(request('subject_id') && $classSubjects->firstWhere('id', request('subject_id'))) under {{ $classSubjects->firstWhere('id', request('subject_id'))->name }} @endif
+            Add Another Chapter <?php if(request('subject_id') && $classSubjects->firstWhere('id', request('subject_id'))): ?> under <?php echo e($classSubjects->firstWhere('id', request('subject_id'))->name); ?> <?php endif; ?>
           </p>
         </div>
-      @endif
+      <?php endif; ?>
     </div>
-  @else
+  <?php else: ?>
     <div class="card text-center py-16">
       <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5"/></svg>
       <h3 class="text-lg font-bold text-slate-700">Please Select a Standard to View Syllabus</h3>
       <p class="text-xs text-slate-400 mt-1">Choose from Pre-KG, LKG, UKG, or Class I - XII in the top bar.</p>
     </div>
-  @endif
+  <?php endif; ?>
 
 </div>
 
-{{-- ── MODAL 1: Add Subject to Standard Modal ────────────── --}}
+
 <div id="addSubjectModal" class="fixed inset-0 z-50 hidden items-center justify-center" x-data="{ mode: 'existing' }">
   <div class="absolute inset-0 bg-black/50 backdrop-blur-xs" onclick="closeAddSubjectModal()"></div>
   <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto z-10 border border-slate-100">
     <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 rounded-t-2xl text-white">
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="text-lg font-extrabold text-white">Add Subject to {{ $selectedClass?->name }}</h3>
+          <h3 class="text-lg font-extrabold text-white">Add Subject to <?php echo e($selectedClass?->name); ?></h3>
           <p class="text-xs text-indigo-100 mt-0.5">Configure a new subject or assign from master list</p>
         </div>
         <button onclick="closeAddSubjectModal()" class="text-white/80 hover:text-white text-2xl font-bold">&times;</button>
@@ -728,9 +740,9 @@
     </div>
 
     <div class="p-5">
-      <form method="POST" action="{{ route('academics.subjects.store') }}" class="space-y-3.5">
-        @csrf
-        <input type="hidden" name="class_id" value="{{ $selectedClass?->id }}">
+      <form method="POST" action="<?php echo e(route('academics.subjects.store')); ?>" class="space-y-3.5">
+        <?php echo csrf_field(); ?>
+        <input type="hidden" name="class_id" value="<?php echo e($selectedClass?->id); ?>">
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="sm:col-span-2">
@@ -762,14 +774,14 @@
 
         <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
           <button type="button" onclick="closeAddSubjectModal()" class="btn btn-secondary btn-sm">Cancel</button>
-          <button type="submit" class="btn btn-primary btn-sm font-bold">+ Add Subject to {{ $selectedClass?->name }}</button>
+          <button type="submit" class="btn btn-primary btn-sm font-bold">+ Add Subject to <?php echo e($selectedClass?->name); ?></button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-{{-- ── MODAL 2: Single Add Chapter Modal ─────────────────── --}}
+
 <div id="addChapterModal" class="fixed inset-0 z-50 hidden items-center justify-center">
   <div class="absolute inset-0 bg-black/50 backdrop-blur-xs" onclick="closeAddModal()"></div>
   <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto z-10 border border-slate-100">
@@ -778,33 +790,34 @@
         <div>
           <h3 class="text-lg font-extrabold text-white" id="addChapterModalTitle">Add Curriculum Chapter</h3>
           <p class="text-xs text-indigo-100 mt-0.5">
-            Standard: {{ $selectedClass?->name ?? 'Select Class' }}
+            Standard: <?php echo e($selectedClass?->name ?? 'Select Class'); ?>
+
           </p>
         </div>
         <button onclick="closeAddModal()" class="text-white/80 hover:text-white text-2xl font-bold">&times;</button>
       </div>
     </div>
 
-    <form method="POST" action="{{ route('academics.syllabus.save') }}" class="p-5 space-y-3.5">
-      @csrf
-      <input type="hidden" name="class_id" value="{{ $selectedClass?->id }}">
+    <form method="POST" action="<?php echo e(route('academics.syllabus.save')); ?>" class="p-5 space-y-3.5">
+      <?php echo csrf_field(); ?>
+      <input type="hidden" name="class_id" value="<?php echo e($selectedClass?->id); ?>">
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div class="sm:col-span-2">
-          <label class="label text-xs font-bold text-slate-700">Select Subject in {{ $selectedClass?->name }} <span class="text-red-500">*</span></label>
+          <label class="label text-xs font-bold text-slate-700">Select Subject in <?php echo e($selectedClass?->name); ?> <span class="text-red-500">*</span></label>
           <select name="subject_id" id="addModalSubjectSelect" class="select text-xs font-semibold" required onchange="updateModalHeader(this)">
-            <option value="">— Select Subject in {{ $selectedClass?->name }} —</option>
-            @foreach($classSubjects as $s)
-              <option value="{{ $s->id }}" @selected(request('subject_id') == $s->id)>{{ $s->name }}</option>
-            @endforeach
+            <option value="">— Select Subject in <?php echo e($selectedClass?->name); ?> —</option>
+            <?php $__currentLoopData = $classSubjects; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $s): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($s->id); ?>" <?php if(request('subject_id') == $s->id): echo 'selected'; endif; ?>><?php echo e($s->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div>
           <label class="label text-xs">Term Division <span class="text-red-500">*</span></label>
           <select name="term" class="select text-xs" required>
-            <option value="Term 1" @selected(request('term') === 'Term 1' || !request('term'))>Term 1 (Jun–Sep)</option>
-            <option value="Term 2" @selected(request('term') === 'Term 2')>Term 2 (Oct–Dec)</option>
-            <option value="Term 3" @selected(request('term') === 'Term 3')>Term 3 (Jan–Apr)</option>
+            <option value="Term 1" <?php if(request('term') === 'Term 1' || !request('term')): echo 'selected'; endif; ?>>Term 1 (Jun–Sep)</option>
+            <option value="Term 2" <?php if(request('term') === 'Term 2'): echo 'selected'; endif; ?>>Term 2 (Oct–Dec)</option>
+            <option value="Term 3" <?php if(request('term') === 'Term 3'): echo 'selected'; endif; ?>>Term 3 (Jan–Apr)</option>
           </select>
         </div>
         <div>
@@ -845,7 +858,7 @@
   </div>
 </div>
 
-{{-- ── MODAL 3: Batch Add Topics Modal ──────────────────── --}}
+
 <div id="batchModal" class="fixed inset-0 z-50 hidden items-center justify-center">
   <div class="absolute inset-0 bg-black/50 backdrop-blur-xs" onclick="closeBatchModal()"></div>
   <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto z-10 border border-slate-100">
@@ -859,26 +872,26 @@
       </div>
     </div>
 
-    <form method="POST" action="{{ route('academics.syllabus.batch') }}" class="p-5 space-y-3.5">
-      @csrf
-      <input type="hidden" name="class_id" value="{{ $selectedClass?->id }}">
+    <form method="POST" action="<?php echo e(route('academics.syllabus.batch')); ?>" class="p-5 space-y-3.5">
+      <?php echo csrf_field(); ?>
+      <input type="hidden" name="class_id" value="<?php echo e($selectedClass?->id); ?>">
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="label text-xs font-bold text-slate-700">Subject in {{ $selectedClass?->name }} <span class="text-red-500">*</span></label>
+          <label class="label text-xs font-bold text-slate-700">Subject in <?php echo e($selectedClass?->name); ?> <span class="text-red-500">*</span></label>
           <select name="subject_id" class="select text-xs font-semibold" required>
-            <option value="">— Select Subject in {{ $selectedClass?->name }} —</option>
-            @foreach($classSubjects as $s)
-              <option value="{{ $s->id }}" @selected(request('subject_id') == $s->id)>{{ $s->name }}</option>
-            @endforeach
+            <option value="">— Select Subject in <?php echo e($selectedClass?->name); ?> —</option>
+            <?php $__currentLoopData = $classSubjects; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $s): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+              <option value="<?php echo e($s->id); ?>" <?php if(request('subject_id') == $s->id): echo 'selected'; endif; ?>><?php echo e($s->name); ?></option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
           </select>
         </div>
         <div>
           <label class="label text-xs font-bold text-slate-700">Target Term <span class="text-red-500">*</span></label>
           <select name="term" class="select text-xs font-semibold" required>
-            <option value="Term 1" @selected(request('term') === 'Term 1' || !request('term'))>Term 1</option>
-            <option value="Term 2" @selected(request('term') === 'Term 2')>Term 2</option>
-            <option value="Term 3" @selected(request('term') === 'Term 3')>Term 3</option>
+            <option value="Term 1" <?php if(request('term') === 'Term 1' || !request('term')): echo 'selected'; endif; ?>>Term 1</option>
+            <option value="Term 2" <?php if(request('term') === 'Term 2'): echo 'selected'; endif; ?>>Term 2</option>
+            <option value="Term 3" <?php if(request('term') === 'Term 3'): echo 'selected'; endif; ?>>Term 3</option>
           </select>
         </div>
         <div class="sm:col-span-2">
@@ -896,7 +909,7 @@
   </div>
 </div>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script>
 function syllabusApp() {
     return {};
@@ -989,7 +1002,7 @@ function cycleStatus(id, currentStatus, btn) {
     const card = document.getElementById('chapter-' + id);
     card.className = card.className.replace(/status-\w+/, 'status-' + nextStatus);
 
-    fetch('{{ url("/academics/syllabus") }}/' + id + '/status', {
+    fetch('<?php echo e(url("/academics/syllabus")); ?>/' + id + '/status', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1023,5 +1036,7 @@ document.addEventListener('keydown', e => {
     }
 });
 </script>
-@endpush
-@endsection
+<?php $__env->stopPush(); ?>
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\school_erp - Copy\resources\views/academics/syllabus.blade.php ENDPATH**/ ?>

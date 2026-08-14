@@ -334,8 +334,10 @@
   }
 
   .nav-group-label {
-    @apply px-3 mt-4 mb-1 text-[10px] font-bold uppercase tracking-widest;
-    color: rgba(148, 163, 184, 0.4);
+    @apply px-3 mt-4 mb-1 text-[11px] font-extrabold uppercase tracking-widest;
+    color: #94A3B8 !important;
+    opacity: 0.85;
+    letter-spacing: 0.08em;
   }
 
   /* ─ Modal ───────────────────────────────────────────── */

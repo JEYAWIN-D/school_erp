@@ -81,6 +81,7 @@ class HrController extends Controller
         $employees = Employee::when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
                 $q->where('first_name', 'like', "%$v%")
                   ->orWhere('last_name', 'like', "%$v%")
+                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%$v%"])
                   ->orWhere('employee_code', 'like', "%$v%")
                   ->orWhere('mobile', 'like', "%$v%")
                   ->orWhere('designation', 'like', "%$v%")

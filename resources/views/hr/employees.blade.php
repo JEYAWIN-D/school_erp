@@ -151,62 +151,75 @@
   </div>
 
   {{-- Filters & Search Bar --}}
-  <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-3 shadow-sm">
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
 
-    <form method="GET" action="{{ route('hr.employees') }}" class="flex-1 w-full flex flex-wrap items-center gap-2.5">
+    {{-- Line 1: Search bar (full width) + Department + Filter --}}
+    <form method="GET" action="{{ route('hr.employees') }}" class="flex items-center gap-2.5 w-full">
       @if(request('type'))
         <input type="hidden" name="type" value="{{ request('type') }}">
       @endif
 
       {{-- Search --}}
-      <div class="relative flex-1 min-w-[220px]">
-        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
-        <input type="text" name="search" value="{{ request('search') }}" placeholder="Search employee name, code, mobile, designation..." class="input pl-9 text-xs w-full">
+      <div class="relative flex-1">
+        <div class="absolute flex items-center pointer-events-none text-slate-400 z-10" style="left: 20px; top: 50%; transform: translateY(-50%);">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+        <input type="text" name="search" value="{{ request('search') }}"
+               placeholder="Search employee name, code, mobile, designation..."
+               style="padding-left: 52px !important;"
+               class="w-full h-11 bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 focus:border-blue-500 rounded-xl text-xs font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition shadow-2xs">
       </div>
 
       {{-- Department filter --}}
-      <select name="department" class="select text-xs w-44">
+      <select name="department" class="h-11 px-3 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition min-w-[160px]">
         <option value="">All Departments</option>
         @foreach($departments as $d)
           <option value="{{ $d }}" @selected(request('department') === $d)>{{ $d }}</option>
         @endforeach
       </select>
 
-      <button type="submit" class="btn btn-secondary btn-sm text-xs">Filter</button>
+      <button type="submit" class="h-11 px-4 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition whitespace-nowrap">Filter</button>
 
       @if(request('search') || request('department') || request('type'))
-        <a href="{{ route('hr.employees') }}" class="text-xs text-slate-500 hover:text-red-600 transition flex items-center gap-1">
+        <a href="{{ route('hr.employees') }}" class="h-11 flex items-center gap-1.5 px-3 text-xs text-slate-500 hover:text-red-600 transition whitespace-nowrap">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           Clear Filters
         </a>
       @endif
     </form>
 
-    {{-- Category Pills --}}
-    <div class="flex items-center gap-1 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
-      <a href="{{ route('hr.employees') }}" class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition {{ !request('type') ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+    {{-- Line 2: Category filter pills --}}
+    <div class="flex items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar flex-wrap">
+      <a href="{{ route('hr.employees') }}"
+         class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer {{ !request('type') ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:bg-slate-100' }}">
         All ({{ $categoryCounts['total'] }})
       </a>
-      <a href="{{ route('hr.employees', ['type' => 'teaching']) }}" class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition {{ request('type') === 'teaching' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+      <a href="{{ route('hr.employees', array_merge(request()->except('page'), ['type' => 'teaching'])) }}"
+         class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer {{ request('type') === 'teaching' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:bg-slate-100' }}">
         Teaching ({{ $categoryCounts['teaching'] }})
       </a>
-      <a href="{{ route('hr.employees', ['type' => 'non_teaching']) }}" class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition {{ request('type') === 'non_teaching' ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+      <a href="{{ route('hr.employees', array_merge(request()->except('page'), ['type' => 'non_teaching'])) }}"
+         class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer {{ request('type') === 'non_teaching' ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:bg-slate-100' }}">
         Non-Teaching ({{ $categoryCounts['non_teaching'] }})
       </a>
-      <a href="{{ route('hr.employees', ['type' => 'driver']) }}" class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition {{ request('type') === 'driver' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+      <a href="{{ route('hr.employees', array_merge(request()->except('page'), ['type' => 'driver'])) }}"
+         class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer {{ request('type') === 'driver' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:bg-slate-100' }}">
         Drivers ({{ $categoryCounts['driver'] }})
       </a>
-      <a href="{{ route('hr.employees', ['type' => 'cleaner']) }}" class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition {{ request('type') === 'cleaner' ? 'bg-teal-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+      <a href="{{ route('hr.employees', array_merge(request()->except('page'), ['type' => 'cleaner'])) }}"
+         class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer {{ request('type') === 'cleaner' ? 'bg-teal-600 text-white shadow-sm' : 'bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:bg-slate-100' }}">
         Cleaners ({{ $categoryCounts['cleaner'] }})
       </a>
-      <a href="{{ route('hr.employees', ['type' => 'nanny']) }}" class="px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition {{ in_array(request('type'), ['nanny', 'naani']) ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
+      <a href="{{ route('hr.employees', array_merge(request()->except('page'), ['type' => 'nanny'])) }}"
+         class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer {{ in_array(request('type'), ['nanny','naani']) ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:bg-slate-100' }}">
         Nannies ({{ $categoryCounts['nanny'] }})
       </a>
     </div>
 
   </div>
+
 
   {{-- GRID CARDS VIEW --}}
   <div x-show="viewMode === 'grid'">

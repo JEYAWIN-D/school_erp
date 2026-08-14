@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class Timetable extends Model
 {
     protected $fillable = [
-        'class_id', 'section_id', 'subject_id', 'employee_id',
+        'class_id', 'section_id', 'subject_id', 'teacher_id', 'employee_id',
         'day', 'day_of_week', 'period_number', 'start_time', 'end_time',
-        'period_type', 'effective_from', 'academic_year_id',
+        'room', 'is_active', 'period_type', 'effective_from', 'academic_year_id',
     ];
 
     protected $casts = [
         'effective_from' => 'date',
+        'is_active' => 'boolean',
     ];
 
     public function class()
@@ -33,6 +34,13 @@ class Timetable extends Model
 
     public function teacher()
     {
-        return $this->belongsTo(Employee::class, 'employee_id');
+        return $this->belongsTo(Employee::class, 'teacher_id');
+    }
+
+    // Mutator for employee_id compatibility
+    public function setEmployeeIdAttribute($value)
+    {
+        $this->attributes['teacher_id'] = $value;
     }
 }
+

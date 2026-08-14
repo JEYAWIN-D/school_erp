@@ -67,11 +67,9 @@
       <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-blue-glow">
         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
       </div>
-      <div class="flex-1 overflow-hidden" x-show="sidebarOpen || isMobile"
-           x-transition:enter="transition-opacity duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-           x-transition:leave="transition-opacity duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
-        <p class="text-white font-bold text-sm leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;"><?php echo e(config('app.name')); ?></p>
-        <p class="text-slate-400 text-xs">2025-2026 Academic Year</p>
+      <div class="flex-1 overflow-hidden">
+        <p class="text-white font-extrabold text-base leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;"><?php echo e(config('app.name', 'DASA EduERP')); ?></p>
+        <p class="text-slate-300 text-xs font-medium">2025-2026 Academic Year</p>
       </div>
       
       <button x-show="isMobile" @click="sidebarOpen = false"
@@ -82,12 +80,25 @@
 
     
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5 min-h-0" style="-ms-overflow-style:none;scrollbar-width:none">
-    <style>#sidebar nav::-webkit-scrollbar{display:none}</style>
+    <style>
+      #sidebar nav::-webkit-scrollbar{display:none}
+      .nav-group-label {
+        display: block;
+        padding: 0.25rem 0.75rem;
+        margin-top: 1.15rem;
+        margin-bottom: 0.25rem;
+        font-size: 10.5px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: #94A3B8 !important;
+      }
+    </style>
 
       <?php $currentRoute = request()->route()?->getName() ?? ''; ?>
 
       
-      <p class="nav-group-label" x-show="sidebarOpen">Main</p>
+      <p class="nav-group-label">MAIN</p>
       <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.nav-item','data' => ['route' => 'dashboard','icon' => 'home','label' => 'Dashboard','active' => str_starts_with($currentRoute, 'dashboard'),'open' => $sidebarOpen ?? true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -111,7 +122,7 @@
 
       
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->any(['view admissions','view students','view academics','view attendance','view examinations'])): ?>
-      <p class="nav-group-label" x-show="sidebarOpen">Academics</p>
+      <p class="nav-group-label">ACADEMICS</p>
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('view admissions')): ?>
       <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
@@ -157,6 +168,26 @@
 <?php endif; ?>
       <?php endif; ?>
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('view academics')): ?>
+      <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.nav-item','data' => ['route' => 'classes.index','icon' => 'academic-class','label' => 'Classes','active' => str_starts_with($currentRoute, 'classes'),'open' => $sidebarOpen ?? true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('nav-item'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['route' => 'classes.index','icon' => 'academic-class','label' => 'Classes','active' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(str_starts_with($currentRoute, 'classes')),'open' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($sidebarOpen ?? true)]); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal6cced52613a484e7295a90162a92d81b)): ?>
+<?php $attributes = $__attributesOriginal6cced52613a484e7295a90162a92d81b; ?>
+<?php unset($__attributesOriginal6cced52613a484e7295a90162a92d81b); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal6cced52613a484e7295a90162a92d81b)): ?>
+<?php $component = $__componentOriginal6cced52613a484e7295a90162a92d81b; ?>
+<?php unset($__componentOriginal6cced52613a484e7295a90162a92d81b); ?>
+<?php endif; ?>
       <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.nav-item','data' => ['route' => 'academics.index','icon' => 'academic-cap','label' => 'Academics','active' => str_starts_with($currentRoute, 'academics'),'open' => $sidebarOpen ?? true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -226,7 +257,7 @@
 
       
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->any(['view fees','view employees'])): ?>
-      <p class="nav-group-label" x-show="sidebarOpen">Finance</p>
+      <p class="nav-group-label">FINANCE</p>
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('view fees')): ?>
       <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
@@ -275,7 +306,7 @@
 
       
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->any(['view library','view transport','view hostel','view inventory'])): ?>
-      <p class="nav-group-label" x-show="sidebarOpen">Administration</p>
+      <p class="nav-group-label">ADMINISTRATION</p>
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('view library')): ?>
       <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
@@ -368,7 +399,7 @@
 
       
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->any(['send email','view lms','view events','view gate','view alumni'])): ?>
-      <p class="nav-group-label" x-show="sidebarOpen">Engagement</p>
+      <p class="nav-group-label">ENGAGEMENT</p>
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('send email')): ?>
       <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
@@ -483,7 +514,7 @@
 
       
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->any(['view reports','view audit logs','manage settings'])): ?>
-      <p class="nav-group-label" x-show="sidebarOpen">System</p>
+      <p class="nav-group-label">SYSTEM</p>
       <?php if (app(\Illuminate\Contracts\Auth\Access\Gate::class)->check('view reports')): ?>
       <?php if (isset($component)) { $__componentOriginal6cced52613a484e7295a90162a92d81b = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6cced52613a484e7295a90162a92d81b = $attributes; } ?>
@@ -572,92 +603,7 @@
       </div>
     </div>
 
-    
-    <div class="border-t border-white/10 p-3 flex-shrink-0"
-         x-data="{
-           open: false,
-           dropBottom: 0,
-           dropLeft: 0,
-           toggle() {
-             const rect = this.$el.getBoundingClientRect();
-             this.dropBottom = window.innerHeight - rect.top + 6;
-             this.dropLeft   = rect.left + 6;
-             this.open = !this.open;
-           }
-         }"
-         @click.outside="open = false">
 
-      
-      <div @click="toggle()"
-           class="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/10 transition cursor-pointer select-none"
-           :class="open ? 'bg-white/10' : ''">
-        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 ring-2 ring-white/20">
-          <span class="text-white text-xs font-bold"><?php echo e(strtoupper(substr(auth()->user()->name, 0, 2))); ?></span>
-        </div>
-        <div x-show="sidebarOpen" class="flex-1 min-w-0"
-             x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-          <p class="text-white text-xs font-semibold truncate"><?php echo e(auth()->user()->name); ?></p>
-          <p class="text-slate-400 text-xs truncate capitalize"><?php echo e(str_replace('_',' ', auth()->user()->getRoleNames()->first() ?? 'User')); ?></p>
-        </div>
-        <div x-show="sidebarOpen" class="text-slate-400 flex-shrink-0"
-             x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-          <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
-          </svg>
-        </div>
-      </div>
-
-      
-      <div x-show="open"
-           x-transition:enter="transition ease-out duration-150"
-           x-transition:enter-start="opacity-0 scale-95"
-           x-transition:enter-end="opacity-100 scale-100"
-           x-transition:leave="transition ease-in duration-100"
-           x-transition:leave-start="opacity-100 scale-100"
-           x-transition:leave-end="opacity-0 scale-95"
-           class="fixed z-[9999] bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden"
-           :style="'bottom:' + dropBottom + 'px; left:' + dropLeft + 'px; min-width:240px'"
-           style="display:none">
-
-        
-        <div class="px-3 py-2.5 bg-slate-50 border-b border-slate-100">
-          <p class="text-xs font-semibold text-slate-800 truncate"><?php echo e(auth()->user()->name); ?></p>
-          <p class="text-xs text-slate-400 truncate"><?php echo e(auth()->user()->email); ?></p>
-          <span class="inline-block mt-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium capitalize">
-            <?php echo e(str_replace('_',' ', auth()->user()->getRoleNames()->first() ?? 'User')); ?>
-
-          </span>
-        </div>
-
-        
-        <div class="py-1">
-          <a href="<?php echo e(route('settings.index')); ?>"
-             class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            My Profile
-          </a>
-          <a href="<?php echo e(route('settings.index')); ?>"
-             class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            Settings
-          </a>
-        </div>
-
-        <div class="border-t border-slate-100 py-1">
-          <form method="POST" action="<?php echo e(route('logout')); ?>">
-            <?php echo csrf_field(); ?>
-            <button type="submit"
-                    class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-              Sign Out / Log Out
-            </button>
-          </form>
-        </div>
-      </div>
-
-    </div>
 
     
     <button x-show="!isMobile" @click="sidebarOpen = !sidebarOpen"
@@ -704,6 +650,32 @@
 
       
       <div class="flex items-center gap-2" x-data="{ notifOpen: false, topUserOpen: false }">
+
+        
+        <div x-data="{
+                t: '',
+                d: '',
+                tick() {
+                    const now = new Date();
+                    let h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    h = h % 12 || 12;
+                    this.t = (h < 10 ? '0'+h : h) + ':' + (m < 10 ? '0'+m : m) + ':' + (s < 10 ? '0'+s : s) + ' ' + ampm;
+                    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    this.d = days[now.getDay()] + ', ' + months[now.getMonth()] + ' ' + now.getDate();
+                }
+             }"
+             x-init="tick(); setInterval(() => tick(), 1000)"
+             class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs">
+          <svg class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div class="flex flex-col leading-none">
+            <span class="text-[11px] font-mono font-bold text-slate-800 tracking-wide" x-text="t">--:--:-- --</span>
+            <span class="text-[9px] text-slate-400 font-medium mt-0.5" x-text="d"></span>
+          </div>
+        </div>
 
         
         <span class="badge-blue text-xs cursor-default" title="Academic Year">2025-2026</span>
@@ -847,23 +819,31 @@
 <script>
 function appShell() {
   return {
-    sidebarOpen: Alpine.$persist(true).as('sidebar_open'),
+    sidebarOpen: true,
     isMobile: window.innerWidth < 1024,
     init() {
-      // On mobile, always start with sidebar closed
+      try {
+        const stored = localStorage.getItem('sidebar_open');
+        if (stored !== null) {
+          this.sidebarOpen = JSON.parse(stored);
+        }
+      } catch(e) {}
+
       if (this.isMobile) this.sidebarOpen = false;
 
       const onResize = () => {
         const mobile = window.innerWidth < 1024;
         if (mobile !== this.isMobile) {
           this.isMobile = mobile;
-          this.sidebarOpen = !mobile; // open on desktop, closed on mobile
+          this.sidebarOpen = !mobile;
         }
       };
       window.addEventListener('resize', onResize);
 
-      // Lock body scroll when mobile drawer is open
       this.$watch('sidebarOpen', open => {
+        try {
+          localStorage.setItem('sidebar_open', JSON.stringify(open));
+        } catch(e) {}
         if (this.isMobile) {
           document.body.style.overflow = open ? 'hidden' : '';
         }

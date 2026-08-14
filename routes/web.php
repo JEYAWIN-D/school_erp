@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\LibraryController;
 use App\Http\Controllers\Admin\TransportController;
 use App\Http\Controllers\Admin\HostelController;
 use App\Http\Controllers\Admin\OnlineExamController;
+use App\Http\Controllers\Admin\ClassesController;
 
 // ── Auth ──────────────────────────────────────────────────
 Route::get('/',       [LoginController::class, 'landing'])->name('home');
@@ -157,15 +158,33 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{id}/photo', [StudentController::class, 'uploadPhoto'])->name('photo.upload')->where('id', '[0-9]+');
     });
 
+    // ── Module — Classes & Timetables ────────────────────
+    Route::middleware('permission:view academics')->prefix('classes')->name('classes.')->group(function () {
+        Route::get('/',                     [ClassesController::class, 'index'])->name('index');
+        Route::post('/timetable/update-slot', [ClassesController::class, 'updateSlot'])->name('timetable.update-slot');
+        Route::post('/timetable/toggle-holiday', [ClassesController::class, 'toggleHoliday'])->name('timetable.toggle-holiday');
+        Route::get('/{id}',                 [ClassesController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::get('/{id}/timetable-data',  [ClassesController::class, 'timetableData'])->name('timetable-data')->where('id', '[0-9]+');
+        Route::get('/{id}/timetable/pdf',   [ClassesController::class, 'downloadPdf'])->name('timetable.pdf')->where('id', '[0-9]+');
+        Route::get('/{id}/timetable/csv',   [ClassesController::class, 'exportCsv'])->name('timetable.csv')->where('id', '[0-9]+');
+    });
+
     // ── Module 3 — Academics ──────────────────────────────
     Route::middleware('permission:view academics')->prefix('academics')->name('academics.')->group(function () {
         Route::get('/',       [AcademicController::class, 'index'])->name('index');
         Route::get('/timetable',  [AcademicController::class, 'timetable'])->name('timetable');
         Route::post('/timetable', [AcademicController::class, 'saveTimetable'])->name('timetable.save');
         Route::get('/subjects',   [AcademicController::class, 'subjects'])->name('subjects');
+        Route::post('/subjects',  [AcademicController::class, 'storeSubject'])->name('subjects.store');
         Route::get('/syllabus',   [AcademicController::class, 'syllabus'])->name('syllabus');
         Route::post('/syllabus',  [AcademicController::class, 'saveSyllabus'])->name('syllabus.save');
+        Route::post('/syllabus/batch', [AcademicController::class, 'batchStoreSyllabus'])->name('syllabus.batch');
+        Route::get('/syllabus/print', [AcademicController::class, 'printSyllabus'])->name('syllabus.print');
         Route::post('/syllabus/{id}/document', [AcademicController::class, 'uploadSyllabusDocument'])->name('syllabus.document');
+        Route::put('/syllabus/{id}',  [AcademicController::class, 'updateSyllabus'])->name('syllabus.update');
+        Route::delete('/syllabus/{id}', [AcademicController::class, 'deleteSyllabus'])->name('syllabus.delete');
+        Route::post('/syllabus/{id}/status', [AcademicController::class, 'updateSyllabusStatus'])->name('syllabus.status');
+        Route::post('/syllabus/reorder', [AcademicController::class, 'reorderSyllabus'])->name('syllabus.reorder');
         // Lesson plans
         Route::get('/lesson-plans',              [AcademicController::class, 'lessonPlans'])->name('lesson-plans');
         Route::post('/lesson-plans',             [AcademicController::class, 'storeLessonPlan'])->name('lesson-plans.store');

@@ -67,11 +67,9 @@
       <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-blue-glow">
         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
       </div>
-      <div class="flex-1 overflow-hidden" x-show="sidebarOpen || isMobile"
-           x-transition:enter="transition-opacity duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-           x-transition:leave="transition-opacity duration-100" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
-        <p class="text-white font-bold text-sm leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">{{ config('app.name') }}</p>
-        <p class="text-slate-400 text-xs">2025-2026 Academic Year</p>
+      <div class="flex-1 overflow-hidden">
+        <p class="text-white font-extrabold text-base leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">{{ config('app.name', 'DASA EduERP') }}</p>
+        <p class="text-slate-300 text-xs font-medium">2025-2026 Academic Year</p>
       </div>
       {{-- Mobile close button --}}
       <button x-show="isMobile" @click="sidebarOpen = false"
@@ -82,17 +80,30 @@
 
     {{-- Nav — only this scrolls --}}
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5 min-h-0" style="-ms-overflow-style:none;scrollbar-width:none">
-    <style>#sidebar nav::-webkit-scrollbar{display:none}</style>
+    <style>
+      #sidebar nav::-webkit-scrollbar{display:none}
+      .nav-group-label {
+        display: block;
+        padding: 0.25rem 0.75rem;
+        margin-top: 1.15rem;
+        margin-bottom: 0.25rem;
+        font-size: 10.5px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        color: #94A3B8 !important;
+      }
+    </style>
 
       @php $currentRoute = request()->route()?->getName() ?? ''; @endphp
 
       {{-- MAIN --}}
-      <p class="nav-group-label" x-show="sidebarOpen">Main</p>
+      <p class="nav-group-label">MAIN</p>
       <x-nav-item route="dashboard" icon="home" label="Dashboard" :active="str_starts_with($currentRoute, 'dashboard')" :open="$sidebarOpen ?? true" />
 
       {{-- ACADEMICS --}}
       @canany(['view admissions','view students','view academics','view attendance','view examinations'])
-      <p class="nav-group-label" x-show="sidebarOpen">Academics</p>
+      <p class="nav-group-label">ACADEMICS</p>
       @can('view admissions')
       <x-nav-item route="admissions.index"  icon="clipboard-document-list" label="Admissions"  :active="str_starts_with($currentRoute, 'admissions')"  :open="$sidebarOpen ?? true" />
       @endcan
@@ -100,6 +111,7 @@
       <x-nav-item route="students.index"    icon="users"                   label="Students"    :active="str_starts_with($currentRoute, 'students')"    :open="$sidebarOpen ?? true" />
       @endcan
       @can('view academics')
+      <x-nav-item route="classes.index"     icon="academic-class"          label="Classes"     :active="str_starts_with($currentRoute, 'classes')"     :open="$sidebarOpen ?? true" />
       <x-nav-item route="academics.index"   icon="academic-cap"            label="Academics"   :active="str_starts_with($currentRoute, 'academics')"   :open="$sidebarOpen ?? true" />
       @endcan
       @can('view attendance')
@@ -112,7 +124,7 @@
 
       {{-- FINANCE --}}
       @canany(['view fees','view employees'])
-      <p class="nav-group-label" x-show="sidebarOpen">Finance</p>
+      <p class="nav-group-label">FINANCE</p>
       @can('view fees')
       <x-nav-item route="fees.index"    icon="banknotes"    label="Fee Management" :active="str_starts_with($currentRoute, 'fees')"    :open="$sidebarOpen ?? true" />
       @endcan
@@ -123,7 +135,7 @@
 
       {{-- ADMINISTRATION --}}
       @canany(['view library','view transport','view hostel','view inventory'])
-      <p class="nav-group-label" x-show="sidebarOpen">Administration</p>
+      <p class="nav-group-label">ADMINISTRATION</p>
       @can('view library')
       <x-nav-item route="library.index"   icon="book-open"   label="Library"    :active="str_starts_with($currentRoute, 'library')"   :open="$sidebarOpen ?? true" />
       @endcan
@@ -140,7 +152,7 @@
 
       {{-- ENGAGEMENT --}}
       @canany(['send email','view lms','view events','view gate','view alumni'])
-      <p class="nav-group-label" x-show="sidebarOpen">Engagement</p>
+      <p class="nav-group-label">ENGAGEMENT</p>
       @can('send email')
       <x-nav-item route="communication.index" icon="chat-bubble-left-right" label="Communication" :active="str_starts_with($currentRoute, 'communication')" :open="$sidebarOpen ?? true" />
       @endcan
@@ -160,7 +172,7 @@
 
       {{-- SYSTEM --}}
       @canany(['view reports','view audit logs','manage settings'])
-      <p class="nav-group-label" x-show="sidebarOpen">System</p>
+      <p class="nav-group-label">SYSTEM</p>
       @can('view reports')
       <x-nav-item route="reports.index"   icon="chart-bar"     label="Reports"    :active="str_starts_with($currentRoute, 'reports')"  :open="$sidebarOpen ?? true" />
       @endcan
@@ -192,91 +204,7 @@
       </div>
     </div>
 
-    {{-- User footer — always pinned at bottom --}}
-    <div class="border-t border-white/10 p-3 flex-shrink-0"
-         x-data="{
-           open: false,
-           dropBottom: 0,
-           dropLeft: 0,
-           toggle() {
-             const rect = this.$el.getBoundingClientRect();
-             this.dropBottom = window.innerHeight - rect.top + 6;
-             this.dropLeft   = rect.left + 6;
-             this.open = !this.open;
-           }
-         }"
-         @click.outside="open = false">
 
-      {{-- Trigger --}}
-      <div @click="toggle()"
-           class="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/10 transition cursor-pointer select-none"
-           :class="open ? 'bg-white/10' : ''">
-        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 ring-2 ring-white/20">
-          <span class="text-white text-xs font-bold">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
-        </div>
-        <div x-show="sidebarOpen" class="flex-1 min-w-0"
-             x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-          <p class="text-white text-xs font-semibold truncate">{{ auth()->user()->name }}</p>
-          <p class="text-slate-400 text-xs truncate capitalize">{{ str_replace('_',' ', auth()->user()->getRoleNames()->first() ?? 'User') }}</p>
-        </div>
-        <div x-show="sidebarOpen" class="text-slate-400 flex-shrink-0"
-             x-transition:enter="transition-opacity duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
-          <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
-          </svg>
-        </div>
-      </div>
-
-      {{-- Dropdown — fixed to viewport so overflow-hidden on aside never clips it --}}
-      <div x-show="open"
-           x-transition:enter="transition ease-out duration-150"
-           x-transition:enter-start="opacity-0 scale-95"
-           x-transition:enter-end="opacity-100 scale-100"
-           x-transition:leave="transition ease-in duration-100"
-           x-transition:leave-start="opacity-100 scale-100"
-           x-transition:leave-end="opacity-0 scale-95"
-           class="fixed z-[9999] bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden"
-           :style="'bottom:' + dropBottom + 'px; left:' + dropLeft + 'px; min-width:240px'"
-           style="display:none">
-
-        {{-- User info header --}}
-        <div class="px-3 py-2.5 bg-slate-50 border-b border-slate-100">
-          <p class="text-xs font-semibold text-slate-800 truncate">{{ auth()->user()->name }}</p>
-          <p class="text-xs text-slate-400 truncate">{{ auth()->user()->email }}</p>
-          <span class="inline-block mt-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium capitalize">
-            {{ str_replace('_',' ', auth()->user()->getRoleNames()->first() ?? 'User') }}
-          </span>
-        </div>
-
-        {{-- Menu items --}}
-        <div class="py-1">
-          <a href="{{ route('settings.index') }}"
-             class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-            My Profile
-          </a>
-          <a href="{{ route('settings.index') }}"
-             class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition">
-            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            Settings
-          </a>
-        </div>
-
-        <div class="border-t border-slate-100 py-1">
-          <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit"
-                    class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-              Sign Out / Log Out
-            </button>
-          </form>
-        </div>
-      </div>
-
-    </div>
 
     {{-- Chevron toggle tab — desktop only --}}
     <button x-show="!isMobile" @click="sidebarOpen = !sidebarOpen"
@@ -464,23 +392,31 @@
 <script>
 function appShell() {
   return {
-    sidebarOpen: Alpine.$persist(true).as('sidebar_open'),
+    sidebarOpen: true,
     isMobile: window.innerWidth < 1024,
     init() {
-      // On mobile, always start with sidebar closed
+      try {
+        const stored = localStorage.getItem('sidebar_open');
+        if (stored !== null) {
+          this.sidebarOpen = JSON.parse(stored);
+        }
+      } catch(e) {}
+
       if (this.isMobile) this.sidebarOpen = false;
 
       const onResize = () => {
         const mobile = window.innerWidth < 1024;
         if (mobile !== this.isMobile) {
           this.isMobile = mobile;
-          this.sidebarOpen = !mobile; // open on desktop, closed on mobile
+          this.sidebarOpen = !mobile;
         }
       };
       window.addEventListener('resize', onResize);
 
-      // Lock body scroll when mobile drawer is open
       this.$watch('sidebarOpen', open => {
+        try {
+          localStorage.setItem('sidebar_open', JSON.stringify(open));
+        } catch(e) {}
         if (this.isMobile) {
           document.body.style.overflow = open ? 'hidden' : '';
         }

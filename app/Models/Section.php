@@ -31,6 +31,11 @@ class Section extends Model
         return $this->hasMany(StudentEnrollment::class);
     }
 
+    public function timetables(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Timetable::class, 'section_id');
+    }
+
     public function activeStudentsCount(): int
     {
         return $this->enrollments()->where('status', 'active')->count();
