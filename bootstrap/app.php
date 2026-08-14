@@ -4,7 +4,15 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__));
+
+// On Vercel (serverless), the filesystem is read-only except for /tmp.
+// Redirect Laravel's storage path to /tmp/storage so logs, views cache, etc. work.
+if ($storagePath = env('LARAVEL_STORAGE_PATH')) {
+    $app->useStoragePath($storagePath);
+}
+
+return $app
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
