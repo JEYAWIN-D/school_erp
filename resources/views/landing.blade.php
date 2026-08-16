@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover"/>
 <title>DASA EduERP — Complete School Management Platform</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta name="description" content="The all-in-one school management platform trusted by leading institutions. Automate admissions, attendance, fees, exams, communication and more."/>

@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>@yield('title', 'Portal') — {{ config('app.name') }}</title>
   @vite(['resources/css/app.css', 'resources/js/app.js'])
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    *{box-sizing:border-box;margin:0;padding:0;}
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
     body{font-family:'Inter',sans-serif;background:#f1f5f9;height:100vh;overflow:hidden;}
 
     /* ── Shell ── */
@@ -18,9 +18,9 @@
     .ps-sidebar{
       width:240px;flex-shrink:0;height:100vh;overflow-y:auto;overflow-x:hidden;
       background:linear-gradient(180deg,#0f172a 0%,#1e293b 60%,#1e3a5f 100%);
-      display:flex;flex-direction:column;transition:width .25s ease;
+      display:flex;flex-direction:column;transition:width .25s ease, transform .25s ease;
       scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.1) transparent;
-      position:relative;z-index:30;
+      position:relative;z-index:50;
     }
     .ps-sidebar.ps-collapsed{width:64px;}
     .ps-sidebar::-webkit-scrollbar{width:4px;}
@@ -37,7 +37,7 @@
     .ps-collapsed .ps-group-label{opacity:0;}
 
     /* Nav item */
-    .ps-nav-item{display:flex;align-items:center;gap:.75rem;padding:.55rem .875rem;margin:.06rem .5rem;border-radius:.625rem;text-decoration:none;cursor:pointer;transition:background .15s,color .15s;overflow:hidden;white-space:nowrap;min-height:2.5rem;}
+    .ps-nav-item{display:flex;align-items:center;gap:.75rem;padding:.55rem .875rem;margin:.06rem .5rem;border-radius:.625rem;text-decoration:none;cursor:pointer;transition:background .15s,color .15s;overflow:hidden;white-space:nowrap;min-height:2.65rem;}
     .ps-nav-item:hover{background:rgba(255,255,255,.07);color:#e2e8f0;}
     .ps-nav-item .ps-nav-icon{flex-shrink:0;width:1.125rem;height:1.125rem;color:rgba(148,163,184,.7);transition:color .15s;}
     .ps-nav-item .ps-nav-label{font-size:.8125rem;font-weight:500;color:rgba(203,213,225,.85);white-space:nowrap;overflow:hidden;opacity:1;transition:opacity .2s;}
@@ -55,20 +55,24 @@
     .ps-user-avatar{width:2rem;height:2rem;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     .ps-user-info{flex:1;min-width:0;overflow:hidden;opacity:1;transition:opacity .2s;}
     .ps-collapsed .ps-user-info{opacity:0;width:0;}
-    .ps-logout-btn{background:transparent;border:none;cursor:pointer;padding:.25rem;border-radius:.375rem;display:flex;align-items:center;color:rgba(148,163,184,.7);transition:color .15s,background .15s;flex-shrink:0;}
+    .ps-logout-btn{background:transparent;border:none;cursor:pointer;padding:.35rem;border-radius:.375rem;display:flex;align-items:center;color:rgba(148,163,184,.7);transition:color .15s,background .15s;flex-shrink:0;}
     .ps-logout-btn:hover{color:#f87171;background:rgba(248,113,113,.1);}
 
     /* ── Main area ── */
     .ps-main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
 
     /* Topbar */
-    .ps-topbar{height:3.5rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 1.25rem;gap:.875rem;flex-shrink:0;z-index:20;}
+    .ps-topbar{height:3.5rem;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 1rem;gap:.625rem;flex-shrink:0;z-index:20;}
     .ps-topbar-title{flex:1;font-size:.9375rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .ps-icon-btn{width:2.25rem;height:2.25rem;border-radius:.5rem;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;transition:background .15s,color .15s;flex-shrink:0;position:relative;}
     .ps-icon-btn:hover{background:#f1f5f9;color:#1e293b;}
 
     /* Notification dropdown */
-    .ps-notif-dropdown{position:absolute;right:0;top:calc(100% + .375rem);width:20rem;background:#fff;border-radius:.875rem;box-shadow:0 12px 32px rgba(0,0,0,.13);border:1px solid #e2e8f0;z-index:100;overflow:hidden;display:none;}
+    .ps-notif-dropdown{
+      position:absolute;right:0;top:calc(100% + .375rem);width:20rem;
+      background:#fff;border-radius:.875rem;box-shadow:0 12px 32px rgba(0,0,0,.13);
+      border:1px solid #e2e8f0;z-index:100;overflow:hidden;display:none;
+    }
     .ps-notif-dropdown.open{display:block;}
     .ps-notif-header{display:flex;align-items:center;justify-content:space-between;padding:.875rem 1rem .625rem;border-bottom:1px solid #f1f5f9;}
     .ps-notif-item{display:flex;align-items:flex-start;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid #f8fafc;transition:background .12s;}
@@ -80,16 +84,16 @@
     .ps-content{flex:1;overflow-y:auto;padding:1.25rem;}
 
     /* Mobile overlay */
-    .ps-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:25;backdrop-filter:blur(2px);}
+    .ps-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:40;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
     .ps-overlay.show{display:block;}
 
-    /* Portal cards (used by all pages) */
-    .portal-card{background:#fff;border-radius:.875rem;box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);border:1px solid #e2e8f0;padding:1.25rem;}
-    .badge-green{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#dcfce7;color:#16a34a;}
-    .badge-red{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#fee2e2;color:#dc2626;}
-    .badge-blue{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#dbeafe;color:#2563eb;}
-    .badge-amber{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#fef3c7;color:#d97706;}
-    .badge-slate{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#f1f5f9;color:#475569;}
+    /* Portal cards */
+    .portal-card{background:#fff;border-radius:.875rem;box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);border:1px solid #e2e8f0;padding:1.25rem;min-width:0;}
+    .badge-green{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#dcfce7;color:#16a34a;white-space:nowrap;}
+    .badge-red{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#fee2e2;color:#dc2626;white-space:nowrap;}
+    .badge-blue{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#dbeafe;color:#2563eb;white-space:nowrap;}
+    .badge-amber{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#fef3c7;color:#d97706;white-space:nowrap;}
+    .badge-slate{display:inline-flex;align-items:center;padding:.15rem .625rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:#f1f5f9;color:#475569;white-space:nowrap;}
     .section-title{font-size:.9375rem;font-weight:600;color:#1e293b;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;}
     .link-sm{font-size:.75rem;color:#3b82f6;text-decoration:none;font-weight:500;}
     .link-sm:hover{text-decoration:underline;}
@@ -103,15 +107,28 @@
     .progress-bar{height:.375rem;border-radius:9999px;background:#e2e8f0;overflow:hidden;}
     .progress-fill{height:100%;border-radius:9999px;}
 
-    /* Mobile responsive */
+    /* Mobile responsive rules */
     @media (max-width:767px){
-      .ps-sidebar{position:fixed;left:0;top:0;height:100vh;transform:translateX(-100%);transition:transform .25s ease,width .25s ease;width:240px !important;}
+      .ps-sidebar{
+        position:fixed;left:0;top:0;height:100vh;
+        transform:translateX(-100%);
+        transition:transform .25s cubic-bezier(.4,0,.2,1);
+        width:260px !important;max-width:85vw !important;
+        box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);
+      }
       .ps-sidebar.ps-mobile-open{transform:translateX(0);}
       .ps-hamburger{display:flex !important;}
       .ps-collapse-btn{display:none !important;}
+      .ps-content{padding:.875rem;padding-bottom:calc(1rem + env(safe-area-inset-bottom));}
+      .portal-card{padding:1rem;border-radius:.75rem;}
+      .ps-notif-dropdown{
+        position:fixed;left:.75rem;right:.75rem;top:3.8rem;width:auto;
+        max-width:22rem;margin-left:auto;box-shadow:0 20px 40px rgba(0,0,0,.2);
+      }
     }
     @media (min-width:768px){
       .ps-hamburger{display:none !important;}
+      .ps-topbar{padding:0 1.25rem;}
     }
   </style>
 </head>
@@ -129,14 +146,18 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
         </svg>
       </div>
-      <div class="ps-logo-text">
-        <p style="color:#fff;font-weight:700;font-size:.875rem;line-height:1.25;white-space:nowrap;">{{ config('app.name') }}</p>
+      <div class="ps-logo-text" style="flex:1;min-width:0;overflow:hidden;">
+        <p style="color:#fff;font-weight:700;font-size:.875rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ config('app.name') }}</p>
         <p style="color:rgba(148,163,184,.6);font-size:.7rem;white-space:nowrap;">Student Portal</p>
       </div>
+      {{-- Mobile close button --}}
+      <button onclick="closeSidebar()" class="ps-icon-btn ps-hamburger" style="color:rgba(148,163,184,.8);margin-left:auto;" title="Close menu">
+        <svg style="width:1.125rem;height:1.125rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
     </div>
 
     {{-- Navigation --}}
-    <nav style="flex:1;padding:.5rem 0;">
+    <nav style="flex:1;padding:.5rem 0;overflow-y:auto;">
 
       @php $route = request()->route()?->getName() ?? ''; @endphp
 
@@ -247,7 +268,7 @@
         <form method="POST" action="{{ route('logout') }}" style="flex-shrink:0;">
           @csrf
           <button type="submit" class="ps-logout-btn" title="Sign Out">
-            <svg style="width:1rem;height:1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            <svg style="width:1.125rem;height:1.125rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
         </form>
       </div>
@@ -344,10 +365,12 @@ function toggleSidebar() {
 function openSidebar() {
   sidebar.classList.add('ps-mobile-open');
   overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 function closeSidebar() {
   sidebar.classList.remove('ps-mobile-open');
   overlay.classList.remove('show');
+  document.body.style.overflow = '';
 }
 
 // ── Notification dropdown ───────────────────────────

@@ -66,21 +66,21 @@
 
       <div class="w-px h-6 bg-slate-200 hidden sm:block"></div>
 
-      <select name="class_id" class="select w-36">
+      <select name="class_id" class="select flex-1 min-w-[120px] sm:flex-none sm:w-36">
         <option value="">All Classes</option>
         @foreach($classes as $cls)
           <option value="{{ $cls->id }}" @selected(request('class_id') == $cls->id)>{{ $cls->name }}</option>
         @endforeach
       </select>
 
-      <select name="section" class="select w-32">
+      <select name="section" class="select flex-1 min-w-[110px] sm:flex-none sm:w-32">
         <option value="">All Sections</option>
         @foreach($sectionNames as $secName)
           <option value="{{ $secName }}" @selected(strtoupper(trim(preg_replace('/^section\s*/i', '', request('section', '')))) === strtoupper($secName))>Section {{ $secName }}</option>
         @endforeach
       </select>
 
-      <select name="status" class="select w-32">
+      <select name="status" class="select flex-1 min-w-[110px] sm:flex-none sm:w-32">
         <option value="active"      @selected(request('status', 'active') === 'active')>Active</option>
         <option value="inactive"    @selected(request('status') === 'inactive')>Inactive</option>
         <option value="left"        @selected(request('status') === 'left')>Left</option>
@@ -88,7 +88,7 @@
         <option value="all"         @selected(request('status') === 'all')>All Status</option>
       </select>
 
-      <select name="sort" class="select w-40">
+      <select name="sort" class="select flex-1 min-w-[130px] sm:flex-none sm:w-40">
         <option value="latest"    @selected(request('sort', 'latest') === 'latest')>Latest First</option>
         <option value="oldest"    @selected(request('sort') === 'oldest')>Oldest First</option>
         <option value="name_asc"  @selected(request('sort') === 'name_asc')>Name A–Z</option>
@@ -97,16 +97,18 @@
         <option value="adm_asc"   @selected(request('sort') === 'adm_asc')>By Adm. No.</option>
       </select>
 
-      <button type="submit" class="btn btn-primary btn-sm">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
-        Filter
-      </button>
+      <div class="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
+        <button type="submit" class="btn btn-primary btn-sm flex-1 sm:flex-none">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+          Filter
+        </button>
 
-      @if(request()->hasAny(['search','class_id','section','sort']) || (request('status') && request('status') !== 'active'))
-        <a href="{{ route('students.index') }}" class="btn btn-ghost btn-sm text-slate-500">
-          Clear
-        </a>
-      @endif
+        @if(request()->hasAny(['search','class_id','section','sort']) || (request('status') && request('status') !== 'active'))
+          <a href="{{ route('students.index') }}" class="btn btn-ghost btn-sm text-slate-500">
+            Clear
+          </a>
+        @endif
+      </div>
     </div>
   </form>
 
