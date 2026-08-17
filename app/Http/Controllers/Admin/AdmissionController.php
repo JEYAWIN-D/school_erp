@@ -21,6 +21,138 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AdmissionController extends Controller
 {
+    public function getFeeStructureData(): array
+    {
+        $classes = Classes::with('sections')->active()->orderBy('numeric_value')->get();
+        $academicYear = AcademicYear::current();
+
+        $standardFees = [];
+        foreach ($classes as $cls) {
+            $num = (int)($cls->numeric_value ?? 0);
+            $name = strtolower($cls->name);
+
+            // Fee calculations based on grade tier
+            if (preg_match('/(kg|nursery|play|pre|lkg|ukg)/i', $name) || $num === 0) {
+                $tuition = 28000;
+                $admission = 10000;
+                $activity = 6000;
+                $exam = 2000;
+                $library = 1500;
+                $tier = 'Kindergarten Tier';
+            } elseif ($num >= 1 && $num <= 5) {
+                $tuition = 36000 + ($num * 1500);
+                $admission = 12000;
+                $activity = 7500;
+                $exam = 2500;
+                $library = 2000;
+                $tier = 'Primary Tier';
+            } elseif ($num >= 6 && $num <= 8) {
+                $tuition = 45000 + (($num - 5) * 2000);
+                $admission = 15000;
+                $activity = 9000;
+                $exam = 3500;
+                $library = 2500;
+                $tier = 'Middle Tier';
+            } elseif ($num >= 9 && $num <= 10) {
+                $tuition = 55000 + (($num - 8) * 3000);
+                $admission = 18000;
+                $activity = 10000;
+                $exam = 5000;
+                $library = 3000;
+                $tier = 'Secondary Tier';
+            } else { // 11, 12
+                $tuition = 68000 + (($num - 10) * 4000);
+                $admission = 20000;
+                $activity = 12000;
+                $exam = 6000;
+                $library = 4000;
+                $tier = 'Senior Secondary Tier';
+            }
+
+            $total = $tuition + $admission + $activity + $exam + $library;
+
+            $standardFees[$cls->id] = [
+                'class_id'       => $cls->id,
+                'class_name'     => $cls->name,
+                'tier'           => $tier,
+                'tuition_fee'    => $tuition,
+                'admission_fee'  => $admission,
+                'activity_fee'   => $activity,
+                'exam_fee'       => $exam,
+                'library_fee'    => $library,
+                'total_annual'   => $total,
+                'term_fee'       => round($total / 3),
+                'enquiries_count'=> Enquiry::where('class_id', $cls->id)->count(),
+            ];
+        }
+
+        $activities = [
+            [
+                'id'          => 'robotics',
+                'name'        => 'Robotics & STEM Lab',
+                'category'    => 'Technology',
+                'icon'        => '🤖',
+                'monthly_fee' => 1200,
+                'annual_fee'  => 12000,
+                'description' => 'Hands-on Arduino, LEGO robotics, and algorithmic thinking for young innovators.',
+            ],
+            [
+                'id'          => 'dance',
+                'name'        => 'Classical & Contemporary Dance',
+                'category'    => 'Performing Arts',
+                'icon'        => '💃',
+                'monthly_fee' => 800,
+                'annual_fee'  => 8000,
+                'description' => 'Bharatanatyam, Kathak, and Western contemporary stage choreography classes.',
+            ],
+            [
+                'id'          => 'martial_arts',
+                'name'        => 'Karate & Self Defense',
+                'category'    => 'Sports & Fitness',
+                'icon'        => '🥋',
+                'monthly_fee' => 900,
+                'annual_fee'  => 9000,
+                'description' => 'Certified belt grading, physical conditioning, discipline, and defense techniques.',
+            ],
+            [
+                'id'          => 'chess',
+                'name'        => 'Chess Masterclass & Tactics',
+                'category'    => 'Mind Sports',
+                'icon'        => '♟️',
+                'monthly_fee' => 750,
+                'annual_fee'  => 7500,
+                'description' => 'FIDE rated coaches, tournament strategy, openings, and endgame masterclasses.',
+            ],
+            [
+                'id'          => 'swimming',
+                'name'        => 'Olympic Swimming Club',
+                'category'    => 'Aquatics',
+                'icon'        => '🏊',
+                'monthly_fee' => 1500,
+                'annual_fee'  => 15000,
+                'description' => 'Heated pool training, freestyle, backstroke, and competitive swimming coaching.',
+            ],
+            [
+                'id'          => 'music',
+                'name'        => 'Instrumental Music & Band',
+                'category'    => 'Music',
+                'icon'        => '🎸',
+                'monthly_fee' => 1000,
+                'annual_fee'  => 10000,
+                'description' => 'Keyboard, guitar, violin, drums, and orchestra vocal ensemble rehearsals.',
+            ],
+        ];
+
+        return compact('classes', 'academicYear', 'standardFees', 'activities');
+    }
+
+    public function feeStructure(Request $request)
+    {
+        $data = $this->getFeeStructureData();
+        $users = \App\Models\User::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        return view('admissions.fee-structure', array_merge($data, compact('users')));
+    }
+
     public function index(Request $request)
     {
         $query = Enquiry::with(['class', 'academicYear'])
@@ -44,16 +176,20 @@ class AdmissionController extends Controller
             'converted'  => Enquiry::where('status', 'converted')->count(),
             'lost'       => Enquiry::where('status', 'lost')->count(),
         ];
+        $feeData = $this->getFeeStructureData();
 
-        return view('admissions.index', compact('enquiries', 'classes', 'stats'));
+        return view('admissions.index', array_merge($feeData, compact('enquiries', 'classes', 'stats')));
     }
 
     public function create()
     {
-        $classes      = Classes::active()->get();
-        $academicYear = AcademicYear::current();
+        $feeData      = $this->getFeeStructureData();
+        $classes      = $feeData['classes'];
+        $academicYear = $feeData['academicYear'];
+        $standardFees = $feeData['standardFees'];
+        $activities   = $feeData['activities'];
         $users        = \App\Models\User::where('is_active', true)->orderBy('name')->get(['id', 'name']);
-        return view('admissions.create', compact('classes', 'academicYear', 'users'));
+        return view('admissions.create', compact('classes', 'academicYear', 'standardFees', 'activities', 'users'));
     }
 
     public function store(Request $request)

@@ -12,6 +12,9 @@ use App\Models\PayrollRecord;
 use App\Exports\SalaryRegisterExport;
 use Spatie\Permission\Models\Role;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\EmployeeQualification;
+use App\Models\EmployeeExperience;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -207,11 +210,279 @@ class HrController extends Controller
         return view('hr.employees-show', compact('employee', 'linkedUser', 'staffRoles', 'payroll', 'qualifications', 'experiences', 'empDocuments', 'certifications'));
     }
 
+    public function getStaffCategoryMetadata($employee): array
+    {
+        $type = strtolower($employee->employee_type ?? 'teaching');
+        $desig = strtolower($employee->designation ?? '');
+
+        if ($type !== 'teaching') {
+            return [
+                'category_key'   => 'non_teaching',
+                'category_name'  => 'Non-Teaching Staff',
+                'theme_label'    => 'NON-TEACHING',
+                'theme_badge'    => 'NON-TEACHING THEME',
+                'badge_class'    => 'bg-slate-100 text-slate-800 border-slate-300',
+                'header_bg'      => 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                'header_color'   => '#1e293b',
+                'accent_color'   => '#475569',
+                'text_accent'    => 'text-slate-700',
+                'bg_accent'      => 'bg-slate-600',
+                'border_color'   => '#475569',
+            ];
+        }
+
+        if (str_contains($desig, 'hod') || str_contains($desig, 'head of department')) {
+            return [
+                'category_key'   => 'hod',
+                'category_name'  => 'Head of Department (HOD)',
+                'theme_label'    => 'HOD',
+                'theme_badge'    => 'HOD THEME',
+                'badge_class'    => 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+                'header_bg'      => 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
+                'header_color'   => '#1e1b4b',
+                'accent_color'   => '#4338ca',
+                'text_accent'    => 'text-indigo-600',
+                'bg_accent'      => 'bg-indigo-700',
+                'border_color'   => '#312e81',
+            ];
+        }
+
+        if (str_contains($desig, 'senior') || str_contains($desig, 'sr.') || str_contains($desig, 'pgt') || ($employee->experience_years ?? 0) >= 8) {
+            return [
+                'category_key'   => 'senior_teacher',
+                'category_name'  => 'Senior Teacher',
+                'theme_label'    => 'SENIOR',
+                'theme_badge'    => 'SENIOR THEME',
+                'badge_class'    => 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold',
+                'header_bg'      => 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)',
+                'header_color'   => '#064e3b',
+                'accent_color'   => '#059669',
+                'text_accent'    => 'text-emerald-700',
+                'bg_accent'      => 'bg-emerald-700',
+                'border_color'   => '#065f46',
+            ];
+        }
+
+        return [
+            'category_key'   => 'teacher',
+            'category_name'  => 'Teacher / Faculty',
+            'theme_label'    => 'TEACHER',
+            'theme_badge'    => 'TEACHER THEME',
+            'badge_class'    => 'bg-blue-100 text-blue-900 border-blue-300 font-bold',
+            'header_bg'      => 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+            'header_color'   => '#1d4ed8',
+            'accent_color'   => '#2563eb',
+            'text_accent'    => 'text-blue-600',
+            'bg_accent'      => 'bg-blue-600',
+            'border_color'   => '#1d4ed8',
+        ];
+    }
+
+    public function employeeIdCardStudio(Request $request, $id = null)
+    {
+        $school = \App\Models\SchoolSetting::first();
+        $departments = Department::orderBy('name')->get();
+        $categoryFilter = $request->get('category', 'all');
+        $deptFilter = $request->get('department_id');
+        $search = $request->get('search');
+
+        $empQuery = Employee::with('department')->where('is_active', true);
+
+        if ($deptFilter) {
+            $empQuery->where('department_id', $deptFilter);
+        }
+        if ($search) {
+            $empQuery->where(function($q) use ($search) {
+                $q->where('first_name', 'like', "%$search%")
+                  ->orWhere('last_name', 'like', "%$search%")
+                  ->orWhere('employee_code', 'like', "%$search%")
+                  ->orWhere('designation', 'like', "%$search%");
+            });
+        }
+
+        $allEmployees = $empQuery->orderBy('first_name')->get();
+
+        // Map category metadata
+        $allEmployees->each(function($emp) {
+            $emp->theme_meta = $this->getStaffCategoryMetadata($emp);
+        });
+
+        // Filter by category
+        $filteredEmployees = $allEmployees;
+        if ($categoryFilter && $categoryFilter !== 'all') {
+            $filteredEmployees = $allEmployees->filter(fn($e) => $e->theme_meta['category_key'] === $categoryFilter)->values();
+        }
+
+        // Determine currently selected employee
+        $selectedId = $id ?? $request->get('employee_id');
+        $employee = null;
+        if ($selectedId) {
+            $employee = Employee::with(['department', 'qualifications'])->find($selectedId);
+        }
+        if (!$employee) {
+            $employee = $filteredEmployees->first() ?? $allEmployees->first() ?? Employee::first();
+        }
+
+        if ($employee) {
+            $employee->theme_meta = $this->getStaffCategoryMetadata($employee);
+        }
+
+        // Category counts
+        $counts = [
+            'all'            => $allEmployees->count(),
+            'hod'            => $allEmployees->filter(fn($e) => $e->theme_meta['category_key'] === 'hod')->count(),
+            'senior_teacher' => $allEmployees->filter(fn($e) => $e->theme_meta['category_key'] === 'senior_teacher')->count(),
+            'teacher'        => $allEmployees->filter(fn($e) => $e->theme_meta['category_key'] === 'teacher')->count(),
+            'non_teaching'   => $allEmployees->filter(fn($e) => $e->theme_meta['category_key'] === 'non_teaching')->count(),
+        ];
+
+        return view('hr.employee-id-card-studio', compact('employee', 'filteredEmployees', 'allEmployees', 'school', 'departments', 'categoryFilter', 'deptFilter', 'counts'));
+    }
+
     public function singleEmployeeIdCard(int $id)
     {
+        return $this->employeeIdCardStudio(request(), $id);
+    }
+
+    public function generateStaffIdCards(Request $request)
+    {
+        $categoryFilter = $request->get('category', 'all');
+        $deptFilter     = $request->get('department_id');
+        $ids            = $request->get('ids');
+
+        $query = Employee::with('department')->where('is_active', true);
+
+        if ($ids) {
+            $idArray = is_array($ids) ? $ids : explode(',', $ids);
+            $query->whereIn('id', $idArray);
+        }
+        if ($deptFilter) {
+            $query->where('department_id', $deptFilter);
+        }
+
+        $employees = $query->orderBy('first_name')->get();
+        $employees->each(function($emp) {
+            $emp->theme_meta = $this->getStaffCategoryMetadata($emp);
+        });
+
+        if ($categoryFilter && $categoryFilter !== 'all') {
+            $employees = $employees->filter(fn($e) => $e->theme_meta['category_key'] === $categoryFilter)->values();
+        }
+
+        $school = \App\Models\SchoolSetting::first();
+        $validUntil = now()->addYear()->format('M Y');
+
+        foreach ($employees as $emp) {
+            $qrData = implode(' | ', array_filter([
+                'ID: ' . ($emp->employee_code ?? 'EMP-' . $emp->id),
+                'Name: ' . $emp->full_name,
+                'Dept: ' . ($emp->department?->name ?? $emp->department ?? ''),
+                'Role: ' . ($emp->designation ?? ''),
+                'Blood: ' . ($emp->blood_group ?? ''),
+            ]));
+            try {
+                $emp->_qrCode = base64_encode(
+                    QrCode::format('png')->size(80)->generate($qrData)
+                );
+            } catch (\Exception $e) {
+                $emp->_qrCode = null;
+            }
+        }
+
+        $pdf = Pdf::loadView('pdf.staff-id-cards', compact('employees', 'school', 'validUntil', 'categoryFilter'));
+        $pdf->setPaper('A4', 'portrait');
+        return $pdf->stream('staff-id-cards-' . ($categoryFilter ?: 'all') . '.pdf');
+    }
+
+    public function syncEmployeeQualification($employee): void
+    {
+        if (is_numeric($employee)) {
+            $employee = Employee::find($employee);
+        }
+        if (!$employee) return;
+
+        $qualifications = $employee->qualifications()
+            ->orderBy('year_of_passing', 'desc')
+            ->pluck('degree')
+            ->filter()
+            ->toArray();
+
+        $employee->qualification = !empty($qualifications) ? implode(', ', $qualifications) : null;
+        $employee->saveQuietly();
+    }
+
+    public function storeQualification(Request $request, int $id)
+    {
         $employee = Employee::findOrFail($id);
-        $school   = \App\Models\SchoolSetting::first();
-        return view('hr.employee-id-card-studio', compact('employee', 'school'));
+        $validated = $request->validate([
+            'degree'              => 'required|string|max:100',
+            'subject'             => 'nullable|string|max:100',
+            'institution'         => 'required|string|max:150',
+            'university'          => 'nullable|string|max:150',
+            'year_of_passing'     => 'nullable|integer|min:1950|max:' . date('Y'),
+            'grade_or_percentage' => 'nullable|string|max:50',
+            'education_level'     => 'required|in:secondary,higher_secondary,diploma,graduate,post_graduate,doctorate,other',
+        ]);
+
+        $employee->qualifications()->create($validated);
+        $this->syncEmployeeQualification($employee);
+
+        return back()->with('success', 'Qualification added and synced successfully.');
+    }
+
+    public function updateQualification(Request $request, int $id, int $qualId)
+    {
+        $employee = Employee::findOrFail($id);
+        $qual = EmployeeQualification::where('employee_id', $id)->findOrFail($qualId);
+        $validated = $request->validate([
+            'degree'              => 'required|string|max:100',
+            'subject'             => 'nullable|string|max:100',
+            'institution'         => 'required|string|max:150',
+            'university'          => 'nullable|string|max:150',
+            'year_of_passing'     => 'nullable|integer|min:1950|max:' . date('Y'),
+            'grade_or_percentage' => 'nullable|string|max:50',
+            'education_level'     => 'required|in:secondary,higher_secondary,diploma,graduate,post_graduate,doctorate,other',
+        ]);
+
+        $qual->update($validated);
+        $this->syncEmployeeQualification($employee);
+
+        return back()->with('success', 'Qualification updated and synced successfully.');
+    }
+
+    public function deleteQualification(int $id, int $qualId)
+    {
+        $employee = Employee::findOrFail($id);
+        $qual = EmployeeQualification::where('employee_id', $id)->findOrFail($qualId);
+        $qual->delete();
+        $this->syncEmployeeQualification($employee);
+
+        return back()->with('success', 'Qualification removed and synced successfully.');
+    }
+
+    public function storeExperience(Request $request, int $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $validated = $request->validate([
+            'organisation'        => 'required|string|max:150',
+            'role'                => 'required|string|max:100',
+            'from_date'           => 'required|date',
+            'to_date'             => 'nullable|date|after_or_equal:from_date',
+            'is_current'          => 'boolean',
+            'reason_for_leaving'  => 'nullable|string|max:255',
+            'responsibilities'    => 'nullable|string',
+            'reference_contact'   => 'nullable|string|max:100',
+        ]);
+
+        $employee->experiences()->create($validated);
+        return back()->with('success', 'Experience record added.');
+    }
+
+    public function deleteExperience(int $id, int $expId)
+    {
+        $exp = EmployeeExperience::where('employee_id', $id)->findOrFail($expId);
+        $exp->delete();
+        return back()->with('success', 'Experience record removed.');
     }
 
     public function updateEmployeePhoto(Request $request, int $id)
@@ -331,54 +602,6 @@ class HrController extends Controller
         if ($cert->file_path) Storage::disk('local')->delete($cert->file_path);
         $cert->delete();
         return back()->with('success', 'Certification deleted.');
-    }
-
-    public function storeQualification(Request $request, int $id)
-    {
-        $request->validate([
-            'degree'             => 'required|string|max:100',
-            'institution'        => 'required|string|max:200',
-            'subject'            => 'nullable|string|max:100',
-            'university'         => 'nullable|string|max:200',
-            'year_of_passing'    => 'nullable|digits:4|integer|min:1970|max:' . (date('Y') + 1),
-            'grade_or_percentage'=> 'nullable|string|max:30',
-            'education_level'    => 'required|in:secondary,higher_secondary,diploma,graduate,post_graduate,doctorate,other',
-        ]);
-        \App\Models\EmployeeQualification::create(array_merge($request->only([
-            'degree','institution','subject','university','year_of_passing','grade_or_percentage','education_level',
-        ]), ['employee_id' => $id]));
-        return back()->with('success', 'Qualification added.');
-    }
-
-    public function deleteQualification(int $id, int $qualId)
-    {
-        \App\Models\EmployeeQualification::where('employee_id', $id)->where('id', $qualId)->delete();
-        return back()->with('success', 'Qualification removed.');
-    }
-
-    public function storeExperience(Request $request, int $id)
-    {
-        $request->validate([
-            'organisation'     => 'required|string|max:200',
-            'role'             => 'required|string|max:100',
-            'from_date'        => 'required|date',
-            'to_date'          => 'nullable|date|after_or_equal:from_date',
-            'is_current'       => 'nullable|boolean',
-            'reason_for_leaving'=> 'nullable|string|max:200',
-            'responsibilities' => 'nullable|string|max:500',
-            'reference_contact'=> 'nullable|string|max:100',
-        ]);
-        \App\Models\EmployeeExperience::create(array_merge($request->only([
-            'organisation','role','from_date','to_date',
-            'reason_for_leaving','responsibilities','reference_contact',
-        ]), ['employee_id' => $id, 'is_current' => $request->boolean('is_current')]));
-        return back()->with('success', 'Experience added.');
-    }
-
-    public function deleteExperience(int $id, int $expId)
-    {
-        \App\Models\EmployeeExperience::where('employee_id', $id)->where('id', $expId)->delete();
-        return back()->with('success', 'Experience removed.');
     }
 
     public function editEmployee(int $id)

@@ -12,6 +12,10 @@
       <p class="page-subtitle">Manage and track all admission enquiries</p>
     </div>
     <div class="flex items-center gap-2 flex-wrap">
+      <a href="{{ route('admissions.fee-structure') }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 text-indigo-700 font-bold border-indigo-200 hover:bg-indigo-50">
+        <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Fee Structure
+      </a>
       <a href="{{ route('admissions.form-builder') }}" class="btn btn-secondary btn-sm">Form Builder</a>
       <a href="{{ route('admissions.applications') }}" class="btn btn-secondary btn-sm">Applications</a>
       <a href="{{ route('admissions.application-form') }}" class="btn btn-secondary btn-sm">
@@ -51,6 +55,38 @@
       </a>
     @endforeach
   </div>
+
+  {{-- Standard / Grade Pill Carousel --}}
+  @if(isset($standardFees) && count($standardFees))
+  <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        <span>🏫 Standards & Annual Fee Schedule</span>
+      </span>
+      <a href="{{ route('admissions.fee-structure') }}" class="text-[11px] font-bold text-indigo-600 hover:underline">
+        View Full Fee Matrix &rarr;
+      </a>
+    </div>
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+      <a href="{{ route('admissions.index') }}"
+         class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition {{ !request('class_id') ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}">
+        All Grades
+      </a>
+      @foreach($classes as $c)
+      @php $fee = $standardFees[$c->id] ?? null; @endphp
+      <a href="{{ route('admissions.index', ['class_id' => $c->id]) }}"
+         class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-2 border {{ request('class_id') == $c->id ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100' }}">
+        <span>Class {{ $c->name }}</span>
+        @if($fee)
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono {{ request('class_id') == $c->id ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-700' }}">
+            ₹{{ number_format($fee['total_annual']/1000) }}k/yr
+          </span>
+        @endif
+      </a>
+      @endforeach
+    </div>
+  </div>
+  @endif
 
   {{-- Filters --}}
   <form method="GET" class="filter-bar" id="filter-form">

@@ -174,58 +174,112 @@
       </div>
 
       {{-- Qualifications --}}
-      <div class="card mt-6" x-data="{addQual:false}">
+      <div class="card mt-6" x-data="{ addQual: false, editQual: null }">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="font-semibold text-slate-700">Educational Qualifications</h3>
-          <button @click="addQual=!addQual" class="btn btn-secondary btn-xs">+ Add</button>
+          <div>
+            <h3 class="font-semibold text-slate-700">Educational Qualifications</h3>
+            <p class="text-xs text-slate-400">Synced to Profile & ID Card: <strong class="text-indigo-600 font-medium">{{ $employee->qualification ?? 'None' }}</strong></p>
+          </div>
+          <button @click="addQual = !addQual; editQual = null" class="btn btn-secondary btn-xs">+ Add Qualification</button>
         </div>
-        <div x-show="addQual" x-transition class="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+
+        {{-- Add Qualification Form --}}
+        <div x-show="addQual" x-transition class="mb-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
           <form method="POST" action="{{ route('hr.employees.qualifications.store', $employee->id) }}" class="grid grid-cols-2 gap-3">
             @csrf
             <div><label class="label text-xs">Degree / Certificate <span class="text-red-500">*</span></label>
-              <input type="text" name="degree" class="input" required placeholder="B.Ed, M.Sc, B.E etc."></div>
+              <input type="text" name="degree" class="input text-xs" required placeholder="B.Ed, M.Sc, B.Tech, Ph.D etc."></div>
             <div><label class="label text-xs">Subject / Specialisation</label>
-              <input type="text" name="subject" class="input" placeholder="Mathematics, Physics..."></div>
+              <input type="text" name="subject" class="input text-xs" placeholder="Mathematics, Physics, English..."></div>
             <div><label class="label text-xs">Institution <span class="text-red-500">*</span></label>
-              <input type="text" name="institution" class="input" required></div>
+              <input type="text" name="institution" class="input text-xs" required placeholder="College / Institute name"></div>
             <div><label class="label text-xs">University / Board</label>
-              <input type="text" name="university" class="input"></div>
+              <input type="text" name="university" class="input text-xs" placeholder="University name"></div>
             <div><label class="label text-xs">Year of Passing</label>
-              <input type="number" name="year_of_passing" class="input" min="1970" max="{{ date('Y') }}"></div>
+              <input type="number" name="year_of_passing" class="input text-xs" min="1950" max="{{ date('Y') }}" placeholder="{{ date('Y') }}"></div>
             <div><label class="label text-xs">Grade / Percentage</label>
-              <input type="text" name="grade_or_percentage" class="input" placeholder="85% / First Class / A"></div>
-            <div class="col-span-2"><label class="label text-xs">Level <span class="text-red-500">*</span></label>
-              <select name="education_level" class="select" required>
+              <input type="text" name="grade_or_percentage" class="input text-xs" placeholder="e.g. 85% / Distinction / Grade A"></div>
+            <div class="col-span-2"><label class="label text-xs">Education Level <span class="text-red-500">*</span></label>
+              <select name="education_level" class="select text-xs" required>
                 @foreach(['secondary'=>'Secondary (10th)','higher_secondary'=>'Higher Secondary (12th)','diploma'=>'Diploma',
                   'graduate'=>'Graduate (UG)','post_graduate'=>'Post Graduate (PG)','doctorate'=>'Doctorate (Ph.D)','other'=>'Other'] as $v=>$l)
                 <option value="{{ $v }}">{{ $l }}</option>
                 @endforeach
               </select></div>
-            <div class="col-span-2 flex justify-end gap-2">
-              <button type="button" @click="addQual=false" class="btn btn-secondary btn-sm">Cancel</button>
-              <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            <div class="col-span-2 flex justify-end gap-2 pt-2 border-t border-indigo-100">
+              <button type="button" @click="addQual = false" class="btn btn-secondary btn-xs">Cancel</button>
+              <button type="submit" class="btn btn-primary btn-xs">Save & Sync</button>
             </div>
           </form>
         </div>
+
         @if($qualifications->count())
-        <div class="space-y-2">
+        <div class="space-y-2.5">
           @foreach($qualifications as $q)
-          <div class="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-            <div>
-              <p class="font-medium text-slate-800 text-sm">{{ $q->degree }} @if($q->subject)— <span class="text-indigo-500">{{ $q->subject }}</span>@endif</p>
-              <p class="text-xs text-slate-400">{{ $q->institution }}{{ $q->university ? ', ' . $q->university : '' }}{{ $q->year_of_passing ? ' (' . $q->year_of_passing . ')' : '' }}
-                {{ $q->grade_or_percentage ? ' · ' . $q->grade_or_percentage : '' }}</p>
+          <div class="p-3 bg-white rounded-xl border border-slate-200 hover:border-indigo-200 transition" x-data="{ openEdit: false }">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <p class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                  <span>{{ $q->degree }}</span>
+                  @if($q->subject)
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">{{ $q->subject }}</span>
+                  @endif
+                </p>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  <span class="font-medium text-slate-700">{{ $q->institution }}</span>
+                  @if($q->university) &bull; {{ $q->university }} @endif
+                  @if($q->year_of_passing) &bull; <span class="font-mono text-slate-600 font-bold">{{ $q->year_of_passing }}</span> @endif
+                  @if($q->grade_or_percentage) &bull; <span class="text-emerald-700 font-semibold">{{ $q->grade_or_percentage }}</span> @endif
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" @click="openEdit = !openEdit" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100 transition">
+                  Edit
+                </button>
+                <form method="POST" action="{{ route('hr.employees.qualifications.delete', [$employee->id, $q->id]) }}" class="inline"
+                  onsubmit="return confirm('Remove {{ $q->degree }} from qualifications?')">
+                  @csrf @method('DELETE')
+                  <button type="submit" class="text-xs text-rose-500 hover:text-rose-700 font-semibold px-2 py-1 rounded bg-rose-50 hover:bg-rose-100 transition">
+                    Remove
+                  </button>
+                </form>
+              </div>
             </div>
-            <form method="POST" action="{{ route('hr.employees.qualifications.delete', [$employee->id, $q->id]) }}" class="inline"
-              onsubmit="return confirm('Remove this qualification?')">
-              @csrf @method('DELETE')
-              <button class="text-xs text-red-400 hover:text-red-600">Remove</button>
-            </form>
+
+            {{-- Inline Edit Form --}}
+            <div x-show="openEdit" x-transition class="mt-3 pt-3 border-t border-slate-100">
+              <form method="POST" action="{{ route('hr.employees.qualifications.update', [$employee->id, $q->id]) }}" class="grid grid-cols-2 gap-3">
+                @csrf @method('PUT')
+                <div><label class="label text-[11px]">Degree <span class="text-red-500">*</span></label>
+                  <input type="text" name="degree" value="{{ $q->degree }}" class="input text-xs" required></div>
+                <div><label class="label text-[11px]">Subject / Specialisation</label>
+                  <input type="text" name="subject" value="{{ $q->subject }}" class="input text-xs"></div>
+                <div><label class="label text-[11px]">Institution <span class="text-red-500">*</span></label>
+                  <input type="text" name="institution" value="{{ $q->institution }}" class="input text-xs" required></div>
+                <div><label class="label text-[11px]">University / Board</label>
+                  <input type="text" name="university" value="{{ $q->university }}" class="input text-xs"></div>
+                <div><label class="label text-[11px]">Year of Passing</label>
+                  <input type="number" name="year_of_passing" value="{{ $q->year_of_passing }}" class="input text-xs" min="1950" max="{{ date('Y') }}"></div>
+                <div><label class="label text-[11px]">Grade / Percentage</label>
+                  <input type="text" name="grade_or_percentage" value="{{ $q->grade_or_percentage }}" class="input text-xs"></div>
+                <div class="col-span-2"><label class="label text-[11px]">Level <span class="text-red-500">*</span></label>
+                  <select name="education_level" class="select text-xs" required>
+                    @foreach(['secondary'=>'Secondary (10th)','higher_secondary'=>'Higher Secondary (12th)','diploma'=>'Diploma',
+                      'graduate'=>'Graduate (UG)','post_graduate'=>'Post Graduate (PG)','doctorate'=>'Doctorate (Ph.D)','other'=>'Other'] as $v=>$l)
+                    <option value="{{ $v }}" @selected($q->education_level === $v)>{{ $l }}</option>
+                    @endforeach
+                  </select></div>
+                <div class="col-span-2 flex justify-end gap-2">
+                  <button type="button" @click="openEdit = false" class="btn btn-secondary btn-xs">Cancel</button>
+                  <button type="submit" class="btn btn-primary btn-xs">Update & Sync</button>
+                </div>
+              </form>
+            </div>
           </div>
           @endforeach
         </div>
         @else
-        <p class="text-sm text-slate-400">No qualifications added yet.</p>
+        <p class="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">No educational qualifications added yet. Click "+ Add Qualification" above.</p>
         @endif
       </div>
 

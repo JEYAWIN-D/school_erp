@@ -49,6 +49,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:view admissions')->prefix('admissions')->name('admissions.')->group(function () {
         Route::get('/',            [AdmissionController::class, 'index'])->name('index');
         Route::get('/create',      [AdmissionController::class, 'create'])->name('create');
+        Route::get('/fee-structure',[AdmissionController::class, 'feeStructure'])->name('fee-structure');
         Route::post('/',           [AdmissionController::class, 'store'])->name('store');
         // Pipeline & seats
         Route::get('/pipeline',    [AdmissionController::class, 'pipeline'])->name('pipeline');
@@ -131,6 +132,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{id}',     [StudentController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
         Route::get('/{id}/tc',     [StudentController::class, 'showTCForm'])->name('tc.form')->where('id', '[0-9]+');
         Route::post('/{id}/tc',    [StudentController::class, 'generateTC'])->name('tc')->where('id', '[0-9]+');
+        Route::get('/{id}/id-card',[StudentController::class, 'singleIdCard'])->name('id-card.single')->where('id', '[0-9]+');
         // Documents
         Route::get('/{id}/documents',     [StudentController::class, 'documents'])->name('documents')->where('id', '[0-9]+');
         Route::post('/{id}/documents',    [StudentController::class, 'uploadDocument'])->name('documents.upload')->where('id', '[0-9]+');
@@ -530,9 +532,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/employees/{id}/edit',[HrController::class, 'editEmployee'])->name('employees.edit');
         Route::put('/employees/{id}', [HrController::class, 'updateEmployee'])->name('employees.update');
         Route::get('/employees/{id}/id-card', [HrController::class, 'singleEmployeeIdCard'])->name('employees.id-card');
+        Route::get('/id-card-studio',                 [HrController::class, 'employeeIdCardStudio'])->name('id-card-studio');
+        Route::get('/id-cards/download',              [HrController::class, 'generateStaffIdCards'])->name('id-cards.download');
         Route::post('/employees/{id}/update-photo', [HrController::class, 'updateEmployeePhoto'])->name('employees.update-photo');
         // Qualifications & Experience
         Route::post('/employees/{id}/qualifications',          [HrController::class, 'storeQualification'])->name('employees.qualifications.store');
+        Route::put('/employees/{id}/qualifications/{qualId}',  [HrController::class, 'updateQualification'])->name('employees.qualifications.update');
         Route::delete('/employees/{id}/qualifications/{qualId}',[HrController::class,'deleteQualification'])->name('employees.qualifications.delete');
         Route::post('/employees/{id}/experiences',             [HrController::class, 'storeExperience'])->name('employees.experiences.store');
         Route::delete('/employees/{id}/experiences/{expId}',   [HrController::class, 'deleteExperience'])->name('employees.experiences.delete');

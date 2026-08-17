@@ -628,30 +628,200 @@ class StudentController extends Controller
         return view('students.rollover-report', compact('years', 'selectedYear', 'report'));
     }
 
+    public function getWingMetadata($classModel = null, $classNameStr = null): array
+    {
+        $name = strtolower(trim($classModel?->name ?? $classNameStr ?? ''));
+        $numeric = (int)($classModel?->numeric_value ?? 0);
+
+        // 1. Kindergarten Wing (KG / Nursery / Playgroup / LKG / UKG / Pre-KG)
+        if (preg_match('/(kg|nursery|play|pre|lkg|ukg|kindergarten)/i', $name) || ($numeric === 0 && preg_match('/(kg|nurs|play|pre)/i', $name))) {
+            return [
+                'key'             => 'kg',
+                'name'            => 'Kindergarten Wing',
+                'short_name'      => 'Kindergarten (Pre-KG – UKG)',
+                'tag'             => 'KG WING',
+                'badge_color'     => 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+                'primary_color'   => '#d97706',
+                'header_gradient' => 'linear-gradient(135deg, #b45309 0%, #f59e0b 100%)',
+                'card_border'     => '#f59e0b',
+                'accent'          => '#d97706',
+            ];
+        }
+
+        // Determine numeric level
+        $num = 0;
+        if ($numeric >= 1 && $numeric <= 12) {
+            $num = $numeric;
+        } else {
+            if (preg_match('/\b(1[0-2]|[1-9])\b/i', $name, $matches)) {
+                $num = (int)$matches[1];
+            }
+        }
+
+        // 2. Primary Wing (Class 1st – 5th)
+        if (($num >= 1 && $num <= 5) || preg_match('/(primary|1st|2nd|3rd|4th|5th|class 1\b|class 2\b|class 3\b|class 4\b|class 5\b|std 1\b|std 2\b|std 3\b|std 4\b|std 5\b)/i', $name)) {
+            return [
+                'key'             => 'primary',
+                'name'            => 'Primary Wing',
+                'short_name'      => 'Primary (Class 1st – 5th)',
+                'tag'             => 'PRIMARY WING',
+                'badge_color'     => 'bg-emerald-100 text-emerald-900 border-emerald-300 font-bold',
+                'primary_color'   => '#059669',
+                'header_gradient' => 'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
+                'card_border'     => '#10b981',
+                'accent'          => '#059669',
+            ];
+        }
+
+        // 3. Middle Wing (Class 6th – 8th)
+        if (($num >= 6 && $num <= 8) || preg_match('/(middle|6th|7th|8th|class 6\b|class 7\b|class 8\b|std 6\b|std 7\b|std 8\b)/i', $name)) {
+            return [
+                'key'             => 'middle',
+                'name'            => 'Middle Wing',
+                'short_name'      => 'Middle (Class 6th – 8th)',
+                'tag'             => 'MIDDLE WING',
+                'badge_color'     => 'bg-cyan-100 text-cyan-900 border-cyan-300 font-bold',
+                'primary_color'   => '#0284c7',
+                'header_gradient' => 'linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)',
+                'card_border'     => '#0ea5e9',
+                'accent'          => '#0284c7',
+            ];
+        }
+
+        // 4. Higher Secondary Wing (Class 9th – 10th)
+        if (($num >= 9 && $num <= 10) || preg_match('/(high|secondary|9th|10th|class 9\b|class 10\b|std 9\b|std 10\b)/i', $name)) {
+            return [
+                'key'             => 'higher_secondary',
+                'name'            => 'Higher Secondary Wing',
+                'short_name'      => 'Higher Secondary (Class 9th – 10th)',
+                'tag'             => 'HIGHER SEC WING',
+                'badge_color'     => 'bg-indigo-100 text-indigo-900 border-indigo-300 font-bold',
+                'primary_color'   => '#4338ca',
+                'header_gradient' => 'linear-gradient(135deg, #312e81 0%, #6366f1 100%)',
+                'card_border'     => '#6366f1',
+                'accent'          => '#4338ca',
+            ];
+        }
+
+        // 5. Senior Secondary Wing (Class 11th – 12th)
+        return [
+            'key'             => 'senior_secondary',
+            'name'            => 'Senior Secondary Wing',
+            'short_name'      => 'Senior Secondary (Class 11th – 12th)',
+            'tag'             => 'SENIOR SEC WING',
+            'badge_color'     => 'bg-purple-100 text-purple-900 border-purple-300 font-bold',
+            'primary_color'   => '#7c3aed',
+            'header_gradient' => 'linear-gradient(135deg, #581c87 0%, #8b5cf6 100%)',
+            'card_border'     => '#8b5cf6',
+            'accent'          => '#7c3aed',
+        ];
+    }
+
     public function idCards(Request $request)
     {
         $classes  = Classes::active()->get();
-        $sections = collect();
-        $students = collect();
         $currentYear = AcademicYear::current();
-        if ($request->class_id) {
-            $sections = Section::where('class_id', $request->class_id)->get();
-            $q = StudentEnrollment::with('student')->where('class_id', $request->class_id)->where('status', 'active');
-            if ($request->section_id) $q->where('section_id', $request->section_id);
-            if ($currentYear) $q->where('academic_year_id', $currentYear->id);
-            $students = $q->get();
+        $wingFilter = $request->get('wing', 'all');
+        $classFilter = $request->get('class_id');
+        $sectionFilter = $request->get('section_id');
+
+        // Attach wing meta to all classes
+        $classes->each(function($cls) {
+            $cls->wing_meta = $this->getWingMetadata($cls);
+        });
+
+        $sections = collect();
+        if ($classFilter) {
+            $sections = Section::where('class_id', $classFilter)->get();
         }
-        return view('students.id-cards', compact('classes', 'sections', 'students', 'currentYear'));
+
+        $q = StudentEnrollment::with(['student', 'class', 'section'])
+            ->where('status', 'active')
+            ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id));
+
+        if ($classFilter) {
+            $q->where('class_id', $classFilter);
+        }
+        if ($sectionFilter) {
+            $q->where('section_id', $sectionFilter);
+        }
+
+        $enrollments = $q->get();
+
+        // Map wing metadata to each enrollment
+        $enrollments->each(function($e) {
+            $e->wing_meta = $this->getWingMetadata($e->class);
+        });
+
+        // Filter by wing if specified
+        $filteredEnrollments = $enrollments;
+        if ($wingFilter && $wingFilter !== 'all') {
+            $filteredEnrollments = $enrollments->filter(fn($e) => $e->wing_meta['key'] === $wingFilter)->values();
+        }
+
+        $school = \App\Models\SchoolSetting::first();
+
+        // Wing counts
+        $wingCounts = [
+            'all'              => $enrollments->count(),
+            'kg'               => $enrollments->filter(fn($e) => $e->wing_meta['key'] === 'kg')->count(),
+            'primary'          => $enrollments->filter(fn($e) => $e->wing_meta['key'] === 'primary')->count(),
+            'middle'           => $enrollments->filter(fn($e) => $e->wing_meta['key'] === 'middle')->count(),
+            'higher_secondary' => $enrollments->filter(fn($e) => $e->wing_meta['key'] === 'higher_secondary')->count(),
+            'senior_secondary' => $enrollments->filter(fn($e) => $e->wing_meta['key'] === 'senior_secondary')->count(),
+        ];
+
+        return view('students.id-cards', compact(
+            'classes', 'sections', 'filteredEnrollments', 'enrollments',
+            'currentYear', 'school', 'wingFilter', 'classFilter', 'sectionFilter', 'wingCounts'
+        ));
+    }
+
+    public function singleIdCard(int $id)
+    {
+        $student = Student::with(['currentEnrollment.class', 'currentEnrollment.section'])->findOrFail($id);
+        $enrollment = $student->currentEnrollment;
+        $classModel = $enrollment?->class;
+        $wingMeta = $this->getWingMetadata($classModel);
+        $school = \App\Models\SchoolSetting::first();
+        $currentYear = AcademicYear::current();
+
+        // Base64 QR code
+        $qrData = implode(' | ', array_filter([
+            'ID: ' . $student->admission_number,
+            'Name: ' . $student->full_name,
+            'Class: ' . ($classModel?->name ?? '') . ' ' . ($enrollment?->section?->name ?? ''),
+            'Blood: ' . ($student->blood_group ?? ''),
+        ]));
+
+        try {
+            $qrCode = base64_encode(QrCode::format('png')->size(90)->generate($qrData));
+        } catch (\Exception $e) {
+            $qrCode = null;
+        }
+
+        return view('students.single-id-card', compact('student', 'enrollment', 'classModel', 'wingMeta', 'school', 'currentYear', 'qrCode'));
     }
 
     public function downloadIdCards(Request $request)
     {
         $currentYear = AcademicYear::current();
+        $wingFilter  = $request->get('wing', 'all');
         $q = StudentEnrollment::with(['student', 'class', 'section'])->where('status', 'active');
         if ($request->class_id) $q->where('class_id', $request->class_id);
         if ($request->section_id) $q->where('section_id', $request->section_id);
         if ($currentYear) $q->where('academic_year_id', $currentYear->id);
-        $students = $q->get()->map(fn($e) => $e->student)->filter();
+
+        $enrollments = $q->get();
+        $enrollments->each(function($e) {
+            $e->wing_meta = $this->getWingMetadata($e->class);
+        });
+
+        if ($wingFilter && $wingFilter !== 'all') {
+            $enrollments = $enrollments->filter(fn($e) => $e->wing_meta['key'] === $wingFilter)->values();
+        }
+
+        $students = $enrollments->map(fn($e) => $e->student)->filter();
         $school   = \App\Models\SchoolSetting::first();
 
         // Pre-generate QR codes for each student
@@ -671,8 +841,9 @@ class StudentController extends Controller
 
         // Pass template settings to PDF
         $template = $school;
-        $pdf = Pdf::loadView('pdf.student-id-card', compact('school', 'students', 'currentYear', 'qrCodes', 'template'));
-        return $pdf->download('id-cards.pdf');
+        $pdf = Pdf::loadView('pdf.student-id-card', compact('school', 'students', 'enrollments', 'currentYear', 'qrCodes', 'template', 'wingFilter'));
+        $pdf->setPaper('A4', 'portrait');
+        return $pdf->download('student-id-cards-' . ($wingFilter ?: 'all') . '.pdf');
     }
 
     public function idCardTemplate()

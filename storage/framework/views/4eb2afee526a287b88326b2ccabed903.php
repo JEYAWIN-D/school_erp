@@ -639,11 +639,16 @@
       </button>
 
       
-      <div class="flex-1 min-w-0 flex items-center gap-1.5 text-xs text-slate-400 overflow-hidden">
-        <a href="<?php echo e(route('dashboard')); ?>" class="hover:text-slate-600 transition flex-shrink-0">Home</a>
+      <div class="flex-1 flex items-center gap-2 text-xs text-slate-400">
+        <button onclick="window.history.back()" type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs border border-slate-200 shadow-xs cursor-pointer" title="Go to previous page">
+          <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          <span>Back</span>
+        </button>
         <?php if (! empty(trim($__env->yieldContent('breadcrumb')))): ?>
-          <span class="flex-shrink-0">/</span>
-          <span class="truncate font-medium text-slate-600"><?php echo $__env->yieldContent('breadcrumb'); ?></span>
+          <span>/</span>
+          <?php echo $__env->yieldContent('breadcrumb'); ?>
         <?php endif; ?>
       </div>
 

@@ -2,112 +2,262 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<title>Staff ID Cards</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #1e293b; background: #fff; }
+  body { font-family: DejaVu Sans, sans-serif; font-size: 8px; color: #1e293b; background: #fff; }
 
-  .page { padding: 10mm; }
-  .cards-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .page { padding: 8mm 6mm; }
+  .cards-grid { width: 100%; margin-bottom: 5mm; }
+
+  .card-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 4mm 4mm;
+  }
+
+  .id-card-cell {
+    width: 50%;
+    vertical-align: top;
+  }
 
   .id-card {
     width: 85mm;
     height: 54mm;
-    border: 1.5px solid #4338ca;
-    border-radius: 6px;
+    border-radius: 5px;
     overflow: hidden;
     background: #fff;
-    display: inline-block;
-    vertical-align: top;
+    border: 1px solid #cbd5e1;
     page-break-inside: avoid;
+    position: relative;
   }
 
   .card-header {
-    background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%);
+    height: 12mm;
     color: #fff;
-    padding: 5px 8px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
+    padding: 2mm 3mm;
+    position: relative;
   }
-  .card-logo { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; background: #fff; }
-  .school-name { font-size: 8px; font-weight: bold; letter-spacing: 0.3px; }
-  .school-sub { font-size: 7px; opacity: 0.8; }
-  .card-type { font-size: 7px; font-weight: bold; background: rgba(255,255,255,0.2); padding: 1px 5px; border-radius: 8px; margin-left: auto; }
+  .card-header table { width: 100%; border-collapse: collapse; }
+  .school-name { font-size: 7.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; color: #ffffff; }
+  .card-type { font-size: 6px; font-weight: bold; background: rgba(255,255,255,0.25); padding: 1px 4px; border-radius: 3px; color: #ffffff; text-align: right; text-transform: uppercase; }
 
-  .card-body { display: flex; padding: 6px 8px; gap: 7px; }
-  .photo-wrap { flex-shrink: 0; }
-  .photo-wrap img { width: 28mm; height: 28mm; object-fit: cover; border-radius: 3px; border: 1px solid #e2e8f0; }
-  .no-photo { width: 28mm; height: 28mm; background: #f1f5f9; border-radius: 3px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8; text-align: center; }
+  .card-body { padding: 2mm 3mm; height: 35mm; }
+  .body-table { width: 100%; border-collapse: collapse; }
 
-  .info { flex: 1; }
-  .emp-name { font-size: 11px; font-weight: bold; color: #1e1b4b; margin-bottom: 3px; }
-  .emp-designation { font-size: 9px; color: #4338ca; font-weight: 600; margin-bottom: 5px; }
-  .info-row { font-size: 8px; color: #475569; margin-bottom: 2px; }
-  .info-row strong { color: #1e293b; }
+  .photo-box {
+    width: 18mm;
+    height: 22mm;
+    border-radius: 3px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    text-align: center;
+    vertical-align: middle;
+    overflow: hidden;
+  }
+  .photo-box img { width: 18mm; height: 22mm; object-fit: cover; }
+  .photo-initials { font-size: 11px; font-weight: bold; color: #64748b; line-height: 22mm; }
+
+  .info-col { padding-left: 2.5mm; vertical-align: top; }
+  .emp-name { font-size: 8.5px; font-weight: bold; color: #0f172a; text-transform: uppercase; margin-bottom: 1px; }
+  .emp-desig { font-size: 7px; font-weight: bold; margin-bottom: 2px; }
+  
+  .details-box {
+    background: #f8fafc;
+    border: 0.5px solid #e2e8f0;
+    border-radius: 3px;
+    padding: 1.5px 3px;
+    font-size: 6.5px;
+    line-height: 1.25;
+  }
+  .details-table { width: 100%; border-collapse: collapse; font-size: 6.5px; }
+  .lbl { color: #64748b; font-weight: bold; width: 11mm; }
+  .val { color: #0f172a; font-weight: bold; }
 
   .card-footer {
+    height: 7mm;
     background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    padding: 4px 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    border-top: 0.5px solid #e2e8f0;
+    padding: 1mm 3mm;
+    font-size: 6px;
+    color: #64748b;
   }
-  .blood-group { background: #fee2e2; color: #dc2626; font-size: 8px; font-weight: bold; padding: 1px 6px; border-radius: 8px; }
-  .validity { font-size: 7px; color: #64748b; }
-  .qr-img { width: 16mm; height: 16mm; }
-  .emp-id { font-size: 8px; font-weight: bold; color: #1e1b4b; font-family: monospace; }
+  .card-footer table { width: 100%; border-collapse: collapse; }
+  .website { font-size: 6px; font-weight: bold; color: #64748b; }
+  .side-tag { font-size: 5.5px; font-weight: bold; color: #94a3b8; text-align: right; text-transform: uppercase; }
+
+  /* Back card specific */
+  .back-box {
+    background: #f8fafc;
+    border: 0.5px solid #e2e8f0;
+    border-radius: 3px;
+    padding: 1.5mm 2mm;
+    margin-bottom: 1.5mm;
+    font-size: 6px;
+  }
+  .back-title { font-size: 6px; font-weight: bold; color: #1e3a8a; text-transform: uppercase; margin-bottom: 1px; }
+  .back-desc { font-size: 5.8px; color: #334155; line-height: 1.2; }
+  .helpline { font-size: 6px; font-weight: bold; color: #0f172a; margin-top: 1mm; }
 </style>
 </head>
 <body>
 <div class="page">
-  <div class="cards-grid">
-    @foreach($employees as $emp)
-    <div class="id-card">
-      <div class="card-header">
-        @if($school && $school->logo)
-          <img src="{{ public_path('storage/' . $school->logo) }}" class="card-logo" alt="">
-        @endif
-        <div>
-          <div class="school-name">{{ $school->school_name ?? config('app.name') }}</div>
-          <div class="school-sub">{{ $school->city ?? '' }}</div>
-        </div>
-        <div class="card-type">STAFF ID</div>
-      </div>
+  <table class="card-table">
+    @foreach($employees->chunk(2) as $row)
+    <tr>
+      @foreach($row as $emp)
+      @php
+        $theme = $emp->theme_meta ?? [
+          'category_key' => 'teacher',
+          'theme_label'  => 'TEACHER',
+          'header_color' => '#1d4ed8',
+          'accent_color' => '#2563eb',
+        ];
+        $headerBg = $theme['header_color'] ?? '#1e1b4b';
+        $accentColor = $theme['accent_color'] ?? '#4338ca';
+      @endphp
+      <td class="id-card-cell">
+        {{-- FRONT SIDE CARD --}}
+        <div class="id-card">
+          <div class="card-header" style="background: {{ $headerBg }};">
+            <table>
+              <tr>
+                <td>
+                  <div class="school-name">{{ $school->school_name ?? config('app.name', 'DEMO SCHOOL') }}</div>
+                </td>
+                <td style="text-align: right;">
+                  <span class="card-type">{{ $theme['theme_label'] ?? 'STAFF' }} ID</span>
+                </td>
+              </tr>
+            </table>
+          </div>
 
-      <div class="card-body">
-        <div class="photo-wrap">
-          @if($emp->photo)
-            <img src="{{ public_path('storage/' . $emp->photo) }}" alt="Photo">
-          @else
-            <div class="no-photo">No Photo</div>
-          @endif
-        </div>
-        <div class="info">
-          <div class="emp-name">{{ strtoupper($emp->name) }}</div>
-          <div class="emp-designation">{{ $emp->designation ?? '—' }}</div>
-          <div class="info-row">Dept: <strong>{{ $emp->department?->name ?? '—' }}</strong></div>
-          <div class="info-row">Emp ID: <strong>{{ $emp->employee_id ?? 'EMP-' . str_pad($emp->id, 4, '0', STR_PAD_LEFT) }}</strong></div>
-          <div class="info-row">Mobile: <strong>{{ $emp->mobile ?? '—' }}</strong></div>
-        </div>
-        @if($emp->_qrCode)
-        <div>
-          <img src="data:image/png;base64,{{ $emp->_qrCode }}" class="qr-img" alt="QR">
-        </div>
-        @endif
-      </div>
+          <div class="card-body">
+            <table class="body-table">
+              <tr>
+                <td style="width: 18mm; vertical-align: top;">
+                  <div class="photo-box">
+                    @if($emp->photo && file_exists(public_path('storage/' . $emp->photo)))
+                      <img src="{{ public_path('storage/' . $emp->photo) }}" alt="">
+                    @else
+                      <div class="photo-initials" style="color: {{ $accentColor }};">
+                        {{ strtoupper(substr($emp->first_name, 0, 1) . substr($emp->last_name, 0, 1)) }}
+                      </div>
+                    @endif
+                  </div>
+                </td>
+                <td class="info-col">
+                  <div class="emp-name">{{ $emp->full_name }}</div>
+                  <div class="emp-desig" style="color: {{ $accentColor }};">{{ $emp->designation ?? $emp->category_label }}</div>
 
-      <div class="card-footer">
-        @if($emp->blood_group)
-          <span class="blood-group">{{ $emp->blood_group }}</span>
-        @else
-          <span></span>
-        @endif
-        <span class="validity">Valid until: {{ $validUntil }}</span>
-      </div>
-    </div>
+                  <div class="details-box">
+                    <table class="details-table">
+                      <tr>
+                        <td class="lbl">ID No:</td>
+                        <td class="val">{{ $emp->employee_code ?? 'EMP-' . $emp->id }}</td>
+                      </tr>
+                      <tr>
+                        <td class="lbl">DOB:</td>
+                        <td class="val">{{ $emp->dob ? $emp->dob->format('d/m/Y') : '15/08/1990' }}</td>
+                      </tr>
+                      <tr>
+                        <td class="lbl">Phone:</td>
+                        <td class="val">+91 {{ $emp->mobile ?? '9876543210' }}</td>
+                      </tr>
+                      @if($emp->blood_group)
+                      <tr>
+                        <td class="lbl">Blood:</td>
+                        <td class="val" style="color: #dc2626;">{{ $emp->blood_group }}</td>
+                      </tr>
+                      @endif
+                    </table>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="card-footer">
+            <table>
+              <tr>
+                <td class="website">{{ $school->website ?? 'www.dasaeduerp.com' }}</td>
+                <td class="side-tag">FRONT SIDE</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </td>
+      @endforeach
+      @if($row->count() == 1)
+        <td class="id-card-cell"></td>
+      @endif
+    </tr>
+
+    {{-- Corresponding Back Sides for the chunk --}}
+    <tr>
+      @foreach($row as $emp)
+      @php
+        $theme = $emp->theme_meta ?? [
+          'category_key' => 'teacher',
+          'theme_label'  => 'TEACHER',
+          'header_color' => '#1d4ed8',
+          'accent_color' => '#2563eb',
+        ];
+        $headerBg = $theme['header_color'] ?? '#1e1b4b';
+      @endphp
+      <td class="id-card-cell">
+        {{-- BACK SIDE CARD --}}
+        <div class="id-card">
+          <div class="card-header" style="background: {{ $headerBg }};">
+            <table>
+              <tr>
+                <td>
+                  <div class="school-name">{{ $school->school_name ?? config('app.name', 'DEMO SCHOOL') }}</div>
+                </td>
+                <td style="text-align: right;">
+                  <span class="card-type">AUTHORIZATION</span>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="card-body">
+            <div class="back-box">
+              <div class="back-title">INSTITUTION ADDRESS</div>
+              <div class="back-desc">
+                {{ $school->school_name ?? 'Demo School Main Campus' }}, {{ $school->address ?? '123, Main Street, Chennai - 600001' }}
+              </div>
+            </div>
+
+            <div class="back-box">
+              <div class="back-title">RESIDENTIAL ADDRESS</div>
+              <div class="back-desc">
+                {{ $emp->residential_address ?? $emp->address ?? 'Staff Quarters Road, Campus Block B - 600001' }}
+              </div>
+            </div>
+
+            <div class="helpline">
+              Helpline: +91 {{ $school->phone ?? $emp->emergency_contact_mobile ?? '9876543210' }}
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <table>
+              <tr>
+                <td class="website">{{ $school->website ?? 'www.dasaeduerp.com' }}</td>
+                <td class="side-tag">BACK SIDE</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </td>
+      @endforeach
+      @if($row->count() == 1)
+        <td class="id-card-cell"></td>
+      @endif
+    </tr>
     @endforeach
-  </div>
+  </table>
 </div>
 </body>
 </html>
