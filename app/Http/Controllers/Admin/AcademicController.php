@@ -371,6 +371,21 @@ class AcademicController extends Controller
     }
 
 
+    public function homework(Request $request)
+    {
+        $classes  = Classes::active()->get();
+        $subjects = Subject::where('is_active', true)->orderBy('name')->get();
+        $homework = \App\Models\Homework::with(['class', 'section', 'subject'])
+            ->when($request->class_id, fn($q, $v) => $q->where('class_id', $v))
+            ->when($request->subject_id, fn($q, $v) => $q->where('subject_id', $v))
+            ->when($request->date, fn($q, $v) => $q->whereDate('due_date', $v))
+            ->orderByDesc('created_at')
+            ->paginate(18)
+            ->withQueryString();
+
+        return view('academics.homework', compact('classes', 'subjects', 'homework'));
+    }
+
     public function saveHomework(Request $request)
     {
         $request->validate([
@@ -387,9 +402,10 @@ class AcademicController extends Controller
             $attachmentPath = $request->file('attachment')->store('homework/attachments', 'public');
         }
         \App\Models\Homework::create(array_merge($request->only(['class_id', 'section_id', 'subject_id', 'title', 'description', 'due_date', 'max_score']), [
-            'attachment'  => $attachmentPath,
-            'assigned_by' => Auth::id(),
-            'is_active'   => true,
+            'assigned_date' => $request->assigned_date ?: now()->toDateString(),
+            'attachment'    => $attachmentPath,
+            'assigned_by'   => Auth::id(),
+            'is_active'     => true,
         ]));
         return back()->with('success', 'Homework assigned.');
     }
@@ -649,7 +665,7 @@ class AcademicController extends Controller
 
     public function storeNotice(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'title'            => 'required|string|max:200',
             'content'          => 'required|string',
             'notice_type'      => 'required|in:general,circular,academic,exam,fee,event',
@@ -659,7 +675,7 @@ class AcademicController extends Controller
             'target_class_id'  => 'nullable|exists:classes,id',
         ]);
 
-        Notice::create(array_merge($request->validated(), [
+        Notice::create(array_merge($data, [
             'created_by'   => Auth::id(),
             'is_published' => $request->boolean('is_published'),
         ]));

@@ -34,6 +34,16 @@ class Homework extends Model
         return $this->belongsTo(Employee::class, 'employee_id');
     }
 
+    public function assignedBy()
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+
     public function submissions()
     {
         return $this->hasMany(HomeworkSubmission::class);

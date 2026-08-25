@@ -110,6 +110,7 @@ Route::middleware(['auth'])->group(function () {
         // Static sub-pages
         Route::get('/promotions',          [StudentController::class, 'promotions'])->name('promotions');
         Route::post('/promotions',         [StudentController::class, 'processPromotion'])->name('promotions.process');
+        Route::post('/promotions/bulk',    [StudentController::class, 'processPromotion'])->name('promotions.bulk');
         Route::get('/rollover-report',     [StudentController::class, 'rolloverReport'])->name('rollover-report');
         Route::get('/id-cards',            [StudentController::class, 'idCards'])->name('id-cards');
         Route::get('/id-cards/pdf',        [StudentController::class, 'downloadIdCards'])->name('id-cards.pdf');
@@ -165,8 +166,12 @@ Route::middleware(['auth'])->group(function () {
     // ── Module — Classes & Timetables ────────────────────
     Route::middleware('permission:view academics')->prefix('classes')->name('classes.')->group(function () {
         Route::get('/',                     [ClassesController::class, 'index'])->name('index');
+        Route::put('/{id}/rename',          [ClassesController::class, 'rename'])->name('rename')->where('id', '[0-9]+');
         Route::post('/timetable/update-slot', [ClassesController::class, 'updateSlot'])->name('timetable.update-slot');
         Route::post('/timetable/toggle-holiday', [ClassesController::class, 'toggleHoliday'])->name('timetable.toggle-holiday');
+        Route::post('/timetable/declare-holiday', [ClassesController::class, 'declareHoliday'])->name('timetable.declare-holiday');
+        Route::delete('/timetable/delete-holiday/{id}', [ClassesController::class, 'deleteHoliday'])->name('timetable.delete-holiday');
+        Route::get('/timetable/declared-holidays', [ClassesController::class, 'getHolidaysList'])->name('timetable.declared-holidays');
         Route::get('/{id}',                 [ClassesController::class, 'show'])->name('show')->where('id', '[0-9]+');
         Route::get('/{id}/timetable-data',  [ClassesController::class, 'timetableData'])->name('timetable-data')->where('id', '[0-9]+');
         Route::get('/{id}/timetable/pdf',   [ClassesController::class, 'downloadPdf'])->name('timetable.pdf')->where('id', '[0-9]+');
@@ -283,7 +288,10 @@ Route::middleware(['auth'])->group(function () {
         // Staff attendance
         Route::get('/staff',   [AttendanceController::class, 'staffAttendance'])->name('staff');
         Route::post('/staff',  [AttendanceController::class, 'saveStaffAttendance'])->name('staff.save');
+        Route::post('/staff/tap', [AttendanceController::class, 'tapStaffCard'])->name('staff.tap');
         Route::get('/staff/register', [AttendanceController::class, 'staffRegister'])->name('staff.register');
+        Route::get('/staff/export/day',   [AttendanceController::class, 'exportDayWiseReport'])->name('staff.export.day');
+        Route::get('/staff/export/month', [AttendanceController::class, 'exportMonthlyReport'])->name('staff.export.month');
         // Monthly register
         Route::get('/register',     [AttendanceController::class, 'register'])->name('register');
         Route::get('/register/pdf', [AttendanceController::class, 'registerPdf'])->name('register.pdf');

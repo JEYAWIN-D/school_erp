@@ -11,12 +11,21 @@ use App\Models\AcademicYear;
 use App\Models\SchoolSetting;
 use App\Models\StudentEnrollment;
 use App\Models\Employee;
+use App\Models\Holiday;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class ClassesController extends Controller
 {
+    public function rename(Request $request, int $id)
+    {
+        $request->validate(['name' => 'required|string|max:100']);
+        $cls = Classes::findOrFail($id);
+        $cls->update(['name' => $request->name]);
+        return back()->with('success', 'Class renamed successfully.');
+    }
+
     /**
      * Display the classes module dashboard with cards from 1st to 12th standard,
      * sections A, B, C, D, curriculum streams, and live period tracking.
@@ -389,6 +398,91 @@ class ClassesController extends Controller
             'success'    => true,
             'is_holiday' => $validated['is_holiday'],
             'message'    => $validated['is_holiday'] ? 'Day marked as holiday successfully!' : 'Regular schedule restored for this day.',
+        ]);
+    }
+
+    /**
+     * Declare a school holiday for a specific date (e.g. Festival, Weather, Special Event)
+     */
+    public function declareHoliday(Request $request)
+    {
+        $request->validate([
+            'date'        => 'required|date',
+            'name'        => 'required|string|max:255',
+            'type'        => 'nullable|string|max:50',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $currentYear = AcademicYear::where('is_current', true)->first()
+            ?? AcademicYear::latest('id')->first();
+
+        $holiday = Holiday::updateOrCreate(
+            ['date' => $request->date],
+            [
+                'name'             => $request->name,
+                'type'             => in_array($request->type, ['national', 'state', 'school', 'optional']) ? $request->type : 'school',
+                'description'      => $request->description ?? 'Declared via Timetable Management',
+                'academic_year_id' => $currentYear?->id ?? 1,
+            ]
+        );
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Holiday '{$holiday->name}' declared successfully for " . Carbon::parse($holiday->date)->format('D, M d, Y') . "!",
+                'holiday' => [
+                    'id'             => $holiday->id,
+                    'name'           => $holiday->name,
+                    'date'           => $holiday->date->format('Y-m-d'),
+                    'formatted_date' => Carbon::parse($holiday->date)->format('D, M d, Y'),
+                    'type'           => $holiday->type,
+                    'description'    => $holiday->description,
+                ],
+            ]);
+        }
+
+        return back()->with('success', "Holiday '{$holiday->name}' declared for " . Carbon::parse($holiday->date)->format('D, M d, Y') . ".");
+    }
+
+    /**
+     * Delete a declared holiday
+     */
+    public function deleteHoliday(int $id)
+    {
+        $holiday = Holiday::findOrFail($id);
+        $name    = $holiday->name;
+        $dateStr = Carbon::parse($holiday->date)->format('D, M d, Y');
+        $holiday->delete();
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Declared holiday '{$name}' for {$dateStr} removed.",
+            ]);
+        }
+
+        return back()->with('success', "Declared holiday '{$name}' for {$dateStr} removed.");
+    }
+
+    /**
+     * List declared holidays (JSON API endpoint for UI modal)
+     */
+    public function getHolidaysList()
+    {
+        $holidays = Holiday::orderBy('date', 'desc')->take(30)->get()->map(function ($h) {
+            return [
+                'id'             => $h->id,
+                'name'           => $h->name,
+                'date'           => $h->date->format('Y-m-d'),
+                'formatted_date' => $h->date->format('D, M d, Y'),
+                'type'           => $h->type,
+                'description'    => $h->description,
+            ];
+        });
+
+        return response()->json([
+            'success'  => true,
+            'holidays' => $holidays,
         ]);
     }
 

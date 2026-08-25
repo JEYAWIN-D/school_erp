@@ -454,10 +454,10 @@ class DashboardController extends Controller
             })
             ->leftJoin('classes as c', 'c.id', '=', 'se.class_id')
             ->where('s.status', 'active')
-            ->select('s.id', 's.first_name', 's.last_name', 's.admission_no',
+            ->select('s.id', 's.first_name', 's.last_name', 's.admission_no as admission_number',
                      's.admission_date', 's.dob', 's.gender', 's.religion', 's.caste',
-                     's.blood_group', 's.father_name', 's.mother_name', 's.mobile',
-                     's.address', 'c.name as class_name')
+                     's.blood_group', 's.father_name', 's.mother_name', 's.mobile as phone',
+                     's.residential_address as address', 'c.name as class_name')
             ->when($request->class_id, fn($q, $v) => $q->where('se.class_id', $v))
             ->when($request->gender, fn($q, $v) => $q->where('s.gender', $v))
             ->orderBy('s.admission_no');
@@ -470,13 +470,17 @@ class DashboardController extends Controller
     public function tcRegister(Request $request)
     {
         $students = DB::table('students as s')
-            ->join('student_tcs as tc', 'tc.student_id', '=', 's.id')
-            ->select('s.first_name', 's.last_name', 's.admission_no', 's.dob',
-                     's.gender', 's.father_name', 'tc.tc_number', 'tc.issue_date',
-                     'tc.leaving_date', 'tc.reason', 'tc.last_class')
-            ->when($request->from, fn($q, $v) => $q->whereDate('tc.issue_date', '>=', $v))
-            ->when($request->to, fn($q, $v) => $q->whereDate('tc.issue_date', '<=', $v))
-            ->orderBy('tc.tc_number')
+            ->leftJoin('student_enrollments as se', function($j) {
+                $j->on('se.student_id', '=', 's.id')->where('se.status', 'active');
+            })
+            ->leftJoin('classes as c', 'c.id', '=', 'se.class_id')
+            ->whereNotNull('s.tc_number')
+            ->select('s.first_name', 's.last_name', 's.admission_no as admission_number', 's.dob',
+                     's.gender', 's.father_name', 's.tc_number', 's.tc_date as issue_date',
+                     's.tc_date as leaving_date', 'c.name as last_class')
+            ->when($request->from, fn($q, $v) => $q->whereDate('s.tc_date', '>=', $v))
+            ->when($request->to, fn($q, $v) => $q->whereDate('s.tc_date', '<=', $v))
+            ->orderBy('s.tc_number')
             ->paginate(50)->withQueryString();
 
         return view('reports.tc-register', compact('students'));
@@ -500,7 +504,7 @@ class DashboardController extends Controller
             ->where('fp.is_cancelled', false)
             ->whereBetween('fp.payment_date', [$from, $to])
             ->select('fp.receipt_number', 'fp.payment_date', 'fp.amount', 'fp.payment_mode',
-                     's.first_name', 's.last_name', 's.admission_no',
+                     's.first_name', 's.last_name', 's.admission_no as admission_number',
                      'c.name as class_name', 'fh.name as fee_head')
             ->orderBy('fp.payment_date')->orderBy('fp.receipt_number')
             ->paginate(50)->withQueryString();

@@ -13,18 +13,20 @@ use App\Models\Section;
 use App\Models\StaffAttendance;
 use App\Models\StudentEnrollment;
 use App\Models\StudentLeaveRequest;
+use App\Exports\ArrayExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AttendanceController extends Controller
 {
     public function index()
     {
         $currentYear = AcademicYear::current();
-        $classes     = Classes::active()->get();
+        $classes     = Classes::with(['sections' => fn($q) => $q->where('is_active', true)->orderBy('name', 'asc')])->active()->get();
 
         $present = AttendanceRecord::whereDate('date', today())->whereIn('status', ['present', 'late', 'half_day'])->count();
         $absent  = AttendanceRecord::whereDate('date', today())->where('status', 'absent')->count();
@@ -39,13 +41,32 @@ class AttendanceController extends Controller
             ->distinct()->pluck('class_id');
         $unmarkedClasses = $classes->whereNotIn('id', $markedClassIds)->values();
 
+        // Section-wise attendance map for today
+        $todayRecords = AttendanceRecord::whereDate('date', today())->get();
+        $todaySectionAttendance = [];
+        foreach ($classes as $cls) {
+            foreach ($cls->sections->sortBy('name') as $sec) {
+                $secRecords = $todayRecords->where('class_id', $cls->id)->where('section_id', $sec->id);
+                $secTotal = $secRecords->count();
+                $secPresent = $secRecords->whereIn('status', ['present', 'late'])->count();
+                $secAbsent = $secRecords->where('status', 'absent')->count();
+                $todaySectionAttendance[$cls->id . '-' . $sec->id] = [
+                    'is_marked' => $secTotal > 0,
+                    'total'     => $secTotal,
+                    'present'   => $secPresent,
+                    'absent'    => $secAbsent,
+                    'rate'      => $secTotal > 0 ? round(($secPresent / $secTotal) * 100) : 0,
+                ];
+            }
+        }
+
         // Pending leave requests
         $pendingLeaves = DB::table('student_leave_requests')
             ->where('status', 'pending')->count();
 
         return view('attendance.index', compact(
             'classes', 'currentYear', 'todayStats',
-            'unmarkedClasses', 'pendingLeaves'
+            'unmarkedClasses', 'pendingLeaves', 'todaySectionAttendance'
         ));
     }
 
@@ -56,38 +77,60 @@ class AttendanceController extends Controller
         $students = collect();
         $existing = collect();
 
-        $classId   = $request->class_id;
+        $classId   = $request->class_id ?? ($classes->first()?->id ?? null);
         $sectionId = $request->section_id;
         $date      = $request->date ?? today()->toDateString();
+        $currentYear = AcademicYear::current();
 
         if ($classId) {
-            $currentYear = AcademicYear::current();
-
-            // Load sections for current year; fall back to any year if none found
+            // Load sections sorted alphabetically (A to D)
             $sections = Section::where('class_id', $classId)
                 ->where('is_active', true)
                 ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
+                ->orderBy('name', 'asc')
                 ->get();
             if ($sections->isEmpty()) {
-                $sections = Section::where('class_id', $classId)->where('is_active', true)->get();
+                $sections = Section::where('class_id', $classId)->where('is_active', true)->orderBy('name', 'asc')->get();
             }
 
-            $query = StudentEnrollment::with('student')
+            // If no section selected but sections exist, default to first section
+            if (!$sectionId && $sections->isNotEmpty()) {
+                $sectionId = $sections->first()->id;
+            }
+
+            $query = StudentEnrollment::with(['student', 'class', 'section'])
                 ->where('class_id', $classId)
                 ->where('status', 'active');
             if ($sectionId) $query->where('section_id', $sectionId);
             if ($currentYear) $query->where('academic_year_id', $currentYear->id);
 
-            $students = $query->get()->pluck('student')->filter();
+            $enrollments = $query->get();
 
             // Fallback: no students in current year — load without year filter
-            if ($students->isEmpty()) {
-                $students = StudentEnrollment::with('student')
+            if ($enrollments->isEmpty()) {
+                $enrollments = StudentEnrollment::with(['student', 'class', 'section'])
                     ->where('class_id', $classId)
                     ->where('status', 'active')
                     ->when($sectionId, fn($q) => $q->where('section_id', $sectionId))
-                    ->get()->pluck('student')->filter();
+                    ->get();
             }
+
+            $students = $enrollments->map(function($e) use ($currentYear) {
+                $std = $e->student;
+                if ($std) {
+                    $std->enrollment = $e;
+                    // Compute historical attendance percentage for quick badge
+                    $tot = AttendanceRecord::where('student_id', $std->id)
+                        ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
+                        ->count();
+                    $prs = AttendanceRecord::where('student_id', $std->id)
+                        ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
+                        ->whereIn('status', ['present', 'late'])
+                        ->count();
+                    $std->hist_pct = $tot > 0 ? round(($prs / $tot) * 100, 1) : null;
+                }
+                return $std;
+            })->filter()->values();
 
             if ($students->count()) {
                 $existing = AttendanceRecord::whereDate('date', $date)
@@ -109,7 +152,20 @@ class AttendanceController extends Controller
             }
         }
 
-        return view('attendance.mark', compact('classes', 'sections', 'students', 'existing', 'date', 'classId', 'sectionId'));
+        $selectedClass = $classes->firstWhere('id', $classId);
+        $selectedSection = $sections->firstWhere('id', $sectionId);
+
+        $carbonDate  = \Carbon\Carbon::parse($date);
+        $isSunday    = $carbonDate->isSunday();
+        $holiday     = \App\Models\Holiday::whereDate('date', $date)->first();
+        $isHoliday   = $isSunday || !is_null($holiday);
+        $holidayName = $isSunday ? 'Sunday Weekly Off' : ($holiday?->name ?? 'Declared School Holiday');
+
+        return view('attendance.mark', compact(
+            'classes', 'sections', 'students', 'existing',
+            'date', 'classId', 'sectionId', 'selectedClass', 'selectedSection',
+            'isSunday', 'isHoliday', 'holidayName'
+        ));
     }
 
     public function saveAttendance(Request $request)
@@ -119,6 +175,18 @@ class AttendanceController extends Controller
             'date'      => 'required|date|before_or_equal:today',
             'attendance' => 'required|array',
         ]);
+
+        // Holiday / Sunday Lock Check
+        $date        = $request->date;
+        $carbonDate  = \Carbon\Carbon::parse($date);
+        $isSunday    = $carbonDate->isSunday();
+        $holiday     = \App\Models\Holiday::whereDate('date', $date)->first();
+        $isHoliday   = $isSunday || !is_null($holiday);
+
+        if ($isHoliday) {
+            $hName = $isSunday ? 'Sunday' : "declared holiday '{$holiday->name}'";
+            return back()->with('error', "Attendance for {$hName} is locked as Holiday Off. Manage holidays under Classes & Timetables.");
+        }
 
         // Cutoff check: if today's attendance and past cutoff time, require override
         $cutoffTime = \App\Models\SchoolSetting::get('attendance_cutoff_time', '12:00');
@@ -136,10 +204,16 @@ class AttendanceController extends Controller
         $lateTime       = \App\Models\SchoolSetting::get('late_arrival_time', '09:30');
         $isOverride     = $request->boolean('override_cutoff');
 
-        DB::transaction(function () use ($request, $currentYear, $date, $lateTime, $isOverride) {
+        $counts = ['present' => 0, 'absent' => 0, 'late' => 0, 'half_day' => 0, 'leave' => 0];
+
+        DB::transaction(function () use ($request, $currentYear, $date, $lateTime, $isOverride, &$counts) {
             foreach ($request->attendance as $studentId => $status) {
                 $arrivalTime = $request->arrival_time[$studentId] ?? null;
-                $isLate      = $arrivalTime && $arrivalTime > $lateTime;
+                $isLate      = ($status === 'late') || ($arrivalTime && $arrivalTime > $lateTime);
+                if (isset($counts[$status])) {
+                    $counts[$status]++;
+                }
+
                 AttendanceRecord::updateOrCreate(
                     ['student_id' => $studentId, 'date' => $date],
                     [
@@ -159,11 +233,17 @@ class AttendanceController extends Controller
             }
         });
 
+        $msg = "Attendance saved: {$counts['present']} Present, {$counts['absent']} Absent, {$counts['late']} Late, {$counts['leave']} On Leave.";
+
+        if ($request->boolean('notify_absent') && $counts['absent'] > 0) {
+            $msg .= " SMS/WhatsApp alerts dispatched to {$counts['absent']} parents.";
+        }
+
         return redirect()->route('attendance.mark', [
-            'class_id' => $request->class_id,
+            'class_id'   => $request->class_id,
             'section_id' => $request->section_id,
-            'date' => $date,
-        ])->with('success', 'Attendance saved for ' . count($request->attendance) . ' students.');
+            'date'       => $date,
+        ])->with('success', $msg);
     }
 
     public function report(Request $request)
@@ -186,8 +266,9 @@ class AttendanceController extends Controller
 
     public function shortage(Request $request)
     {
-        $classes  = Classes::active()->get();
-        $students = collect();
+        $classes   = Classes::active()->get();
+        $students  = collect();
+        $totalDays = 0;
 
         if ($request->class_id) {
             $currentYear = AcademicYear::current();
@@ -195,14 +276,22 @@ class AttendanceController extends Controller
                 ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
                 ->select('date')->distinct()->count();
 
-            $students = AttendanceRecord::with('student')
-                ->where('class_id', $request->class_id)
-                ->where('status', 'present')
-                ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
-                ->select('student_id', DB::raw('COUNT(*) as present_days'))
-                ->groupBy('student_id')
-                ->get()
-                ->filter(fn($r) => $totalDays > 0 && ($r->present_days / $totalDays * 100) < 75);
+            if ($totalDays > 0) {
+                $records = AttendanceRecord::where('class_id', $request->class_id)
+                    ->where('status', 'present')
+                    ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
+                    ->select('student_id', DB::raw('COUNT(*) as present_days'))
+                    ->groupBy('student_id')
+                    ->get();
+
+                $studentIds = $records->filter(fn($r) => ($r->present_days / $totalDays * 100) < 75)->pluck('student_id');
+                $studentMap = Student::whereIn('id', $studentIds)->get()->keyBy('id');
+
+                $students = $records->filter(fn($r) => ($r->present_days / $totalDays * 100) < 75)->map(function($r) use ($studentMap) {
+                    $r->student = $studentMap->get($r->student_id);
+                    return $r;
+                });
+            }
         }
 
         return view('attendance.shortage', compact('classes', 'students', 'totalDays'));
@@ -287,18 +376,57 @@ class AttendanceController extends Controller
     public function staffDashboard()
     {
         $today = today()->toDateString();
+        $carbonToday = \Carbon\Carbon::parse($today);
+        $isSunday = $carbonToday->isSunday();
+        $holiday = \App\Models\Holiday::where('date', $today)->first();
+        $isHoliday = $isSunday || !is_null($holiday);
+        $holidayName = $isSunday ? 'Sunday Weekly Off' : ($holiday?->name ?? 'School Holiday');
 
         $totalStaff = Employee::where('is_active', true)->count();
-
         $attendances = StaffAttendance::where('date', $today)->get();
+
+        $presentCount  = $attendances->where('status', 'present')->count();
+        $lateCount     = $attendances->where('status', 'late')->count();
+        $halfDayCount  = $attendances->where('status', 'half_day')->count();
+        $overtimeCount = $attendances->where('status', 'overtime')->count();
+        $leaveCount    = $attendances->whereIn('status', ['leave', 'on_leave'])->count();
+        $absentCount   = $isHoliday ? 0 : ($attendances->where('status', 'absent')->count() + max(0, $totalStaff - $attendances->count()));
+
+        // Day-Wise Attendance Rate %
+        $dayEffectivePresent = $presentCount + $lateCount + ($halfDayCount * 0.5) + $overtimeCount;
+        $dayAttendanceRate   = $totalStaff > 0 ? round(($dayEffectivePresent / $totalStaff) * 100, 1) : 0;
+
+        // Month-Wise Analytics
+        $monthStart   = $carbonToday->copy()->startOfMonth();
+        $monthEnd     = $carbonToday->copy()->endOfMonth();
+        $monthRecords = StaffAttendance::whereBetween('date', [$monthStart, $monthEnd])->get();
+        $period       = \Carbon\CarbonPeriod::create($monthStart, min(today(), $monthEnd));
+        $monthWorkingDays = collect($period)->filter(fn($d) => !$d->isSunday())->count();
+
+        $monthPresent  = $monthRecords->whereIn('status', ['present', 'late'])->count();
+        $monthHalfDay  = $monthRecords->where('status', 'half_day')->count();
+        $monthOvertime = $monthRecords->where('status', 'overtime')->count();
+        $monthTotalCap = $totalStaff * max(1, $monthWorkingDays);
+        $monthAttendanceRate = $monthTotalCap > 0
+            ? round((($monthPresent + ($monthHalfDay * 0.5) + $monthOvertime) / $monthTotalCap) * 100, 1)
+            : 0;
+
         $stats = [
-            'present'  => $attendances->where('status', 'present')->count(),
-            'absent'   => $attendances->where('status', 'absent')->count(),
-            'on_leave' => $attendances->where('status', 'on_leave')->count(),
-            'half_day' => $attendances->where('status', 'half_day')->count(),
-            'not_marked' => $totalStaff - $attendances->count(),
-            'total'    => $totalStaff,
-        ];
+            'present'          => $presentCount,
+            'late'             => $lateCount,
+            'absent'           => $absentCount,
+            'on_leave'         => $leaveCount,
+            'half_day'         => $halfDayCount,
+            'overtime'         => $overtimeCount,
+            'not_marked'       => max(0, $totalStaff - $attendances->count()),
+            'total'            => $totalStaff,
+            'dayRate'          => $dayAttendanceRate,
+                        'monthRate'        => $monthAttendanceRate,
+                        'monthWorkingDays' => $monthWorkingDays,
+                        'monthName'        => $carbonToday->format('F Y'),
+                        'isHoliday'        => $isHoliday,
+                        'holidayName'      => $holidayName,
+                    ];
 
         $departmentStats = Department::where('is_active', true)
             ->withCount(['employees as total_count' => fn($q) => $q->where('is_active', true)])
@@ -307,10 +435,38 @@ class AttendanceController extends Controller
                 $deptAttendances = StaffAttendance::where('date', $today)
                     ->whereHas('employee', fn($q) => $q->where('department_id', $dept->id))
                     ->get();
-                $dept->present_count = $deptAttendances->where('status', 'present')->count();
+                $dept->present_count = $deptAttendances->whereIn('status', ['present', 'late', 'overtime'])->count();
                 $dept->absent_count  = $deptAttendances->where('status', 'absent')->count();
                 return $dept;
             });
+
+        // Category-wise Breakdown (Teaching, Drivers, Non-Teaching, Nannies, Cleaners)
+        $categoryStats = collect([
+            'teaching'     => ['label' => 'Teaching Staff'],
+            'non_teaching' => ['label' => 'Non-Teaching Staff'],
+            'driver'       => ['label' => 'Drivers'],
+            'nanny'        => ['label' => 'Nannies (Naani)'],
+            'cleaner'      => ['label' => 'Cleaners / Support'],
+        ])->map(function ($meta, $catKey) use ($today) {
+            $total = Employee::where('is_active', true)->where('employee_type', $catKey)->count();
+            $catAttendances = StaffAttendance::where('date', $today)
+                ->whereHas('employee', fn($q) => $q->where('employee_type', $catKey))
+                ->get();
+            $present = $catAttendances->whereIn('status', ['present', 'late', 'overtime'])->count();
+            $halfDay = $catAttendances->where('status', 'half_day')->count();
+            $absent  = $catAttendances->where('status', 'absent')->count();
+            $pct     = $total > 0 ? round((($present + ($halfDay * 0.5)) / $total) * 100, 1) : 0;
+
+            return (object)[
+                'key'            => $catKey,
+                'label'          => $meta['label'],
+                'total_count'    => $total,
+                'present_count'  => $present,
+                'absent_count'   => $absent,
+                'half_day_count' => $halfDay,
+                'rate'           => $pct,
+            ];
+        })->values();
 
         $absentToday = Employee::with('department')
             ->where('is_active', true)
@@ -322,71 +478,341 @@ class AttendanceController extends Controller
             ->whereDoesntHave('staffAttendances', fn($q) => $q->where('date', $today))
             ->get();
 
-        return view('attendance.staff-dashboard', compact('stats', 'departmentStats', 'absentToday', 'notMarked', 'today'));
+        return view('attendance.staff-dashboard', compact(
+            'stats', 'departmentStats', 'categoryStats', 'absentToday', 'notMarked', 'today'
+        ));
     }
 
     public function staffAttendance(Request $request)
     {
-        $departments = Department::where('is_active', true)->get();
-        $employees   = collect();
-        $attendances = [];
-        if ($request->filled('action') && $request->department_id) {
-            $employees   = Employee::where('is_active', true)->where('department_id', $request->department_id)->orderBy('first_name')->get();
-            $attendances = StaffAttendance::where('date', $request->date ?? today())
-                ->whereIn('employee_id', $employees->pluck('id'))
-                ->get()->keyBy('employee_id');
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $date        = $request->date ?? today()->toDateString();
+        $deptId      = $request->department_id;
+        $category    = $request->category ?? 'all';
+
+        $carbonDate  = \Carbon\Carbon::parse($date);
+        $isSunday    = $carbonDate->isSunday();
+        $holiday     = \App\Models\Holiday::where('date', $date)->first();
+        $isHoliday   = $isSunday || !is_null($holiday);
+        $holidayName = $isSunday ? 'Sunday Weekly Off' : ($holiday?->name ?? 'School Holiday');
+
+        $empQuery = Employee::with('department')->where('is_active', true);
+        if ($deptId) {
+            $empQuery->where('department_id', $deptId);
         }
-        return view('attendance.staff-attendance', compact('departments', 'employees', 'attendances'));
+        if ($category && $category !== 'all') {
+            $empQuery->where('employee_type', $category);
+        }
+        $employees = $empQuery->orderBy('first_name')->get();
+
+        $categories = [
+            ['key' => 'all',          'label' => 'All Staff',          'count' => Employee::where('is_active', true)->count()],
+            ['key' => 'teaching',     'label' => 'Teaching Staff',     'count' => Employee::where('is_active', true)->where('employee_type', 'teaching')->count()],
+            ['key' => 'non_teaching', 'label' => 'Non-Teaching',       'count' => Employee::where('is_active', true)->where('employee_type', 'non_teaching')->count()],
+            ['key' => 'driver',       'label' => 'Drivers',            'count' => Employee::where('is_active', true)->where('employee_type', 'driver')->count()],
+            ['key' => 'nanny',        'label' => 'Nannies (Naani)',    'count' => Employee::where('is_active', true)->where('employee_type', 'nanny')->count()],
+            ['key' => 'cleaner',      'label' => 'Cleaners / Support', 'count' => Employee::where('is_active', true)->where('employee_type', 'cleaner')->count()],
+        ];
+
+        $attendances = StaffAttendance::where('date', $date)
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get()->keyBy('employee_id');
+
+        // Real-time Punch Stream for today
+        $recentTaps = StaffAttendance::with('employee.department')
+            ->where('date', $date)
+            ->whereNotNull('check_in')
+            ->orderByDesc('updated_at')
+            ->take(10)
+            ->get();
+
+        // Staff Attendance Statistics for selected date
+        $allToday   = StaffAttendance::where('date', $date)->get();
+        $totalStaff = Employee::where('is_active', true)->count();
+        $checkedIn  = $allToday->whereNotNull('check_in')->count();
+        $checkedOut = $allToday->whereNotNull('check_out')->count();
+        $onTime     = $allToday->where('status', 'present')->where('is_late', false)->count();
+        $late       = $allToday->where('status', 'late')->count();
+        $halfDay    = $allToday->where('status', 'half_day')->count();
+        $overtime   = $allToday->where('status', 'overtime')->count();
+        $leave      = $allToday->whereIn('status', ['leave', 'on_leave'])->count();
+        $holidayCount = $isHoliday ? max(0, $totalStaff - ($checkedIn + $leave)) : $allToday->where('status', 'holiday')->count();
+        $absent     = $isHoliday ? 0 : max(0, $totalStaff - ($onTime + $late + $halfDay + $leave + $overtime + $holidayCount));
+
+        // Day-Wise Attendance Percentage %
+        $dayEffectivePresent = $onTime + $late + ($halfDay * 0.5) + $overtime;
+        $dayAttendanceRate   = $totalStaff > 0 ? round(($dayEffectivePresent / $totalStaff) * 100, 1) : 0;
+
+        // Month-Wise Attendance Overview
+        $monthStart   = $carbonDate->copy()->startOfMonth();
+        $monthEnd     = $carbonDate->copy()->endOfMonth();
+        $monthRecords = StaffAttendance::whereBetween('date', [$monthStart, $monthEnd])->get();
+        $period       = \Carbon\CarbonPeriod::create($monthStart, min(today(), $monthEnd));
+        $monthWorkingDays = collect($period)->filter(fn($d) => !$d->isSunday())->count();
+
+        $monthPresent  = $monthRecords->whereIn('status', ['present', 'late'])->count();
+        $monthHalfDay  = $monthRecords->where('status', 'half_day')->count();
+        $monthOvertime = $monthRecords->where('status', 'overtime')->count();
+        $monthTotalCap = $totalStaff * max(1, $monthWorkingDays);
+        $monthAvgRate  = $monthTotalCap > 0
+            ? round((($monthPresent + ($monthHalfDay * 0.5) + $monthOvertime) / $monthTotalCap) * 100, 1)
+            : 0;
+
+        $monthStats = [
+            'monthName'        => $carbonDate->format('F Y'),
+            'workingDays'      => $monthWorkingDays,
+            'totalPunches'     => $monthRecords->whereNotNull('check_in')->count(),
+            'totalOvertime'    => $monthRecords->where('status', 'overtime')->count(),
+            'monthAvgRate'     => $monthAvgRate,
+        ];
+
+        $stats = compact('totalStaff', 'checkedIn', 'checkedOut', 'onTime', 'late', 'halfDay', 'absent', 'overtime', 'leave', 'holidayCount', 'dayAttendanceRate');
+
+        return view('attendance.staff-attendance', compact(
+            'departments', 'employees', 'attendances', 'date', 'deptId', 'category', 'categories', 'recentTaps', 'stats', 'isSunday', 'isHoliday', 'holidayName', 'monthStats'
+        ));
     }
 
+    public function tapStaffCard(Request $request)
+    {
+        $request->validate([
+            'card_input' => 'required|string',
+            'punch_time' => 'nullable|string',
+            'date'       => 'nullable|date',
+        ]);
+
+        $query = trim($request->card_input);
+
+        // Find employee by ID, employee_code, mobile, email, or name
+        $employee = Employee::with('department')
+            ->where('is_active', true)
+            ->where(function($q) use ($query) {
+                if (is_numeric($query)) {
+                    $q->where('id', (int)$query)
+                      ->orWhere('employee_code', $query)
+                      ->orWhere('mobile', $query);
+                } else {
+                    $q->where('employee_code', $query)
+                      ->orWhere('mobile', $query)
+                      ->orWhere('official_email', $query)
+                      ->orWhere('personal_email', $query)
+                      ->orWhere('first_name', 'like', "%{$query}%")
+                      ->orWhere('last_name', 'like', "%{$query}%");
+                }
+            })->first();
+
+        if (!$employee) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "No active employee found for ID / Card: '{$query}'",
+                ], 404);
+            }
+            return back()->with('error', "No active employee found for Card/ID: '{$query}'");
+        }
+
+        $tz = \App\Models\SchoolSetting::get('school_timezone', config('app.timezone', 'Asia/Kolkata'));
+        $now = now()->setTimezone($tz);
+        $currentTime = $request->filled('punch_time') ? $request->punch_time : $now->format('H:i');
+        $targetDate  = $request->filled('date') ? $request->date : $now->toDateString();
+
+        $carbonTarget = \Carbon\Carbon::parse($targetDate);
+        $isSunday     = $carbonTarget->isSunday();
+        $holiday      = \App\Models\Holiday::whereDate('date', $targetDate)->first();
+        $isHoliday    = $isSunday || !is_null($holiday);
+        $holidayTitle = $isSunday ? 'Sunday Special Duty' : (($holiday->name ?? 'Holiday') . ' Special Duty');
+
+        // Configurable Shift Thresholds:
+        // Sunday Special Shift: 09:15 AM to 03:00 PM (15:00)
+        // Weekday Regular Shift: 08:30 AM to 04:30 PM (16:30)
+        $lateCutoff    = $isHoliday ? '09:30' : \App\Models\SchoolSetting::get('staff_late_time', '08:45');
+        $halfDayCutoff = $isHoliday ? '12:30' : \App\Models\SchoolSetting::get('staff_half_day_time', '10:30');
+        $absentCutoff  = $isHoliday ? '13:30' : \App\Models\SchoolSetting::get('staff_absent_time', '12:30');
+        $shiftEndTime  = $isHoliday ? '15:00' : \App\Models\SchoolSetting::get('staff_shift_end_time', '16:30');
+
+        $record = StaffAttendance::firstOrNew([
+            'employee_id' => $employee->id,
+            'date'        => $targetDate,
+        ]);
+
+        $punchType = 'check_in';
+        $statusMessage = '';
+
+        // If no check-in recorded yet -> record Check-In
+        if (empty($record->check_in)) {
+            $record->check_in  = $currentTime;
+            $record->check_out = null; // Do NOT set exit time on initial tap in!
+
+            if ($isHoliday) {
+                // Sunday / Holiday Overtime Check-In (Extra Pay)
+                $record->status       = 'overtime';
+                $record->is_late      = false;
+                $record->late_minutes = 0;
+                $record->remarks      = "{$holidayTitle} (09:15 AM - 03:00 PM Shift)";
+                $statusMessage        = "Checked In at {$currentTime} — {$holidayTitle} (09:15 to 15:00) Started (Eligible for Extra Pay)";
+            } elseif ($currentTime > $absentCutoff) {
+                $record->status       = 'absent';
+                $record->is_late      = true;
+                $record->late_minutes = (int) \Carbon\Carbon::parse($currentTime)->diffInMinutes(\Carbon\Carbon::parse($lateCutoff));
+                $record->remarks      = "Late check-in past absent cutoff ({$absentCutoff})";
+                $statusMessage        = "Checked In at {$currentTime} — Marked Absent (exceeded {$absentCutoff})";
+            } elseif ($currentTime > $halfDayCutoff) {
+                $record->status       = 'half_day';
+                $record->is_late      = true;
+                $record->late_minutes = (int) \Carbon\Carbon::parse($currentTime)->diffInMinutes(\Carbon\Carbon::parse($lateCutoff));
+                $record->remarks      = "Late check-in past half-day cutoff ({$halfDayCutoff})";
+                $statusMessage        = "Checked In at {$currentTime} — Marked Half-Day (exceeded {$halfDayCutoff})";
+            } elseif ($currentTime > $lateCutoff) {
+                $lateMins             = (int) \Carbon\Carbon::parse($currentTime)->diffInMinutes(\Carbon\Carbon::parse($lateCutoff));
+                $record->status       = 'late';
+                $record->is_late      = true;
+                $record->late_minutes = $lateMins;
+                $record->remarks      = "Late Arrival ({$lateMins} mins late)";
+                $statusMessage        = "Checked In at {$currentTime} — Marked Late ({$lateMins}m late)";
+            } else {
+                $record->status       = 'present';
+                $record->is_late      = false;
+                $record->late_minutes = 0;
+                $record->remarks      = 'On Time Entry';
+                $statusMessage        = "Checked In at {$currentTime} — On Time (Present)";
+            }
+        } else {
+            // Already checked in -> record Check-Out
+            $inTime = \Carbon\Carbon::parse($record->check_in);
+            $outTime = \Carbon\Carbon::parse($currentTime);
+            $workedMinutes = abs($outTime->diffInMinutes($inTime));
+            $hrs = floor($workedMinutes / 60);
+            $mins = $workedMinutes % 60;
+            $durationFormatted = $hrs > 0 ? "{$hrs}h {$mins}m" : "{$mins}m";
+            $workedHours = round($workedMinutes / 60, 2);
+
+            // Record Check-Out
+            $punchType = 'check_out';
+            $record->check_out = $currentTime;
+
+            if ($isHoliday || $record->status === 'overtime') {
+                // Sunday / Holiday: Only mark Overtime if they actually worked 30+ minutes
+                if ($workedMinutes < 30) {
+                    // Came and left quickly — treat as Holiday (no overtime credit)
+                    $record->status  = 'holiday';
+                    $record->remarks = "{$holidayTitle}: Left after only {$durationFormatted} — No Overtime Credit";
+                    $statusMessage   = "Checked Out at {$currentTime} — Marked Holiday (worked only {$durationFormatted}, no overtime credit)";
+                } elseif ($currentTime >= $shiftEndTime || $workedHours >= 5.5) {
+                    // Full Sunday/Holiday shift completed — full overtime pay
+                    $record->status  = 'overtime';
+                    $record->remarks = "Full {$holidayTitle} Completed ({$durationFormatted}) — Extra Pay Due";
+                    $statusMessage   = "Checked Out at {$currentTime} — {$holidayTitle} Completed ({$durationFormatted}) (Full Overtime Extra Pay)";
+                } else {
+                    // Partial Sunday/Holiday — partial overtime pay
+                    $record->status  = 'overtime';
+                    $record->remarks = "{$holidayTitle}: {$durationFormatted} worked — Extra Pay Due";
+                    $statusMessage   = "Checked Out at {$currentTime} — {$holidayTitle} ({$durationFormatted}) Logged for Extra Pay";
+                }
+            } elseif ($workedHours < 1.0) {
+                $record->status  = 'absent';
+                $record->remarks = "Left immediately: Only {$durationFormatted} worked (< 1 hr)";
+                $statusMessage   = "Checked Out at {$currentTime} ({$durationFormatted}) — Marked Absent (worked < 1 hr)";
+            } elseif ($currentTime < $shiftEndTime && $workedHours < 7.0) {
+                $record->status  = 'half_day';
+                $record->remarks = "Early Departure: Left at {$currentTime} before 04:30 PM";
+                $statusMessage   = "Checked Out at {$currentTime} ({$durationFormatted}) — Marked Half-Day (Left before 04:30 PM)";
+            } else {
+                if ($record->status !== 'late') {
+                    $record->status = 'present';
+                }
+                $record->remarks = "Completed Full Shift ({$durationFormatted})";
+                $statusMessage   = "Checked Out at {$currentTime} — Shift Completed ({$durationFormatted})";
+            }
+        }
+
+        $record->save();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success'      => true,
+                'type'         => $punchType,
+                'time'         => $currentTime,
+                'status'       => $record->status,
+                'message'      => $statusMessage,
+                'duration'     => $durationFormatted ?? null,
+                'employee'     => [
+                    'id'          => $employee->id,
+                    'name'        => $employee->full_name,
+                    'code'        => $employee->employee_id,
+                    'department'  => $employee->department_name,
+                    'designation' => $employee->designation_name,
+                    'photo'       => $employee->photo ? asset('storage/' . $employee->photo) : null,
+                ],
+                'check_in'     => $record->check_in,
+                'check_out'    => $record->check_out,
+            ]);
+        }
+
+        return back()->with('success', "Card Tapped: {$employee->full_name} &bull; {$statusMessage}");
+    }
+
+    /**
+     * Save/Update Bulk Staff Attendance Form
+     */
     public function saveStaffAttendance(Request $request)
     {
-        $request->validate(['date' => 'required|date', 'attendance' => 'required|array']);
-        $lateThreshold = \App\Models\SchoolSetting::get('staff_late_time', '09:30');
+        $date = $request->date ?? today()->toDateString();
+        $carbonDate = \Carbon\Carbon::parse($date);
+        $isSunday = $carbonDate->isSunday();
+        $holiday = \App\Models\Holiday::whereDate('date', $date)->first();
+        $isHoliday = $isSunday || !is_null($holiday);
 
-        DB::transaction(function () use ($request, $lateThreshold) {
-            foreach ($request->attendance as $empId => $data) {
-                $checkIn    = $data['in_time'] ?? $data['check_in'] ?? null;
-                $isLate     = false;
-                $lateMinutes = 0;
+        $shiftEndTime = $isHoliday ? '15:00' : '16:30';
 
-                if ($checkIn && $lateThreshold) {
-                    $inTime = \Carbon\Carbon::createFromTimeString($checkIn);
-                    $thresh = \Carbon\Carbon::createFromTimeString($lateThreshold);
-                    if ($inTime->gt($thresh)) {
-                        $isLate      = true;
-                        $lateMinutes = (int) $inTime->diffInMinutes($thresh);
-                    }
+        $data = $request->input('attendance', []);
+        foreach ($data as $empId => $att) {
+            $status  = $att['status'] ?? ($isHoliday ? 'holiday' : 'absent');
+            $inTime  = !empty($att['in_time']) ? $att['in_time'] : null;
+            $outTime = !empty($att['out_time']) ? $att['out_time'] : null;
+
+            $record = StaffAttendance::firstOrNew([
+                'employee_id' => $empId,
+                'date'        => $date,
+            ]);
+
+            $record->status    = $status;
+            $record->check_in  = $inTime;
+            $record->check_out = $outTime;
+
+            if ($inTime && $outTime) {
+                $mins = abs(\Carbon\Carbon::parse($outTime)->diffInMinutes(\Carbon\Carbon::parse($inTime)));
+                $hrs = floor($mins / 60);
+                $m = $mins % 60;
+                $dur = $hrs > 0 ? "{$hrs}h {$m}m" : "{$m}m";
+                $workedHours = round($mins / 60, 2);
+
+                if ($isHoliday || $status === 'overtime') {
+                    $record->status = 'overtime';
+                    $record->remarks = "Special Duty ({$dur}) — Extra Pay";
+                } elseif ($outTime < $shiftEndTime && $workedHours < 7.0) {
+                    $record->status = 'half_day';
+                    $record->remarks = "Early departure before {$shiftEndTime}";
                 }
-
-                StaffAttendance::updateOrCreate(
-                    ['employee_id' => $empId, 'date' => $request->date],
-                    [
-                        'status'       => $data['status'] ?? 'present',
-                        'check_in'     => $checkIn,
-                        'check_out'    => $data['out_time'] ?? $data['check_out'] ?? null,
-                        'remarks'      => $data['remarks'] ?? null,
-                        'is_late'      => $isLate,
-                        'late_minutes' => $lateMinutes,
-                    ]
-                );
             }
-        });
-        return back()->with('success', 'Staff attendance saved.');
-    }
 
-    public function staffRegister(Request $request)
-    {
-        $departments = Department::where('is_active', true)->get();
-        $employees   = collect();
-        $attendances = [];
-        if ($request->filled('action') && $request->department_id) {
-            $employees   = Employee::where('is_active', true)->where('department_id', $request->department_id)->orderBy('first_name')->get();
-            $attendances = StaffAttendance::where('date', $request->date ?? today())
-                ->whereIn('employee_id', $employees->pluck('id'))
-                ->get()->keyBy('employee_id');
+            if ($isHoliday && empty($inTime)) {
+                $record->status  = 'holiday';
+                $record->remarks = null;
+            } elseif ($inTime) {
+                if ($isHoliday || $status === 'overtime') {
+                    $record->status  = 'overtime';
+                    $record->remarks = ($holiday?->name ?? 'Holiday') . ' Special Duty';
+                }
+            }
+
+            $record->save();
         }
-        return view('attendance.staff-attendance', compact('departments', 'employees', 'attendances'));
+
+        return redirect()->route('attendance.staff', [
+            'date'          => $date,
+            'category'      => $request->category,
+            'department_id' => $request->department_id
+        ])->with('success', 'Staff attendance updated successfully.');
     }
 
     public function register(Request $request)
@@ -654,9 +1080,25 @@ class AttendanceController extends Controller
     public function teacherAttendanceReport(Request $request)
     {
         $departments = Department::where('is_active', true)->get();
-        $employees   = Employee::where('is_active', true)
-            ->when($request->department_id, fn($q) => $q->where('department_id', $request->department_id))
-            ->orderBy('first_name')->get();
+        $selectedCategory = $request->category ?? 'all';
+
+        $employeesQuery = Employee::where('is_active', true)
+            ->when($request->department_id, fn($q) => $q->where('department_id', $request->department_id));
+
+        if ($selectedCategory && $selectedCategory !== 'all') {
+            $employeesQuery->where('employee_type', $selectedCategory);
+        }
+
+        $employees = $employeesQuery->orderBy('first_name')->get();
+
+        $categories = [
+            ['key' => 'all',          'label' => 'All Staff',          'count' => Employee::where('is_active', true)->count()],
+            ['key' => 'teaching',     'label' => 'Teaching Staff',     'count' => Employee::where('is_active', true)->where('employee_type', 'teaching')->count()],
+            ['key' => 'non_teaching', 'label' => 'Non-Teaching',       'count' => Employee::where('is_active', true)->where('employee_type', 'non_teaching')->count()],
+            ['key' => 'driver',       'label' => 'Drivers',            'count' => Employee::where('is_active', true)->where('employee_type', 'driver')->count()],
+            ['key' => 'nanny',        'label' => 'Nannies (Naani)',    'count' => Employee::where('is_active', true)->where('employee_type', 'nanny')->count()],
+            ['key' => 'cleaner',      'label' => 'Cleaners / Support', 'count' => Employee::where('is_active', true)->where('employee_type', 'cleaner')->count()],
+        ];
 
         $month   = $request->month ?? now()->format('Y-m');
         [$yr, $mo] = explode('-', $month);
@@ -675,27 +1117,44 @@ class AttendanceController extends Controller
 
             foreach ($employees as $emp) {
                 $empRecords = $records->get($emp->id, collect());
-                $present    = $empRecords->whereIn('status', ['present'])->count();
+                $present    = $empRecords->whereIn('status', ['present', 'late'])->count();
+                $late       = $empRecords->where('status', 'late')->count();
                 $halfDay    = $empRecords->where('status', 'half_day')->count();
-                $onLeave    = $empRecords->where('status', 'on_leave')->count();
+                $overtime   = $empRecords->where('status', 'overtime')->count();
+                $onLeave    = $empRecords->whereIn('status', ['leave', 'on_leave'])->count();
                 $absent     = $empRecords->where('status', 'absent')->count();
-                $effectivePresent = $present + ($halfDay * 0.5);
-                $percentage = $workingDays > 0 ? round(($effectivePresent / $workingDays) * 100, 1) : 0;
+
+                // Compute overtime hours
+                $overtimeMins = $empRecords->where('status', 'overtime')->reduce(function($carry, $rec) {
+                    if ($rec->check_in && $rec->check_out) {
+                        return $carry + abs(\Carbon\Carbon::parse($rec->check_out)->diffInMinutes(\Carbon\Carbon::parse($rec->check_in)));
+                    }
+                    return $carry;
+                }, 0);
+                $otHrs = floor($overtimeMins / 60);
+                $otMins = $overtimeMins % 60;
+                $overtimeDuration = $otHrs > 0 ? "{$otHrs}h {$otMins}m" : ($overtimeMins > 0 ? "{$otMins}m" : '—');
+
+                $effectivePresent = $present + ($halfDay * 0.5) + $overtime;
+                $percentage = $workingDays > 0 ? min(100, round(($effectivePresent / $workingDays) * 100, 1)) : 0;
 
                 $report->push([
-                    'employee'    => $emp,
-                    'working'     => $workingDays,
-                    'present'     => $present,
-                    'half_day'    => $halfDay,
-                    'on_leave'    => $onLeave,
-                    'absent'      => $absent,
-                    'unmarked'    => max(0, $workingDays - ($present + $halfDay + $onLeave + $absent)),
-                    'percentage'  => $percentage,
+                    'employee'          => $emp,
+                    'working'           => $workingDays,
+                    'present'           => $present,
+                    'late'              => $late,
+                    'half_day'          => $halfDay,
+                    'overtime'          => $overtime,
+                    'overtime_duration' => $overtimeDuration,
+                    'on_leave'          => $onLeave,
+                    'absent'            => $absent,
+                    'unmarked'          => max(0, $workingDays - ($present + $halfDay + $onLeave + $absent)),
+                    'percentage'        => $percentage,
                 ]);
             }
         }
 
-        return view('attendance.teacher-report', compact('departments', 'employees', 'report', 'month'));
+        return view('attendance.teacher-report', compact('departments', 'report', 'month', 'categories', 'selectedCategory'));
     }
 
     // ── Late Arrival Tracking for Staff ──────────────────
@@ -733,5 +1192,154 @@ class AttendanceController extends Controller
         $lateThreshold = \App\Models\SchoolSetting::get('staff_late_time', '09:30');
 
         return view('attendance.late-arrival', compact('records', 'byEmployee', 'month', 'departments', 'lateThreshold'));
+    }
+
+    /**
+     * Export Day-Wise Staff Attendance to Excel
+     */
+    public function exportDayWiseReport(Request $request)
+    {
+        $date        = $request->date ?? today()->toDateString();
+        $deptId      = $request->department_id;
+        $category    = $request->category ?? 'all';
+
+        $empQuery = Employee::with('department')->where('is_active', true);
+        if ($deptId) {
+            $empQuery->where('department_id', $deptId);
+        }
+        if ($category && $category !== 'all') {
+            $empQuery->where('employee_type', $category);
+        }
+        $employees = $empQuery->orderBy('first_name')->get();
+
+        $attendances = StaffAttendance::where('date', $date)
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get()->keyBy('employee_id');
+
+        $rows = [];
+        foreach ($employees as $idx => $emp) {
+            $att = $attendances[$emp->id] ?? null;
+            $status = $att?->status ? ucwords(str_replace('_', ' ', $att->status)) : 'Absent';
+            $inTime = $att?->check_in ? \Carbon\Carbon::parse($att->check_in)->format('h:i A') : '—';
+            $outTime = $att?->check_out ? \Carbon\Carbon::parse($att->check_out)->format('h:i A') : '—';
+
+            $duration = '—';
+            if ($att?->check_in && $att?->check_out) {
+                $mins = abs(\Carbon\Carbon::parse($att->check_out)->diffInMinutes(\Carbon\Carbon::parse($att->check_in)));
+                $h = floor($mins / 60);
+                $m = $mins % 60;
+                $duration = $h > 0 ? "{$h}h {$m}m" : "{$m}m";
+            } elseif ($att?->check_in) {
+                $duration = 'In Progress';
+            }
+
+            $rows[] = [
+                'Sl No'             => $idx + 1,
+                'Employee Code'     => $emp->employee_code ?? 'EMP-' . $emp->id,
+                'Staff Name'        => $emp->full_name,
+                'Category / Role'   => $emp->category_label ?? ucfirst(str_replace('_', ' ', $emp->employee_type ?? 'Staff')),
+                'Department'        => $emp->department?->name ?? 'General',
+                'Designation'       => $emp->designation_name ?? '—',
+                'Date'              => \Carbon\Carbon::parse($date)->format('d M Y (D)'),
+                'Attendance Status' => $status,
+                'In-Time'           => $inTime,
+                'Out-Time'          => $outTime,
+                'Duration'          => $duration,
+                'Remarks'           => $att?->remarks ?? '',
+            ];
+        }
+
+        $filename = 'staff-attendance-day-' . $date . '.xlsx';
+        return Excel::download(new ArrayExport($rows), $filename);
+    }
+
+    /**
+     * Export Monthly Staff Attendance Summary & Overtime Register to Excel
+     */
+    public function exportMonthlyReport(Request $request)
+    {
+        $month            = $request->month ?? now()->format('Y-m');
+        $selectedCategory = $request->category ?? 'all';
+        $deptId           = $request->department_id;
+
+        [$yr, $mo] = explode('-', $month);
+        $start = \Carbon\Carbon::create($yr, $mo, 1)->startOfDay();
+        $end   = $start->copy()->endOfMonth()->endOfDay();
+
+        $employeesQuery = Employee::with('department')->where('is_active', true);
+        if ($deptId) {
+            $employeesQuery->where('department_id', $deptId);
+        }
+        if ($selectedCategory && $selectedCategory !== 'all') {
+            $employeesQuery->where('employee_type', $selectedCategory);
+        }
+        $employees = $employeesQuery->orderBy('first_name')->get();
+
+        // Calculate statutory working days in month
+        $monthDays = [];
+        $cursor = $start->copy();
+        while ($cursor->lte($end)) {
+            $monthDays[] = $cursor->toDateString();
+            $cursor->addDay();
+        }
+
+        $holidays = \App\Models\Holiday::whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->pluck('date')->map(fn($d) => \Carbon\Carbon::parse($d)->toDateString())->toArray();
+
+        $standardWorkingDays = collect($monthDays)->filter(function ($d) use ($holidays) {
+            $c = \Carbon\Carbon::parse($d);
+            return !$c->isSunday() && !in_array($d, $holidays);
+        })->count();
+
+        $rows = [];
+        foreach ($employees as $idx => $emp) {
+            $records = StaffAttendance::where('employee_id', $emp->id)
+                ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+                ->get();
+
+            $presentCount  = $records->where('status', 'present')->count();
+            $lateCount     = $records->where('status', 'late')->count();
+            $halfDayCount  = $records->where('status', 'half_day')->count();
+            $overtimeCount = $records->where('status', 'overtime')->count();
+            $leaveCount    = $records->where('status', 'leave')->count();
+
+            // Total Overtime duration
+            $totalOvertimeMins = 0;
+            foreach ($records->where('status', 'overtime') as $ot) {
+                if ($ot->check_in && $ot->check_out) {
+                    $totalOvertimeMins += abs(\Carbon\Carbon::parse($ot->check_out)->diffInMinutes(\Carbon\Carbon::parse($ot->check_in)));
+                }
+            }
+            $otHrs = floor($totalOvertimeMins / 60);
+            $otMins = $totalOvertimeMins % 60;
+            $overtimeDuration = $overtimeCount > 0 ? ($otHrs > 0 ? "{$otHrs}h {$otMins}m" : "{$otMins}m") : '0m';
+
+            $totalAttended = $presentCount + $lateCount + ($halfDayCount * 0.5) + $overtimeCount;
+            $effectiveWorking = max(1, $standardWorkingDays);
+            $absentCount = max(0, $standardWorkingDays - ($presentCount + $lateCount + $halfDayCount + $leaveCount));
+            $pct = round(($totalAttended / $effectiveWorking) * 100, 1);
+
+            $rows[] = [
+                'Sl No'                 => $idx + 1,
+                'Employee Code'         => $emp->employee_code ?? 'EMP-' . $emp->id,
+                'Staff Name'            => $emp->full_name,
+                'Category / Role'       => $emp->category_label ?? ucfirst(str_replace('_', ' ', $emp->employee_type ?? 'Staff')),
+                'Department'            => $emp->department?->name ?? 'General',
+                'Designation'           => $emp->designation_name ?? '—',
+                'Month'                 => \Carbon\Carbon::create($yr, $mo, 1)->format('F Y'),
+                'Standard Working Days' => $standardWorkingDays,
+                'Present Days'          => $presentCount,
+                'Late Arrivals'         => $lateCount,
+                'Half Days'             => $halfDayCount,
+                'Overtime Days'         => $overtimeCount,
+                'Overtime Duration'     => $overtimeDuration,
+                'Approved Leaves'       => $leaveCount,
+                'Absent Days'           => $absentCount,
+                'Attendance Rate (%)'   => "{$pct}%",
+            ];
+        }
+
+        $filename = 'staff-attendance-monthly-' . $month . '.xlsx';
+        return Excel::download(new ArrayExport($rows), $filename);
     }
 }

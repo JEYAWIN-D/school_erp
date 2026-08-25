@@ -111,7 +111,38 @@
 
   {{-- Quick Info Statistic Cards (4 Columns) --}}
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    {{-- Card 1: DOB --}}
+    {{-- Card 1: Attendance Rate --}}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
+      <div class="w-12 h-12 rounded-xl {{ ($attPct ?? 0) >= 75 ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-rose-50 border-rose-100 text-rose-600' }} border flex items-center justify-center shrink-0">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      </div>
+      <div>
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Attendance Rate</p>
+        <div class="flex items-baseline gap-1.5 mt-0.5">
+          <p class="text-xl font-black {{ ($attPct ?? 0) >= 75 ? 'text-emerald-600' : 'text-rose-600' }}">
+            {{ $attPct !== null ? $attPct . '%' : '—' }}
+          </p>
+          @if($attTotal > 0)
+            <span class="text-[10px] text-slate-400 font-bold">({{ $attPresent }}/{{ $attTotal }}d)</span>
+          @endif
+        </div>
+      </div>
+    </div>
+
+    {{-- Card 2: Fee Balance Due --}}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
+      <div class="w-12 h-12 rounded-xl {{ $feeBalance > 0 ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600' }} border flex items-center justify-center shrink-0">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      </div>
+      <div>
+        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Fee Balance</p>
+        <p class="text-xl font-black {{ $feeBalance > 0 ? 'text-rose-600' : 'text-emerald-600' }} mt-0.5">
+          {{ $feeBalance > 0 ? '₹' . number_format($feeBalance) : 'Fully Paid' }}
+        </p>
+      </div>
+    </div>
+
+    {{-- Card 3: Date of Birth & Age --}}
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
       <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -122,32 +153,10 @@
       </div>
     </div>
 
-    {{-- Card 2: Age --}}
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
-      <div class="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      </div>
-      <div>
-        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Age</p>
-        <p class="text-base font-extrabold text-slate-900 mt-0.5">{{ $student->dob ? $student->dob->age . ' Years Old' : '—' }}</p>
-      </div>
-    </div>
-
-    {{-- Card 3: Student Type --}}
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
-      <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 01-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
-      </div>
-      <div>
-        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Student Type</p>
-        <p class="text-base font-extrabold text-slate-900 mt-0.5">{{ str_replace('_',' ', ucfirst($student->student_type ?? 'Day Scholar')) }}</p>
-      </div>
-    </div>
-
     {{-- Card 4: Academic Year --}}
     <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
       <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
       </div>
       <div>
         <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Academic Year</p>
@@ -479,7 +488,7 @@
           <div class="bg-slate-50/90 p-5 rounded-2xl border border-slate-200/80 space-y-4">
             <div class="flex items-center gap-2.5 border-b border-slate-200 pb-3">
               <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
-                👨
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
               </div>
               <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Father Details</span>
             </div>
@@ -507,7 +516,7 @@
           <div class="bg-slate-50/90 p-5 rounded-2xl border border-slate-200/80 space-y-4">
             <div class="flex items-center gap-2.5 border-b border-slate-200 pb-3">
               <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center font-bold shrink-0">
-                👩
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
               </div>
               <span class="text-xs font-bold text-rose-600 uppercase tracking-wider">Mother Details</span>
             </div>
@@ -535,7 +544,7 @@
           <div class="bg-slate-50/90 p-5 rounded-2xl border border-slate-200/80 space-y-4">
             <div class="flex items-center gap-2.5 border-b border-slate-200 pb-3">
               <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
-                👤
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
               </div>
               <span class="text-xs font-bold text-amber-600 uppercase tracking-wider">Guardian Details</span>
             </div>
@@ -568,11 +577,11 @@
       @if($student->previous_school_name || $student->previous_school_board || $student->tc_number || $student->migration_certificate_number || $student->previous_percentage)
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-4">
         <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
-          <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold shrink-0 text-lg">
-            🏫
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
           </div>
           <div>
-            <h3 class="text-base font-extrabold text-slate-900">Previous Academic History & Transfer Credentials</h3>
+            <h3 class="text-base font-extrabold text-slate-900">Previous Academic History &amp; Transfer Credentials</h3>
             <p class="text-xs text-slate-500 font-medium">Information from prior educational institution</p>
           </div>
         </div>
@@ -647,11 +656,121 @@
       </div>
       @endif
 
+      {{-- Attendance History & Monthly Breakdown Card --}}
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-base font-extrabold text-slate-900">Attendance History &amp; Monthly Breakdown</h3>
+              <p class="text-xs text-slate-400">Statutory 75% attendance compliance tracking for current academic year</p>
+            </div>
+          </div>
+          @if($student->currentEnrollment)
+            <a href="{{ route('attendance.mark', ['class_id' => $student->currentEnrollment->class_id, 'section_id' => $student->currentEnrollment->section_id]) }}"
+               class="btn btn-secondary btn-xs font-bold text-indigo-600">
+              Mark Section Attendance &rarr;
+            </a>
+          @endif
+        </div>
+
+        {{-- Monthly Breakdown Table --}}
+        @if(isset($monthlyAttendance) && $monthlyAttendance->count())
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Monthly Attendance Summary</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase">
+                  <th class="py-2.5 px-3">Month</th>
+                  <th class="py-2.5 px-3 text-center">Working Days</th>
+                  <th class="py-2.5 px-3 text-center">Present</th>
+                  <th class="py-2.5 px-3 text-center">Absent</th>
+                  <th class="py-2.5 px-3 text-right">Attendance Rate</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @foreach($monthlyAttendance as $m)
+                @php $mPct = $m->total > 0 ? round(($m->present_count / $m->total) * 100, 1) : 0; @endphp
+                <tr class="hover:bg-slate-50/50">
+                  <td class="py-2.5 px-3 font-bold text-slate-900">{{ $m->month_name }}</td>
+                  <td class="py-2.5 px-3 text-center font-mono font-medium text-slate-700">{{ $m->total }}</td>
+                  <td class="py-2.5 px-3 text-center font-mono font-bold text-emerald-600">{{ $m->present_count }}</td>
+                  <td class="py-2.5 px-3 text-center font-mono font-bold text-rose-600">{{ $m->absent_count }}</td>
+                  <td class="py-2.5 px-3 text-right font-mono font-bold">
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[10px] {{ $mPct >= 75 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200' }}">
+                      {{ $mPct }}%
+                    </span>
+                  </td>
+                </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+        @endif
+
+        {{-- Recent Attendance Log --}}
+        @if(isset($recentAttendanceRecords) && $recentAttendanceRecords->count())
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Recent Attendance Records (Last 25 Days)</h4>
+            <span class="text-[11px] text-slate-400 font-medium">Auto-recorded from section register</span>
+          </div>
+          <div class="overflow-x-auto max-h-60 overflow-y-auto pr-1">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+                  <th class="py-2 px-3">Date</th>
+                  <th class="py-2 px-3 text-center">Status</th>
+                  <th class="py-2 px-3 text-center">Arrival</th>
+                  <th class="py-2 px-3">Reason / Remarks</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @foreach($recentAttendanceRecords as $rec)
+                <tr class="hover:bg-slate-50/50">
+                  <td class="py-2 px-3 font-mono font-medium text-slate-900">
+                    {{ $rec->date->format('d M Y (D)') }}
+                  </td>
+                  <td class="py-2 px-3 text-center">
+                    @if($rec->status === 'present')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Present</span>
+                    @elseif($rec->status === 'absent')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">Absent</span>
+                    @elseif($rec->status === 'late')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Late</span>
+                    @elseif($rec->status === 'half_day')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">Half Day</span>
+                    @elseif($rec->status === 'leave')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">On Leave</span>
+                    @endif
+                  </td>
+                  <td class="py-2 px-3 text-center font-mono text-[11px] text-slate-600">
+                    {{ $rec->arrival_time ?? '—' }}
+                  </td>
+                  <td class="py-2 px-3 text-slate-500 truncate max-w-xs">
+                    {{ $rec->remark ?? '—' }}
+                  </td>
+                </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+        @else
+        <div class="py-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          <p class="text-xs font-semibold">No attendance entries recorded for this student yet.</p>
+        </div>
+        @endif
+      </div>
+
       {{-- Annual Family Income Card --}}
       <div class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl text-white p-6 sm:p-8 shadow-md flex items-center justify-between gap-6">
         <div class="space-y-1">
           <div class="flex items-center gap-2 text-emerald-100">
-            <span class="text-2xl">💰</span>
             <span class="text-xs font-bold uppercase tracking-wider">Annual Family Income</span>
           </div>
           <p class="text-3xl sm:text-4xl font-black tracking-tight mt-1">
@@ -673,31 +792,64 @@
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <div class="flex items-center gap-2">
             <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            <h3 class="font-bold text-slate-900 text-sm">Attendance (This Year)</h3>
+            <h3 class="font-bold text-slate-900 text-sm">Attendance Summary</h3>
           </div>
-          <a href="{{ route('attendance.report', ['student_id' => $student->id]) }}" class="text-xs font-semibold text-indigo-600 hover:underline">View Details →</a>
+          @if($student->currentEnrollment)
+            <a href="{{ route('attendance.mark', ['class_id' => $student->currentEnrollment->class_id, 'section_id' => $student->currentEnrollment->section_id]) }}" class="text-xs font-semibold text-indigo-600 hover:underline">Mark →</a>
+          @endif
         </div>
 
-        @if($attTotal > 0)
-          <div class="text-center py-2">
-            <p class="text-4xl font-extrabold tracking-tight {{ ($attPct ?? 0) >= 75 ? 'text-emerald-600' : 'text-rose-600' }}">
+        @if($totalDaysConducted > 0)
+          <div class="text-center py-1">
+            <p class="text-4xl font-black tracking-tight {{ ($attPct ?? 0) >= 75 ? 'text-emerald-600' : 'text-rose-600' }}">
               {{ $attPct }}%
             </p>
-            <p class="text-xs font-medium text-slate-500 mt-1">{{ $attPresent }} / {{ $attTotal }} days present</p>
+            <p class="text-xs font-semibold text-slate-600 mt-1">
+              <span class="font-mono font-bold text-slate-900">{{ $effectivePresent }}</span> days present out of <span class="font-mono font-bold text-slate-900">{{ $totalDaysConducted }}</span> conducted days
+            </p>
+            <p class="text-[11px] text-slate-400 mt-0.5">
+              Fixed Annual Target: <span class="font-mono font-semibold text-slate-600">{{ $fixedAnnualDays }} Days</span> (75% min: {{ $statutoryMinDaysRequired }}d)
+            </p>
           </div>
           <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
             <div class="h-full rounded-full transition-all duration-500 {{ ($attPct ?? 0) >= 75 ? 'bg-emerald-500' : 'bg-rose-500' }}"
                  style="width: {{ min(100, $attPct ?? 0) }}%"></div>
           </div>
+
+          {{-- Quick Status Breakdown (P, A, L, HD, LV) --}}
+          <div class="grid grid-cols-3 gap-1.5 text-xs pt-1">
+            <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-center" title="P = Present (Full Day)">
+              <span class="text-[10px] text-emerald-700 font-bold uppercase">Present (P)</span>
+              <p class="font-bold text-emerald-900 font-mono">{{ $attPresent }} d</p>
+            </div>
+            <div class="bg-rose-50 p-2 rounded-xl border border-rose-100 text-center" title="A = Absent">
+              <span class="text-[10px] text-rose-700 font-bold uppercase">Absent (A)</span>
+              <p class="font-bold text-rose-900 font-mono">{{ $attAbsent }} d</p>
+            </div>
+            <div class="bg-amber-50 p-2 rounded-xl border border-amber-100 text-center" title="L = Late Arrival">
+              <span class="text-[10px] text-amber-700 font-bold uppercase">Late (L)</span>
+              <p class="font-bold text-amber-900 font-mono">{{ $attLate }} d</p>
+            </div>
+            <div class="bg-orange-50 p-2 rounded-xl border border-orange-100 text-center" title="HD = Half Day (0.5 credit)">
+              <span class="text-[10px] text-orange-700 font-bold uppercase">Half Day (HD)</span>
+              <p class="font-bold text-orange-900 font-mono">{{ $attHalfDay }} d</p>
+            </div>
+            <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 text-center col-span-2" title="LV = Approved Leave">
+              <span class="text-[10px] text-blue-700 font-bold uppercase">Approved Leave (LV)</span>
+              <p class="font-bold text-blue-900 font-mono">{{ $attLeave }} d</p>
+            </div>
+          </div>
+
           @if(($attPct ?? 0) < 75)
-          <p class="text-xs text-rose-600 font-medium flex items-center justify-center gap-1">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            Attendance below 75% threshold
-          </p>
+          <div class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium flex items-center gap-2">
+            <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span>Attendance below statutory 75% threshold</span>
+          </div>
           @endif
         @else
           <div class="py-6 text-center text-slate-400">
             <p class="text-sm font-semibold">No attendance records for this year.</p>
+            <p class="text-[11px] text-slate-400 mt-1">Fixed Annual Target: {{ $fixedAnnualDays }} Working Days</p>
           </div>
         @endif
       </div>

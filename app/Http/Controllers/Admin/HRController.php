@@ -226,7 +226,7 @@ class HrController extends Controller
 
     public function showEmployee(int $id)
     {
-        $employee        = Employee::findOrFail($id);
+        $employee        = Employee::with('department')->findOrFail($id);
         $linkedUser      = $employee->user_id ? \App\Models\User::find($employee->user_id) : null;
         $staffRoles      = Role::pluck('name');
         $payroll         = PayrollRecord::where('employee_id', $id)->latest('month')->take(6)->get();
@@ -234,7 +234,93 @@ class HrController extends Controller
         $experiences     = \App\Models\EmployeeExperience::where('employee_id', $id)->orderByDesc('from_date')->get();
         $empDocuments    = EmployeeDocument::where('employee_id', $id)->orderBy('document_type')->get();
         $certifications  = EmployeeCertification::where('employee_id', $id)->orderByDesc('issue_date')->get();
-        return view('hr.employees-show', compact('employee', 'linkedUser', 'staffRoles', 'payroll', 'qualifications', 'experiences', 'empDocuments', 'certifications'));
+
+        // ── Staff Attendance Statistics ─────────────────────────────
+        $attQuery = \App\Models\StaffAttendance::where('employee_id', $id);
+        $allAttRecords = (clone $attQuery)->orderByDesc('date')->get();
+
+        $attPresent   = $allAttRecords->where('status', 'present')->count();
+        $attLate      = $allAttRecords->where('status', 'late')->count();
+        $attHalfDay   = $allAttRecords->where('status', 'half_day')->count();
+        $attOvertime  = $allAttRecords->where('status', 'overtime')->count();
+        $attAbsent    = $allAttRecords->where('status', 'absent')->count();
+        $attLeave     = $allAttRecords->whereIn('status', ['leave', 'on_leave'])->count();
+        $attTotalDays = $allAttRecords->count();
+
+        // Calculate total overtime hours worked on Sundays / Holidays
+        $totalOtMins = $allAttRecords->where('status', 'overtime')->reduce(function($carry, $rec) {
+            if ($rec->check_in && $rec->check_out) {
+                return $carry + abs(\Carbon\Carbon::parse($rec->check_out)->diffInMinutes(\Carbon\Carbon::parse($rec->check_in)));
+            }
+            return $carry;
+        }, 0);
+        $otHrs = floor($totalOtMins / 60);
+        $otMins = $totalOtMins % 60;
+        $attOvertimeDuration = $otHrs > 0 ? "{$otHrs}h {$otMins}m" : ($totalOtMins > 0 ? "{$otMins}m" : '0m');
+
+        $effectivePresent = $attPresent + $attLate + ($attHalfDay * 0.5) + $attOvertime;
+        $attendancePercentage = $attTotalDays > 0 ? min(100, round(($effectivePresent / $attTotalDays) * 100, 1)) : null;
+        $recentAttendance = $allAttRecords->take(30);
+
+        // Monthly Attendance Breakdown (Collection grouped)
+        $monthlyAttendance = $allAttRecords
+            ->groupBy(fn($r) => \Carbon\Carbon::parse($r->date)->format('Y-m'))
+            ->take(6)
+            ->map(function ($records, $monthKey) {
+                [$yr, $mo] = explode('-', $monthKey);
+                $period = \Carbon\CarbonPeriod::create("$yr-$mo-01", "last day of $yr-$mo");
+                $workingDays = collect($period)->filter(fn($d) => !$d->isSunday())->count();
+
+                $presentCount  = $records->whereIn('status', ['present', 'late'])->count();
+                $halfDayCount  = $records->where('status', 'half_day')->count();
+                $overtimeCount = $records->where('status', 'overtime')->count();
+                $absentCount   = $records->where('status', 'absent')->count();
+                $leaveCount    = $records->whereIn('status', ['leave', 'on_leave'])->count();
+
+                $otMins = $records->where('status', 'overtime')->reduce(function($carry, $rec) {
+                    if ($rec->check_in && $rec->check_out) {
+                        return $carry + abs(\Carbon\Carbon::parse($rec->check_out)->diffInMinutes(\Carbon\Carbon::parse($rec->check_in)));
+                    }
+                    return $carry;
+                }, 0);
+                $h = floor($otMins / 60);
+                $m = $otMins % 60;
+                $otDuration = $h > 0 ? "{$h}h {$m}m" : ($otMins > 0 ? "{$m}m" : '—');
+
+                $monthName = \Carbon\Carbon::parse($records->first()->date)->format('M Y');
+                $pct = $workingDays > 0 ? min(100, round((($presentCount + ($halfDayCount * 0.5) + $overtimeCount) / $workingDays) * 100, 1)) : 0;
+
+                return (object)[
+                    'month_key'         => $monthKey,
+                    'month_name'        => $monthName,
+                    'working_days'      => $workingDays,
+                    'present_count'     => $presentCount,
+                    'half_day_count'    => $halfDayCount,
+                    'overtime_count'    => $overtimeCount,
+                    'overtime_duration' => $otDuration,
+                    'absent_count'      => $absentCount,
+                    'leave_count'       => $leaveCount,
+                    'percentage'        => $pct,
+                ];
+            })->values();
+
+        // ── Staff Leave History & Summary ───────────────────────────
+        $leaveRequests = \App\Models\LeaveRequest::with(['leaveType', 'approvedBy'])
+            ->where('employee_id', $id)
+            ->orderByDesc('from_date')
+            ->get();
+
+        $approvedLeaveDays  = $leaveRequests->where('status', 'approved')->sum(fn($l) => (float)($l->total_days ?? $l->days ?? 1));
+        $pendingLeaveCount  = $leaveRequests->where('status', 'pending')->count();
+        $rejectedLeaveCount = $leaveRequests->where('status', 'rejected')->count();
+
+        return view('hr.employees-show', compact(
+            'employee', 'linkedUser', 'staffRoles', 'payroll', 'qualifications',
+            'experiences', 'empDocuments', 'certifications',
+            'attPresent', 'attLate', 'attHalfDay', 'attAbsent', 'attLeave', 'attOvertime', 'attOvertimeDuration', 'attTotalDays',
+            'effectivePresent', 'attendancePercentage', 'recentAttendance', 'monthlyAttendance',
+            'leaveRequests', 'approvedLeaveDays', 'pendingLeaveCount', 'rejectedLeaveCount'
+        ));
     }
 
     public function getStaffCategoryMetadata($employee): array

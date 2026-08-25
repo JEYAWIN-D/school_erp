@@ -70,6 +70,22 @@ class Employee extends Model
         };
     }
 
+    public function getDepartmentNameAttribute(): string
+    {
+        if (!empty($this->attributes['department'])) {
+            return $this->attributes['department'];
+        }
+        return $this->department?->name ?? 'General';
+    }
+
+    public function getDesignationNameAttribute(): string
+    {
+        if (!empty($this->attributes['designation'])) {
+            return $this->attributes['designation'];
+        }
+        return $this->designation?->name ?? 'Staff';
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

@@ -237,14 +237,55 @@ class StudentController extends Controller
             ->sum('total_paid');
         $feeBalance = max(0, $feeCharged - $feePaid);
 
-        // Attendance quick stats (current year)
-        $attPresent = \App\Models\AttendanceRecord::where('student_id', $id)
-            ->when($year, fn($q) => $q->where('academic_year_id', $year->id))
-            ->whereIn('status', ['present', 'late'])->count();
-        $attTotal = \App\Models\AttendanceRecord::where('student_id', $id)
-            ->when($year, fn($q) => $q->where('academic_year_id', $year->id))
-            ->count();
-        $attPct = $attTotal > 0 ? round($attPresent / $attTotal * 100, 1) : null;
+        // Fixed Total Working Days per academic year (default 220 days standard session)
+        $fixedAnnualDays = (int) \App\Models\SchoolSetting::get('academic_total_working_days', 220);
+        if ($fixedAnnualDays <= 0) $fixedAnnualDays = 220;
+
+        // Attendance stats for current year
+        $attQuery = \App\Models\AttendanceRecord::where('student_id', $id)
+            ->when($year, fn($q) => $q->where('academic_year_id', $year->id));
+
+        $attPresent = (clone $attQuery)->where('status', 'present')->count();
+        $attLate    = (clone $attQuery)->where('status', 'late')->count();
+        $attHalfDay = (clone $attQuery)->where('status', 'half_day')->count();
+        $attAbsent  = (clone $attQuery)->where('status', 'absent')->count();
+        $attLeave   = (clone $attQuery)->where('status', 'leave')->count();
+        $attTotal   = (clone $attQuery)->count();
+
+        // Total working days conducted to date (max of distinct class dates or student recorded count)
+        $totalClassDays = \App\Models\AttendanceRecord::where('academic_year_id', $year?->id)
+            ->where('class_id', $student->currentEnrollment?->class_id)
+            ->select('date')->distinct()->count();
+        $totalDaysConducted = max($totalClassDays, $attTotal);
+
+        // Effective present days (Present + Late + 0.5 * HalfDay)
+        $effectivePresent = $attPresent + $attLate + ($attHalfDay * 0.5);
+        $attPct = $totalDaysConducted > 0 ? round(($effectivePresent / $totalDaysConducted) * 100, 1) : null;
+        $annualTargetPct = round(($effectivePresent / $fixedAnnualDays) * 100, 1);
+        $statutoryMinDaysRequired = ceil($fixedAnnualDays * 0.75); // 75% requirement
+
+        // Fetch current year records for history & monthly breakdown
+        $allAttRecords = (clone $attQuery)->orderByDesc('date')->get();
+        $recentAttendanceRecords = $allAttRecords->take(25);
+
+        // Monthly Attendance Breakdown in PHP (Postgres & MySQL compatible)
+        $monthlyAttendance = $allAttRecords
+            ->groupBy(fn($r) => \Carbon\Carbon::parse($r->date)->format('Y-m'))
+            ->take(6)
+            ->map(function ($records, $monthKey) {
+                $total = $records->count();
+                $presentCount = $records->whereIn('status', ['present', 'late'])->count()
+                    + ($records->where('status', 'half_day')->count() * 0.5);
+                $absentCount = $records->where('status', 'absent')->count();
+                $monthName = \Carbon\Carbon::parse($records->first()->date)->format('M Y');
+                return (object)[
+                    'month_key'     => $monthKey,
+                    'month_name'    => $monthName,
+                    'total'         => $total,
+                    'present_count' => $presentCount,
+                    'absent_count'  => $absentCount,
+                ];
+            })->values();
 
         // Recent payments (last 3)
         $recentPayments = DB::table('fee_payments')
@@ -253,7 +294,11 @@ class StudentController extends Controller
 
         return view('students.show', compact(
             'student', 'feeCharged', 'feePaid', 'feeBalance',
-            'attPresent', 'attTotal', 'attPct', 'recentPayments'
+            'attPresent', 'attAbsent', 'attLate', 'attHalfDay', 'attLeave',
+            'attTotal', 'totalDaysConducted', 'fixedAnnualDays', 'effectivePresent',
+            'attPct', 'annualTargetPct', 'statutoryMinDaysRequired',
+            'recentAttendanceRecords', 'monthlyAttendance',
+            'recentPayments'
         ));
     }
 
@@ -559,10 +604,11 @@ class StudentController extends Controller
 
     public function promotions(Request $request)
     {
-        $classes     = Classes::active()->get();
-        $currentYear = AcademicYear::current();
-        $history     = StudentPromotion::with(['student', 'fromClass', 'toClass'])->latest()->take(50)->get();
-        $preselectIds = $request->preselect_ids
+        $classes       = Classes::active()->get();
+        $currentYear   = AcademicYear::current();
+        $academicYears = AcademicYear::orderByDesc('start_date')->get();
+        $promotions    = StudentPromotion::with(['student', 'fromClass', 'toClass', 'fromAcademicYear', 'toAcademicYear'])->latest()->paginate(25);
+        $preselectIds  = $request->preselect_ids
             ? array_filter(array_map('intval', explode(',', $request->preselect_ids)))
             : [];
         $fromClassStudents = collect();
@@ -573,7 +619,7 @@ class StudentController extends Controller
                 ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
                 ->get();
         }
-        return view('students.promotions', compact('classes', 'currentYear', 'history', 'preselectIds', 'fromClassStudents'));
+        return view('students.promotions', compact('classes', 'currentYear', 'academicYears', 'promotions', 'preselectIds', 'fromClassStudents'));
     }
 
     public function processPromotion(Request $request)

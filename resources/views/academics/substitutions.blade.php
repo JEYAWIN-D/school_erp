@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title', 'Substitution Management')
 @section('content')
 <div class="space-y-6">
@@ -24,7 +24,7 @@
         </div>
         <div>
           <label class="label">Absent Teacher <span class="text-red-500">*</span></label>
-          <select name="absent_teacher_id" class="select @error('absent_teacher_id') input-error @enderror">
+          <select name="absent_teacher_id" class="select {{ (isset($errors) && $errors->has('absent_teacher_id')) ? 'input-error' : '' }}">
             <option value="">Select teacher</option>
             @foreach($teachers as $t)
               <option value="{{ $t->id }}" @selected(old('absent_teacher_id') == $t->id)>{{ $t->first_name }} {{ $t->last_name }}</option>
@@ -33,7 +33,7 @@
         </div>
         <div>
           <label class="label">Substitute Teacher <span class="text-red-500">*</span></label>
-          <select name="substitute_teacher_id" class="select @error('substitute_teacher_id') input-error @enderror">
+          <select name="substitute_teacher_id" class="select {{ (isset($errors) && $errors->has('substitute_teacher_id')) ? 'input-error' : '' }}">
             <option value="">Select substitute</option>
             @foreach($teachers as $t)
               <option value="{{ $t->id }}" @selected(old('substitute_teacher_id') == $t->id)>{{ $t->first_name }} {{ $t->last_name }}</option>

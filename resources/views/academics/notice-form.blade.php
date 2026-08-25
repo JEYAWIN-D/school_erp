@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 @section('title', 'Create Notice')
 @section('content')
 <div class="max-w-3xl mx-auto space-y-6">
@@ -15,8 +15,8 @@
 
     <div>
       <label class="label">Title <span class="text-red-500">*</span></label>
-      <input type="text" name="title" value="{{ old('title') }}" class="input @error('title') input-error @enderror" placeholder="Notice title">
-      @error('title') <p class="field-error">{{ $message }}</p> @enderror
+      <input type="text" name="title" value="{{ old('title') }}" class="input {{ (isset($errors) && $errors->has('title')) ? 'input-error' : '' }}" placeholder="Notice title">
+      @if(isset($errors) && $errors->has('title')) <p class="field-error">{{ $errors->first('title') }}</p> @endif
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -56,8 +56,8 @@
 
     <div>
       <label class="label">Content <span class="text-red-500">*</span></label>
-      <textarea name="content" rows="6" class="input @error('content') input-error @enderror" placeholder="Notice content…">{{ old('content') }}</textarea>
-      @error('content') <p class="field-error">{{ $message }}</p> @enderror
+      <textarea name="content" rows="6" class="input {{ (isset($errors) && $errors->has('content')) ? 'input-error' : '' }}" placeholder="Notice content…">{{ old('content') }}</textarea>
+      @if(isset($errors) && $errors->has('content')) <p class="field-error">{{ $errors->first('content') }}</p> @endif
     </div>
 
     <div class="flex items-center gap-2">

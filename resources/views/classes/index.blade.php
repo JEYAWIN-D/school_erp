@@ -24,6 +24,13 @@
 
     {{-- Top Right Actions --}}
     <div class="flex items-center gap-2.5 self-end sm:self-auto flex-shrink-0">
+      <button @click="showHolidayModal = true; loadDeclaredHolidays()"
+              class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 shadow-2xs transition cursor-pointer"
+              title="Declare a school holiday for a specific date">
+        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span>Declare Holiday</span>
+      </button>
+
       <button @click="showTimeSimulator = !showTimeSimulator"
               class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold border transition cursor-pointer"
               :class="showTimeSimulator || simulatedTime !== null
@@ -71,9 +78,9 @@
       {{-- Presets --}}
       <div class="flex flex-wrap items-center gap-1.5">
         <button @click="resetToLiveTime()"
-                class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition shadow-sm cursor-pointer"
+                class="px-3 py-1.5 rounded-xl text-xs font-extrabold transition shadow-sm cursor-pointer flex items-center gap-1.5"
                 :class="simulatedTime === null ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'">
-          🔴 Live Time
+          <span class="inline-block w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> Live Time
         </button>
         <button @click="setTime('09:20', 1)"
                 class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer"
@@ -515,6 +522,165 @@
     </template>
   </div>
 
+  {{-- Floating Toast Notification Popper --}}
+  <template x-teleport="body">
+    <div x-show="toast.show"
+         x-transition:enter="transition ease-out duration-300 transform"
+         x-transition:enter-start="opacity-0 -translate-y-4 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-200 transform"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 -translate-y-4 scale-95"
+         class="fixed top-6 right-6 z-[999999] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-slate-700/80 bg-slate-900 text-white"
+         style="display: none;">
+      <div class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
+           :class="toast.type === 'error' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'">
+        <template x-if="toast.type === 'error'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+        </template>
+        <template x-if="toast.type !== 'error'">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+        </template>
+      </div>
+      <div>
+        <p class="text-xs font-extrabold tracking-wide" x-text="toast.message"></p>
+      </div>
+      <button @click="toast.show = false" class="text-slate-400 hover:text-white ml-2 text-xs font-bold transition cursor-pointer">✕</button>
+    </div>
+  </template>
+
+  {{-- Declare Holiday Modal --}}
+  <template x-teleport="body">
+    <div x-show="showHolidayModal"
+         @keydown.window.escape="showHolidayModal = false"
+         @click.self="showHolidayModal = false"
+         class="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+         style="display:none; background:rgba(15, 23, 42, 0.65);"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95">
+
+      <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+        {{-- Header --}}
+        <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 text-white flex items-center justify-between shadow-md">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center font-bold text-lg border border-white/20">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-base tracking-tight text-white">Declare School Holiday</h3>
+              <p class="text-xs text-indigo-100 mt-0.5">Automatically sets Student & Staff attendance on the declared date</p>
+            </div>
+          </div>
+          <button @click="showHolidayModal = false" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer">
+            ✕
+          </button>
+        </div>
+
+        {{-- Body --}}
+        <div class="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
+          {{-- Form Card --}}
+          <form @submit.prevent="submitDeclareHoliday()" class="bg-white border border-slate-200/90 rounded-2xl p-5 space-y-4 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h4 class="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                <span>Declare New Holiday</span>
+              </h4>
+              <span class="text-[10px] font-bold text-slate-400">All Class Sections & Staff</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Holiday Date *</label>
+                <input type="date" x-model="holidayForm.date" required
+                       class="input input-sm w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl font-bold text-xs transition">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Holiday Name / Title *</label>
+                <input type="text" x-model="holidayForm.name" placeholder="e.g. Local Festival, Rain Holiday" required
+                       class="input input-sm w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl font-medium text-xs transition">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Holiday Type</label>
+                <select x-model="holidayForm.type" class="select select-sm w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl text-xs font-semibold">
+                  <option value="school">School Holiday / Festival</option>
+                  <option value="national">National Holiday</option>
+                  <option value="state">State / Regional Holiday</option>
+                  <option value="optional">Optional / Special Holiday</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Remarks / Notes (Optional)</label>
+                <input type="text" x-model="holidayForm.description" placeholder="Optional remarks..."
+                       class="input input-sm w-full bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl text-xs">
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" :disabled="isSavingHoliday"
+                      class="w-full btn bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-extrabold py-2.5 rounded-xl shadow-sm transition cursor-pointer flex items-center justify-center gap-2 text-xs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                <span x-text="isSavingHoliday ? 'Saving Holiday...' : 'Declare Holiday Now'"></span>
+              </button>
+            </div>
+          </form>
+
+          {{-- Declared Holidays List --}}
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-black uppercase tracking-wider text-slate-600">Active Declared Holidays</h4>
+              <span class="text-[11px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200/60" x-text="declaredHolidays.length + ' Recorded'"></span>
+            </div>
+
+            <template x-if="declaredHolidays.length === 0">
+              <div class="text-center py-8 text-slate-400 text-xs italic bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                No school holidays declared yet. Fill the form above to add a holiday date.
+              </div>
+            </template>
+
+            <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              <template x-for="h in declaredHolidays" :key="h.id">
+                <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs hover:border-indigo-300 transition">
+                  <div class="flex items-center gap-3">
+                    <div class="px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-900 font-mono font-extrabold text-xs text-center border border-indigo-200/80">
+                      <span x-text="h.formatted_date"></span>
+                    </div>
+                    <div>
+                      <h5 class="font-bold text-xs text-slate-900" x-text="h.name"></h5>
+                      <p class="text-[10px] text-slate-400 font-medium capitalize" x-text="(h.type || 'Holiday').replace('_', ' ') + (h.description ? ' • ' + h.description : '')"></p>
+                    </div>
+                  </div>
+                  <button type="button" @click="removeHoliday(h.id)" class="text-xs text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-xl hover:bg-rose-50 border border-rose-200 transition cursor-pointer">
+                    Remove
+                  </button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        {{-- Footer --}}
+        <div class="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between gap-3">
+          <button type="button" @click="showHolidayModal = false"
+                  class="px-5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer">
+            Close
+          </button>
+          <button type="button" @click="saveAndCloseHoliday()" :disabled="isSavingHoliday"
+                  class="px-6 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-sm hover:shadow-md transition cursor-pointer flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            <span x-text="isSavingHoliday ? 'Saving...' : 'Save & Close'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <template x-teleport="body">
     <div x-show="modalOpen"
          @keydown.window.escape="modalOpen = false"
@@ -553,6 +719,13 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
+            {{-- Declare Holiday shortcut --}}
+            <button @click="showHolidayModal = true; loadDeclaredHolidays()"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/80 shadow-2xs transition cursor-pointer"
+                    title="Declare a school holiday for a specific date">
+              <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span>Declare Holiday</span>
+            </button>
             {{-- Edit Timetable shortcut --}}
             <button @click="modalOpen = false; openEditTimetableModal(modalClass, modalSection)"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 shadow-2xs transition cursor-pointer"
@@ -1139,6 +1312,110 @@ function classesDashboard() {
     liveTimeString: '',
 
     
+    // Toast Notification Popper State
+    toast: {
+      show: false,
+      message: '',
+      type: 'success'
+    },
+    showToast(msg, type = 'success') {
+      this.toast.message = msg;
+      this.toast.type = type;
+      this.toast.show = true;
+      setTimeout(() => {
+        this.toast.show = false;
+      }, 3500);
+    },
+
+    // Declare Holiday Modal State
+    showHolidayModal: false,
+    declaredHolidays: [],
+    holidayForm: {
+      date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+      name: '',
+      type: 'school',
+      description: ''
+    },
+    isSavingHoliday: false,
+
+    async loadDeclaredHolidays() {
+      try {
+        const res = await fetch('{{ route("classes.timetable.declared-holidays") }}');
+        const data = await res.json();
+        if (data.success) {
+          this.declaredHolidays = data.holidays;
+        }
+      } catch (e) {
+        console.error('Error loading declared holidays:', e);
+      }
+    },
+
+    async submitDeclareHoliday() {
+      if (!this.holidayForm.date || !this.holidayForm.name || !this.holidayForm.name.trim()) {
+        this.showToast('Please select a Date and enter a Holiday Name.', 'error');
+        return false;
+      }
+      this.isSavingHoliday = true;
+      try {
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const res = await fetch('{{ route("classes.timetable.declare-holiday") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': token,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(this.holidayForm)
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.showToast(data.message, 'success');
+          this.holidayForm.name = '';
+          this.holidayForm.description = '';
+          await this.loadDeclaredHolidays();
+          return true;
+        } else {
+          this.showToast(data.message || 'Failed to declare holiday', 'error');
+          return false;
+        }
+      } catch (e) {
+        console.error('Declare holiday error:', e);
+        this.showToast('An error occurred while declaring holiday', 'error');
+        return false;
+      } finally {
+        this.isSavingHoliday = false;
+      }
+    },
+
+    async saveAndCloseHoliday() {
+      if (this.holidayForm.name && this.holidayForm.name.trim()) {
+        const ok = await this.submitDeclareHoliday();
+        if (!ok) return;
+      }
+      this.showHolidayModal = false;
+    },
+
+    async removeHoliday(id) {
+      if (!confirm('Are you sure you want to remove this declared holiday?')) return;
+      try {
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const res = await fetch('{{ url("classes/timetable/delete-holiday") }}/' + id, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-TOKEN': token,
+            'Accept': 'application/json'
+          }
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.showToast(data.message, 'success');
+          await this.loadDeclaredHolidays();
+        }
+      } catch (e) {
+        console.error('Delete holiday error:', e);
+      }
+    },
+
     // View Timetable Modal State
     modalOpen: false,
     modalClass: null,

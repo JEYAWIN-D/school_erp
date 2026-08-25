@@ -31,6 +31,11 @@ class Subject extends Model
         return $this->hasMany(ExamSchedule::class);
     }
 
+    public function allocations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TeacherSubjectAllocation::class, 'subject_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

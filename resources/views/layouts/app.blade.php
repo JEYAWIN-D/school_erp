@@ -467,5 +467,6 @@ function toasts() {
   }
 }
 </script>
+@stack('scripts')
 </body>
 </html>

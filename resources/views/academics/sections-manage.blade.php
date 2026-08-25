@@ -17,7 +17,7 @@
   @if(session('error'))
     <div class="alert-danger">{{ session('error') }}</div>
   @endif
-  @if($errors->any())
+  @if(isset($errors) && $errors->any())
     <div class="alert-danger"><ul>@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
   @endif
 

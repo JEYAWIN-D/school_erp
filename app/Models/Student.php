@@ -106,4 +106,30 @@ class Student extends Model
     {
         return $this->hasMany(\App\Models\FeePayment::class);
     }
+
+    public function attendanceRecords(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function leaveRequests(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StudentLeaveRequest::class);
+    }
+
+    public function getAttendancePercentageAttribute(): ?float
+    {
+        $year = AcademicYear::current();
+        $total = $this->attendanceRecords()
+            ->when($year, fn($q) => $q->where('academic_year_id', $year->id))
+            ->count();
+        if ($total === 0) return null;
+
+        $present = $this->attendanceRecords()
+            ->when($year, fn($q) => $q->where('academic_year_id', $year->id))
+            ->whereIn('status', ['present', 'late', 'half_day'])
+            ->count();
+
+        return round(($present / $total) * 100, 1);
+    }
 }

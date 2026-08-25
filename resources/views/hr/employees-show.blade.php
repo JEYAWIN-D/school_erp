@@ -34,16 +34,16 @@
       {{-- Action Buttons --}}
       <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
         <a href="tel:{{ $employee->mobile }}" class="btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 btn-sm font-bold flex items-center gap-1.5" title="Call Mobile">
-          📞 {{ $employee->mobile }}
+          <span>Call</span> {{ $employee->mobile }}
         </a>
         <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $employee->mobile) }}" target="_blank" class="btn bg-emerald-600 hover:bg-emerald-700 text-white btn-sm font-bold flex items-center gap-1.5" title="Send WhatsApp Message">
-          💬 WhatsApp
+          <span>WhatsApp</span>
         </a>
         <a href="{{ route('hr.employees.id-card', $employee->id) }}" class="btn bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 btn-sm font-bold flex items-center gap-1.5" title="Generate & Download ID Card">
-          📇 Staff ID Card
+          <span>Staff ID Card</span>
         </a>
         <a href="{{ route('hr.employees.edit', $employee->id) }}" class="btn btn-primary btn-sm">
-          ✏️ Edit Profile
+          Edit Profile
         </a>
 
         <div x-data="{ open: false }" class="relative inline-block text-left">
@@ -52,18 +52,76 @@
             <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </button>
           <div x-show="open" @click.outside="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" class="absolute right-0 mt-1.5 bg-white shadow-xl rounded-xl border border-slate-200 z-50 min-w-[220px] py-1 text-left">
-            <a href="{{ route('hr.employees.id-card', $employee->id) }}" class="block px-4 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2">
-              <span class="text-sm">📇</span> <span>Staff ID Card (Front & Back)</span>
+            <a href="{{ route('hr.employees.id-card', $employee->id) }}" class="block px-4 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50">
+              Staff ID Card (Front &amp; Back)
             </a>
-            <a href="{{ route('hr.employees.appointment-letter', $employee->id) }}" target="_blank" class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-              <span class="text-sm">📄</span> <span>Appointment Letter (PDF)</span>
+            <a href="{{ route('hr.employees.appointment-letter', $employee->id) }}" target="_blank" class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              Appointment Letter (PDF)
             </a>
-            <a href="{{ route('hr.employees.experience-certificate', $employee->id) }}" target="_blank" class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-              <span class="text-sm">🏆</span> <span>Experience Certificate (PDF)</span>
+            <a href="{{ route('hr.employees.experience-certificate', $employee->id) }}" target="_blank" class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              Experience Certificate (PDF)
             </a>
           </div>
         </div>
       </div>
+    </div>
+  {{-- ── Top KPI Stat Cards (Attendance %, Overtime Extra Duty, Leaves, Salary, Tenure) ── --}}
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    {{-- Attendance Rate --}}
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Attendance Rate</span>
+      <div class="flex items-baseline gap-2 mt-1">
+        <p class="text-2xl font-black font-mono {{ ($attendancePercentage ?? 0) >= 80 ? 'text-emerald-600' : 'text-rose-600' }}">
+          {{ $attendancePercentage ?? '—' }}{{ $attendancePercentage !== null ? '%' : '' }}
+        </p>
+        <span class="text-[11px] font-semibold text-slate-500">
+          {{ $effectivePresent }} / {{ $attTotalDays }} days
+        </span>
+      </div>
+    </div>
+
+    {{-- Sunday/Holiday Overtime (Extra Pay) --}}
+    <div class="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-2xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800">Overtime (Extra Duty)</span>
+      <div class="flex items-baseline gap-2 mt-1">
+        <p class="text-2xl font-black font-mono text-amber-700">
+          {{ $attOvertime ?? 0 }} <span class="text-xs font-semibold text-amber-800">Days</span>
+        </p>
+        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200">
+          {{ $attOvertimeDuration ?? '0m' }}
+        </span>
+      </div>
+    </div>
+
+    {{-- Leaves Taken --}}
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Leaves Taken</span>
+      <div class="flex items-baseline gap-2 mt-1">
+        <p class="text-2xl font-black font-mono text-indigo-600">
+          {{ $approvedLeaveDays }} <span class="text-xs font-semibold text-slate-500">Days</span>
+        </p>
+        @if($pendingLeaveCount > 0)
+          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+            {{ $pendingLeaveCount }} pending
+          </span>
+        @endif
+      </div>
+    </div>
+
+    {{-- Monthly Salary --}}
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Basic Monthly Pay</span>
+      <p class="text-2xl font-black font-mono text-emerald-600 mt-1">
+        ₹{{ number_format($employee->basic_salary ?? 0, 0) }}
+      </p>
+    </div>
+
+    {{-- Date of Joining --}}
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Joining Date</span>
+      <p class="text-lg font-bold text-slate-800 mt-1">
+        {{ \Carbon\Carbon::parse($employee->joining_date)->format('d M Y') }}
+      </p>
     </div>
   </div>
 
@@ -72,8 +130,7 @@
     <div class="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 p-5 rounded-2xl shadow-sm">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-bold text-amber-900 text-sm flex items-center gap-2">
-          <span class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center text-sm font-black">🚍</span>
-          Driver Card Details & Vehicle Assignment
+          Driver Card Details &amp; Vehicle Assignment
         </h3>
         <span class="badge-amber text-xs font-bold">Active Driver Profile</span>
       </div>
@@ -101,7 +158,6 @@
     <div class="bg-gradient-to-r from-rose-50 to-pink-50 border-2 border-rose-200 p-5 rounded-2xl shadow-sm">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-bold text-rose-900 text-sm flex items-center gap-2">
-          <span class="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center text-sm font-black">👶</span>
           Nanny (Naani) Caretaker Profile Card
         </h3>
         <span class="badge-rose text-xs font-bold">Pre-Primary Staff</span>
@@ -117,7 +173,7 @@
         </div>
         <div class="bg-white p-3 rounded-xl border border-rose-100">
           <p class="text-slate-400 font-medium">Child Safety Clearance</p>
-          <p class="font-bold text-emerald-600 text-sm mt-0.5">✓ Verified & Background Checked</p>
+          <p class="font-bold text-emerald-600 text-sm mt-0.5">Verified &amp; Background Checked</p>
         </div>
         <div class="bg-white p-3 rounded-xl border border-rose-100">
           <p class="text-slate-400 font-medium">Emergency Mobile</p>
@@ -130,8 +186,7 @@
     <div class="bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 p-5 rounded-2xl shadow-sm">
       <div class="flex items-center justify-between mb-3">
         <h3 class="font-bold text-teal-900 text-sm flex items-center gap-2">
-          <span class="w-8 h-8 rounded-lg bg-teal-500 text-white flex items-center justify-center text-sm font-black">🧹</span>
-          Cleaner & Housekeeping Staff Profile Card
+          Cleaner &amp; Housekeeping Staff Profile Card
         </h3>
         <span class="badge-teal text-xs font-bold">Hygiene Team</span>
       </div>
@@ -384,10 +439,10 @@
             <div class="flex items-center gap-2 flex-wrap">
               @if($cert->file_path)
                 <a href="{{ route('hr.employees.certifications.preview', [$employee->id, $cert->id]) }}" target="_blank" class="btn-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold flex items-center gap-1">
-                  👁️ Preview
+                  Preview
                 </a>
                 <a href="{{ route('hr.employees.certifications.download', [$employee->id, $cert->id]) }}" class="btn-xs bg-slate-200 text-slate-700 hover:bg-slate-300 font-bold flex items-center gap-1">
-                  📥 Download
+                  Download
                 </a>
               @endif
               <form method="POST" action="{{ route('hr.employees.certifications.delete', [$employee->id, $cert->id]) }}" class="inline"
@@ -458,19 +513,19 @@
                   <form method="POST" action="{{ route('hr.employees.documents.verify', [$employee->id, $doc->id]) }}" class="inline-flex items-center gap-1">
                     @csrf
                     <select name="status" onchange="this.form.submit()" class="text-[10px] font-bold border border-slate-200 rounded px-1.5 py-0.5 bg-white">
-                      <option value="pending"  @selected($doc->verification_status==='pending')>🟡 Pending</option>
-                      <option value="verified" @selected($doc->verification_status==='verified')>🟢 Verified</option>
-                      <option value="rejected" @selected($doc->verification_status==='rejected')>🔴 Rejected</option>
+                      <option value="pending"  @selected($doc->verification_status==='pending')>Pending</option>
+                      <option value="verified" @selected($doc->verification_status==='verified')>Verified</option>
+                      <option value="rejected" @selected($doc->verification_status==='rejected')>Rejected</option>
                     </select>
                   </form>
                 </td>
                 <td class="px-3 py-2.5 text-right whitespace-nowrap">
                   <div class="flex items-center justify-end gap-1.5">
                     <a href="{{ route('hr.employees.documents.preview', [$employee->id, $doc->id]) }}" target="_blank" class="btn-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold flex items-center gap-1" title="Preview Document">
-                      👁️ Preview
+                      Preview
                     </a>
                     <a href="{{ route('hr.employees.documents.download', [$employee->id, $doc->id]) }}" class="btn-xs bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold flex items-center gap-1" title="Download Document">
-                      📥 Download
+                      Download
                     </a>
                     <form method="POST" action="{{ route('hr.employees.documents.delete', [$employee->id, $doc->id]) }}" class="inline"
                       onsubmit="return confirm('Delete this document?')">
@@ -488,8 +543,259 @@
         <p class="text-sm text-slate-400">No documents uploaded yet.</p>
         @endif
       </div>
+
+      {{-- ── Staff Attendance History & Monthly Breakdown Card ── --}}
+      <div class="card mt-6 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2.5">
+            <div>
+              <h3 class="font-bold text-slate-900 text-sm">Staff Attendance &amp; Monthly Summary</h3>
+              <p class="text-xs text-slate-400">Monthly attendance rates and recent biometric/RFID punch logs</p>
+            </div>
+          </div>
+          <a href="{{ route('attendance.staff') }}" class="btn btn-secondary btn-xs font-bold text-indigo-600">
+            Card Tap Terminal &rarr;
+          </a>
+        </div>
+
+        {{-- 6-Month Breakdown Table --}}
+        @if(isset($monthlyAttendance) && $monthlyAttendance->count())
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Monthly Breakdown (Month-Wise Attendance &amp; Overtime)</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+                  <th class="py-2.5 px-3">Month</th>
+                  <th class="py-2.5 px-3 text-center">Working Days</th>
+                  <th class="py-2.5 px-3 text-center">Present / Attended</th>
+                  <th class="py-2.5 px-3 text-center">Sunday/Holiday Overtime</th>
+                  <th class="py-2.5 px-3 text-center">Absent</th>
+                  <th class="py-2.5 px-3 text-right">Monthly Attendance Rate</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @foreach($monthlyAttendance as $m)
+                <tr class="hover:bg-slate-50/50">
+                  <td class="py-2 px-3 font-bold text-slate-800">{{ $m->month_name }}</td>
+                  <td class="py-2 px-3 text-center font-mono font-medium text-slate-700">{{ $m->working_days }}</td>
+                  <td class="py-2 px-3 text-center font-mono font-bold text-emerald-600">{{ $m->present_count }} d</td>
+                  <td class="py-2 px-3 text-center font-mono font-bold text-amber-700">
+                    @if($m->overtime_count > 0)
+                      <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 font-bold">
+                        {{ $m->overtime_count }} d ({{ $m->overtime_duration }})
+                      </span>
+                    @else
+                      <span class="text-slate-400">—</span>
+                    @endif
+                  </td>
+                  <td class="py-2 px-3 text-center font-mono font-bold text-rose-600">{{ $m->absent_count }} d</td>
+                  <td class="py-2 px-3 text-right font-mono font-bold">
+                    <span class="inline-block px-2 py-0.5 rounded-full text-[10px] {{ $m->percentage >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200' }}">
+                      {{ $m->percentage }}%
+                    </span>
+                  </td>
+                </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+        @endif
+
+        {{-- Recent Attendance Punches Log --}}
+        @if(isset($recentAttendance) && $recentAttendance->count())
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Recent Card Punch Logs (Last 30 Days)</h4>
+          <div class="overflow-x-auto max-h-56 overflow-y-auto pr-1">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+                  <th class="py-2 px-3">Date</th>
+                  <th class="py-2 px-3 text-center">Status</th>
+                  <th class="py-2 px-3 text-center">In-Time</th>
+                  <th class="py-2 px-3 text-center">Out-Time</th>
+                  <th class="py-2 px-3 text-center">Duration</th>
+                  <th class="py-2 px-3">Remarks</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                @foreach($recentAttendance as $rec)
+                @php
+                  $inT = $rec->check_in ? \Carbon\Carbon::parse($rec->check_in)->format('h:i A') : '—';
+                  $outT = $rec->check_out ? \Carbon\Carbon::parse($rec->check_out)->format('h:i A') : '—';
+                  $dur = ($rec->check_in && $rec->check_out) ? round(\Carbon\Carbon::parse($rec->check_out)->diffInMinutes(\Carbon\Carbon::parse($rec->check_in)) / 60, 1) . 'h' : '—';
+                @endphp
+                <tr class="hover:bg-slate-50/50">
+                  <td class="py-2 px-3 font-mono font-medium text-slate-800">{{ $rec->date->format('d M Y (D)') }}</td>
+                  <td class="py-2 px-3 text-center">
+                    @if($rec->status === 'present')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Present</span>
+                    @elseif($rec->status === 'late')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Late</span>
+                    @elseif($rec->status === 'half_day')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-800">Half-Day</span>
+                    @elseif($rec->status === 'overtime')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">Overtime</span>
+                    @elseif($rec->status === 'absent')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">Absent</span>
+                    @elseif($rec->status === 'holiday')
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">Holiday</span>
+                    @else
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">{{ ucfirst($rec->status) }}</span>
+                    @endif
+                  </td>
+                  <td class="py-2 px-3 text-center font-mono font-medium text-slate-700">{{ $inT }}</td>
+                  <td class="py-2 px-3 text-center font-mono font-medium text-slate-700">{{ $outT }}</td>
+                  <td class="py-2 px-3 text-center font-mono font-bold text-slate-700">{{ $dur }}</td>
+                  <td class="py-2 px-3 text-slate-500 text-[11px] truncate max-w-[120px]">{{ $rec->remarks ?? '—' }}</td>
+                </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+        @else
+          <p class="text-xs text-slate-400 italic py-2">No attendance records logged yet for this employee.</p>
+        @endif
+      </div>
+
+      {{-- ── Staff Leave History & Applications Tracker Card ──── --}}
+      <div class="card mt-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2.5">
+            <div>
+              <h3 class="font-bold text-slate-900 text-sm">Leave History &amp; Taken Details</h3>
+              <p class="text-xs text-slate-400">Total approved leaves taken: <strong class="text-indigo-600 font-bold">{{ $approvedLeaveDays }} Days</strong></p>
+            </div>
+          </div>
+          <a href="{{ route('hr.leaves.apply') }}" class="btn btn-secondary btn-xs font-bold text-indigo-600">
+            + Apply Leave
+          </a>
+        </div>
+
+        @if(isset($leaveRequests) && $leaveRequests->count())
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+                <th class="py-2.5 px-3">Leave Type</th>
+                <th class="py-2.5 px-3">Date Range</th>
+                <th class="py-2.5 px-3 text-center">Days</th>
+                <th class="py-2.5 px-3">Reason</th>
+                <th class="py-2.5 px-3 text-center">Status</th>
+                <th class="py-2.5 px-3">Approved By / Note</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              @foreach($leaveRequests as $lr)
+              <tr class="hover:bg-slate-50/50">
+                <td class="py-2.5 px-3 font-bold text-slate-800">
+                  <span class="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px]">
+                    {{ $lr->leaveType?->name ?? 'General Leave' }}
+                  </span>
+                </td>
+                <td class="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
+                  {{ $lr->from_date->format('d M Y') }} &rarr; {{ $lr->to_date->format('d M Y') }}
+                </td>
+                <td class="py-2.5 px-3 text-center font-mono font-bold text-indigo-700">
+                  {{ (float)($lr->total_days ?? $lr->days ?? 1) }} d
+                </td>
+                <td class="py-2.5 px-3 text-slate-600 max-w-[160px] truncate" title="{{ $lr->reason }}">
+                  {{ $lr->reason ?? '—' }}
+                </td>
+                <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                  @if($lr->status === 'approved')
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Approved</span>
+                  @elseif($lr->status === 'pending')
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Pending</span>
+                  @elseif($lr->status === 'rejected')
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">Rejected</span>
+                  @else
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">{{ ucfirst($lr->status) }}</span>
+                  @endif
+                </td>
+                <td class="py-2.5 px-3 text-[11px] text-slate-500">
+                  @if($lr->approvedBy)
+                    <span class="font-medium text-slate-700">{{ $lr->approvedBy->name }}</span>
+                    @if($lr->approved_at) &bull; <span class="text-slate-400 font-mono text-[10px]">{{ \Carbon\Carbon::parse($lr->approved_at)->format('d M Y') }}</span> @endif
+                  @else
+                    <span class="text-slate-300">—</span>
+                  @endif
+                  @if($lr->approval_note)
+                    <p class="text-[10px] text-slate-400 italic mt-0.5 truncate">{{ $lr->approval_note }}</p>
+                  @endif
+                </td>
+              </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+        @else
+          <p class="text-xs text-slate-400 italic py-2">No leave applications recorded for this employee.</p>
+        @endif
+      </div>
     </div>
+
     <div>
+      {{-- ── Staff Attendance Summary Widget ───────────────────── --}}
+      <div class="card mb-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <h3 class="font-bold text-slate-900 text-sm">Attendance Summary</h3>
+          </div>
+          <a href="{{ route('attendance.staff') }}" class="text-xs font-semibold text-indigo-600 hover:underline">Mark / Tap →</a>
+        </div>
+
+        @if($attTotalDays > 0)
+          <div class="text-center py-1">
+            <p class="text-4xl font-black tracking-tight {{ ($attendancePercentage ?? 0) >= 80 ? 'text-emerald-600' : 'text-rose-600' }}">
+              {{ $attendancePercentage }}%
+            </p>
+            <p class="text-xs font-semibold text-slate-600 mt-1">
+              <span class="font-mono font-bold text-slate-900">{{ $effectivePresent }}</span> days present out of <span class="font-mono font-bold text-slate-900">{{ $attTotalDays }}</span> recorded days
+            </p>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-500 {{ ($attendancePercentage ?? 0) >= 80 ? 'bg-emerald-500' : 'bg-rose-500' }}"
+                 style="width: {{ min(100, $attendancePercentage ?? 0) }}%"></div>
+          </div>
+
+          {{-- Quick Breakdown Pills --}}
+          <div class="grid grid-cols-3 gap-1.5 text-xs pt-1">
+            <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-center">
+              <span class="text-[10px] text-emerald-700 font-bold uppercase">Present</span>
+              <p class="font-bold text-emerald-900 font-mono">{{ $attPresent }} d</p>
+            </div>
+            <div class="bg-rose-50 p-2 rounded-xl border border-rose-100 text-center">
+              <span class="text-[10px] text-rose-700 font-bold uppercase">Absent</span>
+              <p class="font-bold text-rose-900 font-mono">{{ $attAbsent }} d</p>
+            </div>
+            <div class="bg-amber-50 p-2 rounded-xl border border-amber-100 text-center">
+              <span class="text-[10px] text-amber-700 font-bold uppercase">Late</span>
+              <p class="font-bold text-amber-900 font-mono">{{ $attLate }} d</p>
+            </div>
+            <div class="bg-orange-50 p-2 rounded-xl border border-orange-100 text-center">
+              <span class="text-[10px] text-orange-700 font-bold uppercase">Half-Day</span>
+              <p class="font-bold text-orange-900 font-mono">{{ $attHalfDay }} d</p>
+            </div>
+            <div class="bg-amber-50 p-2 rounded-xl border border-amber-200 text-center">
+              <span class="text-[10px] text-amber-800 font-bold uppercase">Overtime</span>
+              <p class="font-bold text-amber-950 font-mono">{{ $attOvertime }} d</p>
+            </div>
+            <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 text-center">
+              <span class="text-[10px] text-blue-700 font-bold uppercase">On Leave</span>
+              <p class="font-bold text-blue-900 font-mono">{{ $attLeave }} d</p>
+            </div>
+          </div>
+        @else
+          <div class="py-5 text-center text-slate-400">
+            <p class="text-xs font-semibold">No attendance records logged yet.</p>
+          </div>
+        @endif
+      </div>
+
       {{-- Portal Login & Role --}}
       <div class="card mb-6" x-data="{ createLogin: false, changeRole: false }">
         <h3 class="font-semibold text-slate-700 mb-3">Portal Login & Role</h3>

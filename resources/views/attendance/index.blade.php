@@ -142,6 +142,59 @@
   </div>
   @endif
 
+  {{-- ── Today's Section-Wise Attendance Status Grid ──────────── --}}
+  <div class="card p-5 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div>
+        <h3 class="font-extrabold text-slate-900 text-sm">Today's Section-Wise Attendance Register</h3>
+        <p class="text-xs text-slate-400">Click on any section to mark, update, or review attendance</p>
+      </div>
+      <a href="{{ route('attendance.mark') }}" class="btn btn-primary btn-xs font-bold flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Manual Marking Studio
+      </a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      @foreach($classes as $cls)
+        @foreach($cls->sections->sortBy('name') as $sec)
+          @php
+            $key = $cls->id . '-' . $sec->id;
+            $info = $todaySectionAttendance[$key] ?? ['is_marked' => false, 'total' => 0, 'present' => 0, 'absent' => 0, 'rate' => 0];
+          @endphp
+          <a href="{{ route('attendance.mark', ['class_id' => $cls->id, 'section_id' => $sec->id, 'date' => today()->toDateString()]) }}"
+             class="p-3.5 rounded-2xl border transition-all duration-200 group flex flex-col justify-between {{ $info['is_marked'] ? 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-400 hover:shadow-xs' : 'bg-slate-50/70 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30' }}">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-extrabold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">Class {{ $cls->name }}</span>
+                <span class="text-xs font-bold text-slate-500 ml-1">Sec {{ $sec->name }}</span>
+              </div>
+              @if($info['is_marked'])
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {{ $info['rate'] }}% Marked
+                </span>
+              @else
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                  Pending
+                </span>
+              @endif
+            </div>
+
+            <div class="mt-3 flex items-center justify-between text-xs font-medium text-slate-500">
+              @if($info['is_marked'])
+                <span><b class="text-emerald-700 font-mono">{{ $info['present'] }}</b> Present / <b class="text-rose-600 font-mono">{{ $info['absent'] }}</b> Absent</span>
+                <span class="text-[11px] font-bold text-indigo-600 group-hover:underline">Edit &rarr;</span>
+              @else
+                <span class="text-slate-400">Attendance not taken</span>
+                <span class="text-[11px] font-bold text-indigo-600 group-hover:underline">Mark Now &rarr;</span>
+              @endif
+            </div>
+          </a>
+        @endforeach
+      @endforeach
+    </div>
+  </div>
+
   {{-- Quick Links --}}
   <div>
     <p class="section-title">Attendance Modules</p>

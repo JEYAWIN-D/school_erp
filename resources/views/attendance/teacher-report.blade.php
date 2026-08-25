@@ -15,8 +15,19 @@
   {{-- Filters --}}
   <form method="GET" class="card grid grid-cols-2 md:grid-cols-4 gap-4">
     <div>
+      <label class="label">Staff Role / Category</label>
+      <select name="category" class="select font-bold">
+        <option value="all">All Staff (Teaching, Drivers, etc.)</option>
+        <option value="teaching" @selected(($selectedCategory ?? '') === 'teaching')>Teaching Staff</option>
+        <option value="non_teaching" @selected(($selectedCategory ?? '') === 'non_teaching')>Non-Teaching Staff</option>
+        <option value="driver" @selected(($selectedCategory ?? '') === 'driver')>Drivers</option>
+        <option value="nanny" @selected(($selectedCategory ?? '') === 'nanny')>Nannies (Naani)</option>
+        <option value="cleaner" @selected(($selectedCategory ?? '') === 'cleaner')>Cleaners / Support</option>
+      </select>
+    </div>
+    <div>
       <label class="label">Month</label>
-      <input type="month" name="month" value="{{ $month }}" class="input">
+      <input type="month" name="month" value="{{ $month }}" class="input font-mono">
     </div>
     <div>
       <label class="label">Department</label>
@@ -27,7 +38,7 @@
         @endforeach
       </select>
     </div>
-    <div class="flex items-end gap-2 col-span-2">
+    <div class="flex items-end gap-2">
       <button type="submit" name="action" value="1" class="btn btn-primary">Generate Report</button>
       <a href="{{ route('attendance.teacher-report') }}" class="btn btn-secondary">Reset</a>
     </div>
@@ -43,7 +54,7 @@
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div class="card text-center">
       <div class="text-2xl font-bold text-indigo-600">{{ $report->count() }}</div>
-      <div class="text-xs text-slate-500 mt-1">Total Employees</div>
+      <div class="text-xs text-slate-500 mt-1">Total Staff in Report</div>
     </div>
     <div class="card text-center">
       <div class="text-2xl font-bold text-emerald-600">{{ number_format($avgPct, 1) }}%</div>
@@ -65,15 +76,16 @@
       <thead>
         <tr>
           <th class="th">#</th>
-          <th class="th">Employee</th>
+          <th class="th">Staff Member &amp; Category</th>
           <th class="th">Department</th>
           <th class="th">Designation</th>
           <th class="th text-center">Working Days</th>
           <th class="th text-center">Present</th>
+          <th class="th text-center">Late</th>
           <th class="th text-center">Half Day</th>
+          <th class="th text-center">Overtime (Extra Pay)</th>
           <th class="th text-center">On Leave</th>
           <th class="th text-center">Absent</th>
-          <th class="th text-center">Unmarked</th>
           <th class="th text-center">Attendance %</th>
         </tr>
       </thead>
@@ -87,19 +99,33 @@
         <tr class="tr {{ $bg }}">
           <td class="td text-slate-400">{{ $i + 1 }}</td>
           <td class="td">
-            <div class="font-medium">{{ $row['employee']->full_name }}</div>
-            <div class="text-xs text-slate-400">{{ $row['employee']->employee_id }}</div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <a href="{{ route('hr.employees.show', $row['employee']->id) }}" class="font-bold text-slate-800 hover:text-indigo-600">{{ $row['employee']->full_name }}</a>
+              <span class="{{ $row['employee']->category_badge_class }} text-[9px] px-1.5 py-0.2 font-bold uppercase tracking-wider rounded">
+                {{ $row['employee']->category_label }}
+              </span>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">{{ $row['employee']->employee_code ?? 'EMP-' . $row['employee']->id }}</div>
           </td>
-          <td class="td text-sm">{{ $row['employee']->department?->name ?? '—' }}</td>
-          <td class="td text-sm">{{ $row['employee']->designation?->name ?? '—' }}</td>
-          <td class="td text-center">{{ $row['working'] }}</td>
-          <td class="td text-center text-green-600 font-medium">{{ $row['present'] }}</td>
-          <td class="td text-center text-blue-500">{{ $row['half_day'] }}</td>
-          <td class="td text-center text-yellow-600">{{ $row['on_leave'] }}</td>
-          <td class="td text-center text-red-500 font-medium">{{ $row['absent'] }}</td>
-          <td class="td text-center text-slate-400">{{ $row['unmarked'] }}</td>
+          <td class="td text-sm">{{ $row['employee']->department_name }}</td>
+          <td class="td text-sm">{{ $row['employee']->designation_name }}</td>
+          <td class="td text-center font-mono">{{ $row['working'] }}</td>
+          <td class="td text-center text-green-600 font-bold font-mono">{{ $row['present'] }}</td>
+          <td class="td text-center text-amber-600 font-mono">{{ $row['late'] ?? 0 }}</td>
+          <td class="td text-center text-blue-500 font-mono">{{ $row['half_day'] }}</td>
           <td class="td text-center">
-            <span class="font-bold {{ $color }}">{{ $pct }}%</span>
+            @if(($row['overtime'] ?? 0) > 0)
+              <span class="px-2 py-0.5 rounded-full font-bold text-xs bg-amber-100 text-amber-900 border border-amber-300 font-mono">
+                {{ $row['overtime'] }} d ({{ $row['overtime_duration'] }})
+              </span>
+            @else
+              <span class="text-slate-300">—</span>
+            @endif
+          </td>
+          <td class="td text-center text-yellow-600 font-mono">{{ $row['on_leave'] }}</td>
+          <td class="td text-center text-red-500 font-bold font-mono">{{ $row['absent'] }}</td>
+          <td class="td text-center">
+            <span class="font-mono font-bold text-sm {{ $color }}">{{ $pct }}%</span>
             <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1">
               <div class="h-1.5 rounded-full {{ $pct >= 90 ? 'bg-green-500' : ($pct >= 75 ? 'bg-yellow-400' : 'bg-red-400') }}"
                    style="width: {{ min($pct, 100) }}%"></div>

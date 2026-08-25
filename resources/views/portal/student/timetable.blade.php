@@ -31,9 +31,9 @@
       6 => ['#f0f9ff','#0891b2','#e0f2fe'],
     ];
     $typeIcons = [
-      'break' => '☕',
-      'lunch' => '🍽',
-      'free'  => '📖',
+      'break' => '',
+      'lunch' => '',
+      'free'  => '',
       'class' => '',
     ];
   @endphp
