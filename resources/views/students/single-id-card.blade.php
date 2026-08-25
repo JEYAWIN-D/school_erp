@@ -100,9 +100,9 @@
               {{-- Key-Value Box --}}
               <div class="bg-slate-50/90 rounded-xl p-2 border border-slate-200/80 text-[10px] space-y-0.5">
                 <div class="grid grid-cols-12 gap-1 items-center">
-                  <span class="col-span-4 text-slate-500 font-bold">Adm No</span>
+                  <span class="col-span-4 text-slate-500 font-bold">Roll No</span>
                   <span class="col-span-1 text-slate-400 font-bold text-center">:</span>
-                  <span class="col-span-7 font-mono font-bold text-slate-900">{{ $student->admission_number }}</span>
+                  <span class="col-span-7 font-mono font-bold text-slate-900">{{ $student->roll_number ?? $enrollment?->roll_number ?? $student->admission_number }}</span>
                 </div>
                 <div class="grid grid-cols-12 gap-1 items-center">
                   <span class="col-span-4 text-slate-500 font-bold">DOB</span>
@@ -115,7 +115,7 @@
                   <span class="col-span-7 font-bold text-rose-600">{{ $student->blood_group ?? '—' }}</span>
                 </div>
                 <div class="grid grid-cols-12 gap-1 items-center">
-                  <span class="col-span-4 text-slate-500 font-bold">Emergency</span>
+                  <span class="col-span-4 text-slate-500 font-bold">Phone No</span>
                   <span class="col-span-1 text-slate-400 font-bold text-center">:</span>
                   <span class="col-span-7 font-mono font-medium text-slate-800">+91 {{ $student->father_mobile ?? $student->mobile ?? '9876543210' }}</span>
                 </div>

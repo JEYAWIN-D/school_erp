@@ -1,252 +1,222 @@
 @extends('layouts.app')
 
-@section('title', 'Admissions Fee Structure — ' . ($academicYear?->name ?? 'Academic Year'))
+@section('title', 'Fees Structure — ' . ($academicYear?->name ?? '2025-2026'))
 
 @section('content')
 <div class="space-y-6" x-data="{
-  selectedClassId: '{{ $classes->first()?->id ?? '' }}',
-  hostelSelected: false,
-  hostelFee: 45000,
-  transportSelected: false,
-  transportFee: 18000,
-  selectedActivities: [],
-  classesData: {{ json_encode($standardFees) }},
-  activitiesData: {{ json_encode($activities) }},
-
-  getSelectedFee() {
-    return this.classesData[this.selectedClassId] || { tuition_fee: 0, admission_fee: 0, activity_fee: 0, exam_fee: 0, library_fee: 0, total_annual: 0 };
+  classList: {{ json_encode($classes->map(fn($c) => ['id' => $c->id, 'name' => $c->name])) }},
+  standardFees: {{ json_encode($standardFees) }},
+  selectedIndex: 0,
+  get currentClass() {
+    return this.classList[this.selectedIndex] || { id: '', name: 'Pre-KG' };
   },
-  getActivitiesTotal() {
-    let sum = 0;
-    this.selectedActivities.forEach(id => {
-      let act = this.activitiesData.find(a => a.id === id);
-      if (act) sum += act.annual_fee;
-    });
-    return sum;
+  get currentFee() {
+    return this.standardFees[this.currentClass.id] || {
+      tuition_fee: 18000, book_fee: 2500, exam_fee: 1500, lab_fee: 0,
+      total_basic: 22000, hostel_annual: 30000, hostel_monthly: 2500, combined_total: 52000, tier: 'Basic Form'
+    };
   },
-  getGrandTotal() {
-    let base = this.getSelectedFee().total_annual || 0;
-    let hostel = this.hostelSelected ? this.hostelFee : 0;
-    let transport = this.transportSelected ? this.transportFee : 0;
-    return base + hostel + transport + this.getActivitiesTotal();
+  prevClass() {
+    if (this.selectedIndex > 0) this.selectedIndex--;
+  },
+  nextClass() {
+    if (this.selectedIndex < this.classList.length - 1) this.selectedIndex++;
+  },
+  formatMoney(num) {
+    return '₹' + Number(num || 0).toLocaleString('en-IN');
   }
 }">
 
-  {{-- ── Top Navigation & Actions ────────────────────────────── --}}
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs print:hidden">
-    <div class="flex items-center gap-3">
-      <a href="{{ route('admissions.index') }}" class="btn-icon w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="Back to Admissions Overview">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-      </a>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="page-title text-xl font-black text-slate-900">Standard Fee Structure</h1>
-          <span class="badge-blue text-[10px] font-bold">{{ $academicYear?->name ?? '2025-2026' }}</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-0.5">Standard Grade Tuition, Activity, Examination, and Extra-Curricular fee schedule</p>
+  {{-- Top Action Header Bar (Back button) --}}
+  <div class="flex items-center justify-between gap-3">
+    <a href="{{ route('admissions.index') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition text-xs border border-slate-200 shadow-2xs">
+      <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      <span>Back</span>
+    </a>
+  </div>
+
+  {{-- ── Banner Card Header ───────────────────────────────────── --}}
+  <div class="bg-blue-600 rounded-3xl p-6 sm:p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-md relative overflow-hidden">
+    <div class="space-y-1.5 max-w-2xl">
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-blue-500/60 border border-blue-400/40 text-blue-100">
+          ADMISSION MODULE
+        </span>
+        <span class="text-xs text-blue-200 font-medium">&bull; Academic Year {{ $academicYear?->name ?? '2025–2026' }}</span>
       </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">Fees Structure</h1>
+      <p class="text-blue-100 text-xs sm:text-sm leading-relaxed">
+        View studies fee structure and hostel fees for each standard from Pre-KG to Class 12. Click + New Admission to register.
+      </p>
     </div>
 
-    <div class="flex items-center gap-2">
-      <button onclick="window.print()" class="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-bold">
-        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-        Print Fee Schedule
+    <div class="flex-shrink-0">
+      <a href="{{ route('admissions.create') }}" class="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 font-bold px-5 py-3 rounded-2xl text-sm shadow-sm transition">
+        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+        </svg>
+        <span>New Admission</span>
+      </a>
+    </div>
+  </div>
+
+  {{-- ── Select Standard / Grade Tab Bar ──────────────────────── --}}
+  <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
+    <div class="flex items-center justify-between">
+      <span class="text-xs font-extrabold text-blue-600 uppercase tracking-wider">SELECT STANDARD / GRADE</span>
+      <span class="text-xs font-semibold text-slate-500">
+        Standard <span class="font-bold text-slate-800" x-text="selectedIndex + 1"></span> of <span class="font-bold text-slate-800" x-text="classList.length"></span>
+      </span>
+    </div>
+
+    {{-- Pills Row --}}
+    <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+      <template x-for="(cls, idx) in classList" :key="cls.id">
+        <button type="button"
+                @click="selectedIndex = idx"
+                class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer"
+                :class="selectedIndex === idx ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'">
+          <span x-text="cls.name"></span>
+        </button>
+      </template>
+    </div>
+
+    {{-- Previous / Next Controls --}}
+    <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+      <button type="button"
+              @click="prevClass()"
+              :disabled="selectedIndex === 0"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 text-xs font-bold transition">
+        &larr; &mdash; Previous Class
       </button>
 
-      <a href="{{ route('admissions.create') }}" class="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-bold shadow-xs">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        + New Enquiry
-      </a>
+      <button type="button"
+              @click="nextClass()"
+              :disabled="selectedIndex === classList.length - 1"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 text-xs font-bold transition">
+        Next Class &mdash; &rarr;
+      </button>
     </div>
   </div>
 
-  {{-- ── Grade-Wise Standard Fee Grid ────────────────────────── --}}
-  <div class="space-y-3">
-    <div class="flex items-center justify-between">
-      <h3 class="font-black text-slate-900 text-base flex items-center gap-2">
-        <span>🏫 Grade-Wise Annual Standard Fees</span>
-        <span class="text-xs text-slate-400 font-normal">({{ count($standardFees) }} Standards)</span>
-      </h3>
-      <span class="text-xs text-indigo-600 font-bold hidden sm:inline">Tuition + Lab + Library + Examination</span>
+  {{-- ── Selected Class Hero Card ──────────────────────────────── --}}
+  <div class="bg-blue-600 rounded-3xl p-6 sm:p-8 text-white flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-md">
+    <div class="space-y-2">
+      <span class="inline-block px-3 py-1 bg-blue-500/60 border border-blue-400/40 rounded-full text-[11px] font-bold text-blue-100 uppercase tracking-wider"
+            x-text="currentFee.tier ? currentFee.tier + ' Fee Structure Form' : 'Basic Fee Structure Form'">
+      </span>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white" x-text="currentClass.name"></h2>
+      <p class="text-blue-100 text-xs sm:text-sm">Official annual fees breakdown for studies & hostel</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      @foreach($classes as $c)
-      @php $fee = $standardFees[$c->id] ?? null; @endphp
-      @if($fee)
-      <div class="card p-5 bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 rounded-2xl flex flex-col justify-between space-y-4">
+    <div class="bg-blue-700/80 border border-blue-400/30 rounded-2xl p-4 sm:p-5 text-right min-w-[240px] flex flex-col items-end">
+      <span class="text-[10px] font-bold text-blue-200 uppercase tracking-widest">TOTAL BASIC ACADEMIC FEE</span>
+      <p class="text-3xl sm:text-4xl font-black text-white font-mono mt-1" x-text="formatMoney(currentFee.total_basic)"></p>
+      <span class="text-[11px] text-blue-200 font-medium">per annum</span>
+    </div>
+  </div>
+
+  {{-- ── Studies & Academic Fees Section ─────────────────────── --}}
+  <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-6">
+    <div class="flex items-center justify-between">
+      <h3 class="font-bold text-slate-900 text-base flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100">📖</span>
+        <span>Studies & Academic Fees (Basic Form)</span>
+      </h3>
+      <span class="px-3 py-1 rounded-lg bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold">Basic Form</span>
+    </div>
+
+    {{-- 4 Component Cards Grid --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Tuition Fees</p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.tuition_fee)"></p>
+        <p class="text-[11px] text-slate-400 font-medium">Class teaching fee per annum</p>
+      </div>
+
+      <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Book Fees</p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.book_fee)"></p>
+        <p class="text-[11px] text-slate-400 font-medium">Textbooks & learning materials</p>
+      </div>
+
+      <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Exam Fees</p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.exam_fee)"></p>
+        <p class="text-[11px] text-slate-400 font-medium">Term assessments & exams</p>
+      </div>
+
+      <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Lab / Computer Fees</p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.lab_fee)"></p>
+        <p class="text-[11px] text-slate-400 font-medium">Lab maintenance & computer</p>
+      </div>
+    </div>
+
+    {{-- Total Basic Banner --}}
+    <div class="bg-blue-50/80 border border-blue-100 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-xs">
+          ✓
+        </div>
         <div>
-          <div class="flex items-center justify-between gap-2 mb-2">
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
-              {{ $fee['tier'] }}
-            </span>
-            <span class="text-[10px] font-bold text-slate-400">
-              {{ $fee['enquiries_count'] }} Enquiries
-            </span>
-          </div>
-
-          <h4 class="text-lg font-black text-slate-900 leading-tight">Class {{ $c->name }}</h4>
-          <div class="mt-2 flex items-baseline gap-1.5">
-            <span class="text-2xl font-black text-slate-900 font-mono">₹{{ number_format($fee['total_annual']) }}</span>
-            <span class="text-xs text-slate-400 font-medium">/ year</span>
-            <span class="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full ml-auto">₹{{ number_format($fee['term_fee']) }}/term</span>
-          </div>
+          <h4 class="text-sm font-bold text-slate-900">Total Basic Academic Fees</h4>
+          <p class="text-xs text-blue-600 font-medium">Includes Tuition, Books, Exam & Lab charges</p>
         </div>
-
-        {{-- Fee Breakdown Table --}}
-        <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-200/60 text-xs space-y-1.5 font-medium">
-          <div class="flex justify-between items-center text-slate-600">
-            <span>Tuition Fee</span>
-            <span class="font-mono font-bold text-slate-900">₹{{ number_format($fee['tuition_fee']) }}</span>
-          </div>
-          <div class="flex justify-between items-center text-slate-600">
-            <span>Admission / Reg Fee (1st Yr)</span>
-            <span class="font-mono font-bold text-slate-900">₹{{ number_format($fee['admission_fee']) }}</span>
-          </div>
-          <div class="flex justify-between items-center text-slate-600">
-            <span>Activity & Lab Fee</span>
-            <span class="font-mono font-bold text-slate-900">₹{{ number_format($fee['activity_fee']) }}</span>
-          </div>
-          <div class="flex justify-between items-center text-slate-600">
-            <span>Library & Resources</span>
-            <span class="font-mono font-bold text-slate-900">₹{{ number_format($fee['library_fee']) }}</span>
-          </div>
-          <div class="flex justify-between items-center text-slate-600 pt-1 border-t border-slate-200">
-            <span>Examination Fee</span>
-            <span class="font-mono font-bold text-slate-900">₹{{ number_format($fee['exam_fee']) }}</span>
-          </div>
-        </div>
-
-        <a href="{{ route('admissions.create', ['class_id' => $c->id]) }}" class="btn btn-secondary btn-xs w-full text-center font-bold text-indigo-700 hover:bg-indigo-50 border-indigo-200">
-          Create Enquiry for {{ $c->name }} &rarr;
-        </a>
       </div>
-      @endif
-      @endforeach
+
+      <div class="text-right">
+        <p class="text-2xl sm:text-3xl font-black text-blue-600 font-mono" x-text="formatMoney(currentFee.total_basic)"></p>
+      </div>
     </div>
   </div>
 
-  {{-- ── Extra-Curricular Activities & Specialized Clubs ─────── --}}
-  <div class="space-y-3 pt-2">
-    <div class="flex items-center justify-between">
-      <h3 class="font-black text-slate-900 text-base flex items-center gap-2">
-        <span>🌟 Extra-Curricular Clubs & Specialized Academies</span>
-      </h3>
-      <span class="text-xs text-slate-400">Optional Add-On Activities</span>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-      @foreach($activities as $act)
-      <div class="card p-4 bg-white border border-slate-200 rounded-2xl flex flex-col justify-between space-y-3 hover:border-slate-300 transition">
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between">
-            <span class="text-2xl">{{ $act['icon'] }}</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
-              {{ $act['category'] }}
-            </span>
-          </div>
-          <h4 class="font-bold text-slate-900 text-sm">{{ $act['name'] }}</h4>
-          <p class="text-xs text-slate-500 line-clamp-2">{{ $act['description'] }}</p>
-        </div>
-
-        <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-          <div>
-            <span class="text-xs text-slate-400">Monthly</span>
-            <p class="text-xs font-mono font-bold text-slate-800">₹{{ number_format($act['monthly_fee']) }}/mo</p>
-          </div>
-          <div class="text-right">
-            <span class="text-xs text-slate-400">Annual</span>
-            <p class="text-sm font-mono font-black text-indigo-600">₹{{ number_format($act['annual_fee']) }}/yr</p>
-          </div>
+  {{-- ── Hostel Fees Section (Yellow/Amber Card) ─────────────── --}}
+  <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-6 space-y-5">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm border border-amber-200">🛏️</span>
+        <div>
+          <h3 class="font-bold text-amber-950 text-base">Hostel Fees (Below Total Fees)</h3>
+          <p class="text-xs text-amber-700">Residential lodging & mess charges for <span class="font-semibold" x-text="currentClass.name"></span></p>
         </div>
       </div>
-      @endforeach
+
+      <span class="px-3 py-1 rounded-full bg-white/90 border border-amber-300 text-amber-800 text-xs font-bold self-start sm:self-auto">Per Annum</span>
+    </div>
+
+    {{-- Hostel Cards Grid --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="bg-white p-5 rounded-2xl border border-amber-200/80 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-500">Hostel & Dining Mess Fee</p>
+          <p class="text-2xl font-black text-amber-950 font-mono mt-1" x-text="formatMoney(currentFee.hostel_annual)"></p>
+        </div>
+        <span class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-xs font-bold font-mono" x-text="'₹' + (currentFee.hostel_monthly || 2500) + '/mo'"></span>
+      </div>
+
+      <div class="bg-white/60 p-5 rounded-2xl border border-amber-200/60 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-400">Total (Academic + Hostel)</p>
+          <p class="text-2xl font-black text-amber-900/40 font-mono mt-1" x-text="formatMoney(currentFee.combined_total)"></p>
+        </div>
+        <span class="text-xs font-medium text-amber-700/60">Combined Total</span>
+      </div>
     </div>
   </div>
 
-  {{-- ── Live Interactive Fee Calculator Card ───────────────── --}}
-  <div class="card p-6 bg-gradient-to-br from-indigo-900 via-slate-900 to-blue-950 text-white rounded-3xl shadow-xl space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
-      <div>
-        <h3 class="text-lg font-black tracking-tight text-white flex items-center gap-2">
-          <span>🧮 Interactive Admission Fee Estimator</span>
-        </h3>
-        <p class="text-xs text-indigo-200">Select grade, hostel, transport, and extra-curriculars to calculate instant total fee</p>
-      </div>
+  {{-- ── Bottom Action Bar ────────────────────────────────────── --}}
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+    <span class="text-xs text-slate-500 font-semibold">
+      Standard: <strong class="text-slate-900" x-text="currentClass.name"></strong>
+    </span>
 
-      <div class="text-right bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-xs border border-white/15">
-        <span class="text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Estimated Grand Total</span>
-        <div class="text-2xl font-black font-mono text-emerald-400" x-text="'₹' + Number(getGrandTotal()).toLocaleString('en-IN') + ' / yr'">
-          ₹0 / yr
-        </div>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {{-- Grade Picker --}}
-      <div class="space-y-2">
-        <label class="text-xs font-bold text-indigo-200 uppercase tracking-wider">1. Select Standard / Grade</label>
-        <select x-model="selectedClassId" class="w-full text-xs font-bold bg-white/10 border border-white/20 text-white rounded-xl p-2.5 focus:bg-slate-800 focus:outline-none">
-          @foreach($classes as $c)
-            <option value="{{ $c->id }}" class="text-slate-900">Class {{ $c->name }} (Standard Base Fee)</option>
-          @endforeach
-        </select>
-
-        <div class="bg-white/5 rounded-xl p-3 border border-white/10 text-xs space-y-1 text-indigo-200 font-mono mt-3">
-          <div class="flex justify-between">
-            <span>Base Tuition:</span>
-            <span class="text-white font-bold" x-text="'₹' + Number(getSelectedFee().tuition_fee || 0).toLocaleString('en-IN')"></span>
-          </div>
-          <div class="flex justify-between">
-            <span>Admission / Reg:</span>
-            <span class="text-white font-bold" x-text="'₹' + Number(getSelectedFee().admission_fee || 0).toLocaleString('en-IN')"></span>
-          </div>
-          <div class="flex justify-between">
-            <span>Activity & Lab:</span>
-            <span class="text-white font-bold" x-text="'₹' + Number(getSelectedFee().activity_fee || 0).toLocaleString('en-IN')"></span>
-          </div>
-        </div>
-      </div>
-
-      {{-- Boarding & Transport --}}
-      <div class="space-y-2">
-        <label class="text-xs font-bold text-indigo-200 uppercase tracking-wider">2. Boarding & Transport</label>
-        <div class="space-y-2.5">
-          <label class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition cursor-pointer">
-            <input type="checkbox" x-model="hostelSelected" class="w-4 h-4 rounded text-indigo-500 focus:ring-0">
-            <div class="flex-1 text-xs">
-              <p class="font-bold text-white">Residential Hostel & Mess</p>
-              <p class="text-[11px] text-indigo-200">AC Dormitory, 4 meals, laundry</p>
-            </div>
-            <span class="font-mono font-bold text-emerald-400 text-xs">+₹45,000</span>
-          </label>
-
-          <label class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition cursor-pointer">
-            <input type="checkbox" x-model="transportSelected" class="w-4 h-4 rounded text-indigo-500 focus:ring-0">
-            <div class="flex-1 text-xs">
-              <p class="font-bold text-white">School Bus Transport</p>
-              <p class="text-[11px] text-indigo-200">GPS-tracked AC bus service</p>
-            </div>
-            <span class="font-mono font-bold text-emerald-400 text-xs">+₹18,000</span>
-          </label>
-        </div>
-      </div>
-
-      {{-- Extra Curricular Clubs --}}
-      <div class="space-y-2">
-        <label class="text-xs font-bold text-indigo-200 uppercase tracking-wider">3. Specialized Clubs</label>
-        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-          @foreach($activities as $act)
-          <label class="flex items-center gap-2.5 p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition cursor-pointer text-xs">
-            <input type="checkbox" value="{{ $act['id'] }}" x-model="selectedActivities" class="w-3.5 h-3.5 rounded text-indigo-500 focus:ring-0">
-            <span class="text-base">{{ $act['icon'] }}</span>
-            <span class="text-white truncate flex-1">{{ $act['name'] }}</span>
-            <span class="font-mono text-emerald-400 text-[11px]">+₹{{ number_format($act['annual_fee']) }}</span>
-          </label>
-          @endforeach
-        </div>
-      </div>
-    </div>
+    <a :href="'{{ route('admissions.create') }}?class_id=' + currentClass.id"
+       class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-7 py-3 rounded-2xl text-sm shadow-xs transition">
+      <span x-text="'Apply for ' + currentClass.name + ' →'"></span>
+    </a>
   </div>
 
 </div>

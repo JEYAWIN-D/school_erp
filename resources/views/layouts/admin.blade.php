@@ -282,7 +282,7 @@
                x-transition:leave="transition ease-in duration-100"
                x-transition:leave-start="opacity-100 scale-100"
                x-transition:leave-end="opacity-0 scale-95"
-               class="fixed left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-11 z-50 sm:w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden max-h-[80vh] flex flex-col"
+               class="absolute right-0 top-full mt-2 z-50 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden max-h-[80vh] flex flex-col"
                style="display:none">
             <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
               <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Notifications</span>
@@ -313,11 +313,12 @@
 
         {{-- Topbar User Avatar Dropdown (With Log Out) --}}
         <div class="relative" @click.outside="topUserOpen = false">
-          <div @click="topUserOpen = !topUserOpen; if(topUserOpen) notifOpen = false"
-               class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center cursor-pointer ring-2 ring-indigo-100 hover:ring-indigo-300 transition-all select-none flex-shrink-0"
-               title="{{ auth()->user()->name }} — Click for menu">
+          <button type="button"
+                  @click="topUserOpen = !topUserOpen; if(topUserOpen) notifOpen = false"
+                  class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center cursor-pointer ring-2 ring-indigo-100 hover:ring-indigo-300 transition-all select-none flex-shrink-0 focus:outline-hidden"
+                  title="{{ auth()->user()->name }} — Click for menu">
             <span class="text-white text-xs font-bold">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
-          </div>
+          </button>
 
           {{-- User Menu Box --}}
           <div x-show="topUserOpen"
@@ -327,7 +328,7 @@
                x-transition:leave="transition ease-in duration-100"
                x-transition:leave-start="opacity-100 scale-100"
                x-transition:leave-end="opacity-0 scale-95"
-               class="fixed left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-11 z-50 sm:w-64 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+               class="absolute right-0 top-full mt-2 z-50 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
                style="display:none">
             <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
               <p class="text-xs font-bold text-slate-900 truncate">{{ auth()->user()->name }}</p>

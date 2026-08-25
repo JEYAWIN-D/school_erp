@@ -20,6 +20,8 @@ class Enquiry extends Model
         'interview_date', 'interview_time', 'interview_interviewer', 'interview_feedback',
         'documents', 'doc_checklist', 'referral_name',
         'missing_docs', 'docs_flag_note',
+        'payment_terms', 'total_admission_fee', 'amount_collected', 'pending_amount',
+        'payment_mode', 'payment_date', 'payment_status', 'fee_breakdown',
     ];
 
     protected $casts = [
@@ -27,9 +29,14 @@ class Enquiry extends Model
         'follow_up_date'      => 'date',
         'entrance_test_date'  => 'date',
         'interview_date'      => 'date',
+        'payment_date'        => 'date',
         'documents'           => 'array',
         'doc_checklist'       => 'array',
         'missing_docs'        => 'array',
+        'fee_breakdown'       => 'array',
+        'total_admission_fee' => 'decimal:2',
+        'amount_collected'    => 'decimal:2',
+        'pending_amount'      => 'decimal:2',
     ];
 
     public function class(): \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -60,8 +67,13 @@ class Enquiry extends Model
     public static function generateNumber(): string
     {
         $year = date('Y');
-        $last = static::whereYear('created_at', $year)->max('id') ?? 0;
-        return 'ENQ-' . $year . '-' . str_pad($last + 1, 4, '0', STR_PAD_LEFT);
+        $count = static::withTrashed()->whereYear('created_at', $year)->count() + 1;
+        $num = 'ENQ-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+        while (static::withTrashed()->where('enquiry_number', $num)->exists()) {
+            $count++;
+            $num = 'ENQ-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+        }
+        return $num;
     }
 
     public function getStatusColorAttribute(): string

@@ -18,6 +18,16 @@
     </div>
   </div>
 
+  @if ($errors->any())
+  <div class="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-start gap-3 shadow-sm">
+    <svg class="w-5 h-5 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+    <div>
+      <h4 class="font-bold text-red-900">Please correct the errors below</h4>
+      <p class="text-xs text-red-700 mt-0.5">Some fields have validation errors. Check the highlighted inputs below.</p>
+    </div>
+  </div>
+  @endif
+
   <form method="POST" action="{{ route('hr.employees.store') }}" enctype="multipart/form-data" class="space-y-6">
     @csrf
 
@@ -107,16 +117,19 @@
       </h3>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
-          <label class="label">Driving License Number <span class="text-red-500">*</span></label>
-          <input type="text" name="license_number" value="{{ old('license_number') }}" class="input uppercase" placeholder="e.g. DL-042019881234">
+          <label class="label">Driving License Number</label>
+          <input type="text" name="license_number" value="{{ old('license_number') }}" class="input uppercase @error('license_number') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. DL-042019881234">
+          @error('license_number')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
         <div>
           <label class="label">License Expiry Date</label>
-          <input type="date" name="license_expiry" value="{{ old('license_expiry') }}" class="input">
+          <input type="date" name="license_expiry" value="{{ old('license_expiry') }}" class="input @error('license_expiry') border-red-500 ring-2 ring-red-200 @enderror">
+          @error('license_expiry')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
         <div>
           <label class="label">Assigned Vehicle / Route</label>
-          <input type="text" name="assigned_vehicle" value="{{ old('assigned_vehicle') }}" class="input" placeholder="e.g. Bus No. 1 / Route 4">
+          <input type="text" name="assigned_vehicle" value="{{ old('assigned_vehicle') }}" class="input @error('assigned_vehicle') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. Bus No. 1 / Route 4">
+          @error('assigned_vehicle')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
       </div>
     </div>
@@ -130,11 +143,13 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label">Assigned Section / Block</label>
-          <input type="text" name="assigned_block" value="{{ old('assigned_block') }}" class="input" placeholder="e.g. Nursery & LKG Section">
+          <input type="text" name="assigned_block" value="{{ old('assigned_block') }}" class="input @error('assigned_block') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. Nursery & LKG Section">
+          @error('assigned_block')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
         <div>
           <label class="label">Shift Timings</label>
-          <input type="text" name="shift_timing" value="{{ old('shift_timing') }}" class="input" placeholder="e.g. School Hours (8:00 AM - 2:30 PM)">
+          <input type="text" name="shift_timing" value="{{ old('shift_timing') }}" class="input @error('shift_timing') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. School Hours (8:00 AM - 2:30 PM)">
+          @error('shift_timing')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
       </div>
     </div>
@@ -148,11 +163,13 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="label">Assigned Zone / Building</label>
-          <input type="text" name="assigned_block" value="{{ old('assigned_block') }}" class="input" placeholder="e.g. Academic Block A">
+          <input type="text" name="assigned_block" value="{{ old('assigned_block') }}" class="input @error('assigned_block') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. Academic Block A">
+          @error('assigned_block')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
         <div>
           <label class="label">Work Shift</label>
-          <input type="text" name="shift_timing" value="{{ old('shift_timing') }}" class="input" placeholder="e.g. Morning Shift (7:00 AM - 3:30 PM)">
+          <input type="text" name="shift_timing" value="{{ old('shift_timing') }}" class="input @error('shift_timing') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. Morning Shift (7:00 AM - 3:30 PM)">
+          @error('shift_timing')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
       </div>
     </div>
@@ -167,54 +184,60 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="label">First Name <span class="text-red-500">*</span></label>
-          <input type="text" name="first_name" value="{{ old('first_name') }}" class="input @error('first_name') input-error @enderror" required placeholder="First name">
-          @error('first_name')<p class="field-error">{{ $message }}</p>@enderror
+          <input type="text" name="first_name" value="{{ old('first_name') }}" class="input @error('first_name') border-red-500 ring-2 ring-red-200 @enderror" required placeholder="First name">
+          @error('first_name')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Last Name <span class="text-red-500">*</span></label>
-          <input type="text" name="last_name" value="{{ old('last_name') }}" class="input @error('last_name') input-error @enderror" required placeholder="Last name">
-          @error('last_name')<p class="field-error">{{ $message }}</p>@enderror
+          <input type="text" name="last_name" value="{{ old('last_name') }}" class="input @error('last_name') border-red-500 ring-2 ring-red-200 @enderror" required placeholder="Last name">
+          @error('last_name')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Gender <span class="text-red-500">*</span></label>
-          <select name="gender" class="select" required>
+          <select name="gender" class="select @error('gender') border-red-500 ring-2 ring-red-200 @enderror" required>
             <option value="male" @selected(old('gender')==='male')>Male</option>
             <option value="female" @selected(old('gender')==='female')>Female</option>
             <option value="other" @selected(old('gender')==='other')>Other</option>
           </select>
+          @error('gender')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Mobile Number <span class="text-red-500">*</span></label>
-          <input type="tel" name="mobile" value="{{ old('mobile') }}" class="input @error('mobile') input-error @enderror" required placeholder="10-digit mobile">
-          @error('mobile')<p class="field-error">{{ $message }}</p>@enderror
+          <input type="tel" name="mobile" value="{{ old('mobile') }}" class="input @error('mobile') border-red-500 ring-2 ring-red-200 @enderror" required placeholder="10-digit mobile" maxlength="10">
+          @error('mobile')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Email Address</label>
-          <input type="email" name="official_email" value="{{ old('official_email') }}" class="input" placeholder="email@schoolerp.in">
+          <input type="email" name="official_email" value="{{ old('official_email') }}" class="input @error('official_email') border-red-500 ring-2 ring-red-200 @enderror" placeholder="email@schoolerp.in">
+          @error('official_email')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Date of Birth</label>
-          <input type="date" name="dob" value="{{ old('dob') }}" class="input">
+          <input type="date" name="dob" value="{{ old('dob') }}" class="input @error('dob') border-red-500 ring-2 ring-red-200 @enderror">
+          @error('dob')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Aadhaar Number</label>
-          <input type="text" name="aadhaar_no" value="{{ old('aadhaar_no') }}" class="input" placeholder="12-digit Aadhaar" maxlength="14">
+          <input type="text" name="aadhaar_no" value="{{ old('aadhaar_no') }}" class="input @error('aadhaar_no') border-red-500 ring-2 ring-red-200 @enderror" placeholder="12-digit Aadhaar" maxlength="14">
+          @error('aadhaar_no')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">PAN Number</label>
-          <input type="text" name="pan_no" value="{{ old('pan_no') }}" class="input uppercase" placeholder="ABCDE1234F" maxlength="15">
+          <input type="text" name="pan_no" value="{{ old('pan_no') }}" class="input uppercase @error('pan_no') border-red-500 ring-2 ring-red-200 @enderror" placeholder="ABCDE1234F" maxlength="15">
+          @error('pan_no')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Profile Photo</label>
-          <input type="file" name="photo" accept="image/*" class="input text-xs">
+          <input type="file" name="photo" accept="image/*" class="input text-xs @error('photo') border-red-500 ring-2 ring-red-200 @enderror">
+          @error('photo')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
       </div>
     </div>
@@ -229,37 +252,44 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="label">Designation <span class="text-red-500">*</span></label>
-          <input type="text" name="designation" value="{{ old('designation') }}" class="input @error('designation') input-error @enderror" required placeholder="e.g. Physics Teacher / Driver">
+          <input type="text" name="designation" value="{{ old('designation') }}" class="input @error('designation') border-red-500 ring-2 ring-red-200 @enderror" required placeholder="e.g. Physics Teacher / Driver">
+          @error('designation')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Department</label>
-          <input type="text" name="department" value="{{ old('department') }}" class="input" placeholder="e.g. Science / Transport / Housekeeping">
+          <input type="text" name="department" value="{{ old('department') }}" class="input @error('department') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. Science / Transport / Housekeeping">
+          @error('department')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Joining Date <span class="text-red-500">*</span></label>
-          <input type="date" name="joining_date" value="{{ old('joining_date', date('Y-m-d')) }}" class="input" required>
+          <input type="date" name="joining_date" value="{{ old('joining_date', date('Y-m-d')) }}" class="input @error('joining_date') border-red-500 ring-2 ring-red-200 @enderror" required>
+          @error('joining_date')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Basic Salary (₹/month)</label>
-          <input type="number" name="basic_salary" value="{{ old('basic_salary') }}" class="input" min="0" step="0.01" placeholder="e.g. 25000">
+          <input type="number" name="basic_salary" value="{{ old('basic_salary') }}" class="input @error('basic_salary') border-red-500 ring-2 ring-red-200 @enderror" min="0" step="0.01" placeholder="e.g. 25000">
+          @error('basic_salary')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Qualification</label>
-          <input type="text" name="qualification" value="{{ old('qualification') }}" class="input" placeholder="e.g. M.Sc., 10th Pass">
+          <input type="text" name="qualification" value="{{ old('qualification') }}" class="input @error('qualification') border-red-500 ring-2 ring-red-200 @enderror" placeholder="e.g. M.Sc., 10th Pass">
+          @error('qualification')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div>
           <label class="label">Emergency Contact Mobile</label>
-          <input type="tel" name="emergency_contact_mobile" value="{{ old('emergency_contact_mobile') }}" class="input" placeholder="Emergency contact number">
+          <input type="tel" name="emergency_contact_mobile" value="{{ old('emergency_contact_mobile') }}" class="input @error('emergency_contact_mobile') border-red-500 ring-2 ring-red-200 @enderror" placeholder="Emergency contact number">
+          @error('emergency_contact_mobile')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
 
         <div class="sm:col-span-3">
           <label class="label">Residential Address</label>
-          <textarea name="address" rows="2" class="input" placeholder="Current address details">{{ old('address') }}</textarea>
+          <textarea name="address" rows="2" class="input @error('address') border-red-500 ring-2 ring-red-200 @enderror" placeholder="Current address details">{{ old('address') }}</textarea>
+          @error('address')<p class="text-xs text-red-600 font-semibold mt-1">{{ $message }}</p>@enderror
         </div>
       </div>
     </div>

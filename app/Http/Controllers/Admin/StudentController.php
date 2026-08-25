@@ -224,10 +224,13 @@ class StudentController extends Controller
         $year = AcademicYear::current();
 
         // Fee quick stats
-        $feeCharged = DB::table('student_fee_charges')
+        $feeChargedFromTable = DB::table('student_fee_charges')
             ->where('student_id', $id)
             ->when($year, fn($q) => $q->where('academic_year_id', $year->id))
             ->sum('amount');
+
+        $feeCharged = max((float)$feeChargedFromTable, (float)($student->total_admission_fee ?? 0));
+
         $feePaid = DB::table('fee_payments')
             ->where('student_id', $id)->where('is_cancelled', false)
             ->when($year, fn($q) => $q->where('academic_year_id', $year->id))

@@ -24,7 +24,7 @@
           Siblings
         </a>
       @endif
-      <a href="{{ route('students.id-cards', ['student_id' => $student->id]) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
+      <a href="{{ route('students.id-card.single', $student->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
         <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
         ID Card
       </a>
@@ -305,11 +305,132 @@
               <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Email Address</span>
             </div>
-            <p class="font-mono text-sm font-semibold text-slate-900 break-all">{{ $student->email ?? '—' }}</p>
+          </div>
+        </div>
+      </div>
+
+
+      {{-- Fee Payment Details Card --}}
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Fee Payment Details</h3>
+              <p class="text-xs text-slate-400">Admission fee payment summary, payment terms, and installment schedule</p>
+            </div>
           </div>
 
-
+          @if($student->payment_terms)
+          <span class="px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-blue-50 text-blue-700 border border-blue-200">
+            {{ str_replace('_', ' ', strtoupper($student->payment_terms)) }}
+          </span>
+          @endif
         </div>
+
+        @if($student->total_admission_fee > 0 || !empty($student->admission_fee_terms))
+        {{-- Summary Grid --}}
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Admission Fee</p>
+            <p class="text-lg font-black text-slate-900 font-mono mt-0.5">₹{{ number_format($student->total_admission_fee, 2) }}</p>
+          </div>
+
+          <div class="bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-200/80">
+            <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Total Paid</p>
+            <p class="text-lg font-black text-emerald-700 font-mono mt-0.5">₹{{ number_format($student->admission_paid_amount, 2) }}</p>
+          </div>
+
+          <div class="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200/80">
+            <p class="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Total Pending</p>
+            <p class="text-lg font-black text-amber-700 font-mono mt-0.5">₹{{ number_format($student->admission_pending_amount, 2) }}</p>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Status</p>
+            @php
+              $statusClass = match($student->payment_status) {
+                'paid' => 'text-emerald-600',
+                'partially_paid' => 'text-amber-600',
+                default => 'text-slate-600'
+              };
+            @endphp
+            <p class="text-sm font-extrabold font-mono capitalize mt-1 {{ $statusClass }}">
+              {{ str_replace('_', ' ', $student->payment_status ?? 'Pending') }}
+            </p>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 col-span-2 sm:col-span-1">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Payment Terms</p>
+            <p class="text-sm font-extrabold font-mono text-slate-800 capitalize mt-1">
+              {{ str_replace('_', ' ', $student->payment_terms ?? 'Single Payment') }}
+            </p>
+          </div>
+        </div>
+
+        {{-- Term Breakdown Table --}}
+        @if(!empty($student->admission_fee_terms) && is_array($student->admission_fee_terms))
+        <div class="space-y-2 pt-2">
+          <p class="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Term Schedule Breakdown</p>
+          <div class="overflow-x-auto border border-slate-200/80 rounded-xl">
+            <table class="w-full text-xs text-left">
+              <thead>
+                <tr class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
+                  <th class="py-2.5 px-3.5">Term</th>
+                  <th class="py-2.5 px-3.5 text-right">Term Amount</th>
+                  <th class="py-2.5 px-3.5 text-right">Paid</th>
+                  <th class="py-2.5 px-3.5 text-right">Pending</th>
+                  <th class="py-2.5 px-3.5">Due Date</th>
+                  <th class="py-2.5 px-3.5 text-center">Status</th>
+                  <th class="py-2.5 px-3.5">Payment Mode / Date</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-medium">
+                @foreach($student->admission_fee_terms as $term)
+                  <tr class="hover:bg-slate-50/60 transition">
+                    <td class="py-3 px-3.5 font-bold text-slate-900">{{ $term['name'] ?? ('Term ' . ($term['term_number'] ?? $loop->iteration)) }}</td>
+                    <td class="py-3 px-3.5 text-right font-mono font-bold text-slate-900">₹{{ number_format($term['amount'] ?? 0, 2) }}</td>
+                    <td class="py-3 px-3.5 text-right font-mono font-bold text-emerald-600">₹{{ number_format($term['paid'] ?? 0, 2) }}</td>
+                    <td class="py-3 px-3.5 text-right font-mono font-bold text-amber-600">₹{{ number_format($term['pending'] ?? 0, 2) }}</td>
+                    <td class="py-3 px-3.5 font-mono text-slate-600">
+                      {{ !empty($term['due_date']) ? \Carbon\Carbon::parse($term['due_date'])->format('d-m-Y') : '—' }}
+                    </td>
+                    <td class="py-3 px-3.5 text-center">
+                      @php
+                        $termStatus = $term['status'] ?? 'pending';
+                        $termBadge = match($termStatus) {
+                          'paid' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                          'partially_paid' => 'bg-amber-100 text-amber-700 border-amber-200',
+                          default => 'bg-slate-100 text-slate-600 border-slate-200',
+                        };
+                      @endphp
+                      <span class="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase border {{ $termBadge }}">
+                        {{ str_replace('_', ' ', $termStatus) }}
+                      </span>
+                    </td>
+                    <td class="py-3 px-3.5 font-xs text-slate-600">
+                      @if(($term['paid'] ?? 0) > 0 && !empty($term['payment_mode']))
+                        <span class="font-bold text-slate-800">{{ $term['payment_mode'] }}</span>
+                        <span class="text-slate-400 font-mono text-[11px] block">
+                          {{ !empty($term['payment_date']) ? \Carbon\Carbon::parse($term['payment_date'])->format('d-m-Y') : '' }}
+                        </span>
+                      @else
+                        <span class="text-slate-400">—</span>
+                      @endif
+                    </td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+        @endif
+
+        @else
+        <p class="text-xs text-slate-400 italic">No admission fee payment details recorded for this student.</p>
+        @endif
       </div>
 
       {{-- Address Cards --}}

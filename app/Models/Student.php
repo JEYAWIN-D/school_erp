@@ -31,6 +31,8 @@ class Student extends Model
         'tc_document', 'marksheet_document', 'migration_document',
         'scholarship_name', 'scholarship_amount', 'scholarship_sanction_letter',
         'portal_blocked', 'portal_block_reason', 'portal_blocked_at',
+        'payment_terms', 'total_admission_fee', 'admission_paid_amount',
+        'admission_pending_amount', 'payment_mode', 'payment_date', 'payment_status', 'admission_fee_terms',
     ];
 
     protected $casts = [
@@ -38,6 +40,7 @@ class Student extends Model
         'admission_date' => 'date',
         'tc_date'        => 'date',
         'leaving_date'   => 'date',
+        'payment_date'   => 'date',
         'is_disabled'       => 'boolean',
         'portal_blocked'    => 'boolean',
         'portal_blocked_at' => 'datetime',
@@ -45,6 +48,10 @@ class Student extends Model
         'migration_certificate_date'    => 'date',
         'passport_expiry'               => 'date',
         'previous_percentage'           => 'decimal:2',
+        'total_admission_fee'           => 'decimal:2',
+        'admission_paid_amount'         => 'decimal:2',
+        'admission_pending_amount'      => 'decimal:2',
+        'admission_fee_terms'           => 'array',
     ];
 
     public function getFullNameAttribute(): string

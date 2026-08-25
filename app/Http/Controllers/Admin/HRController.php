@@ -113,12 +113,23 @@ class HrController extends Controller
 
     public function storeEmployee(Request $request)
     {
+        // Sanitize digits before validation
+        if ($request->has('aadhaar_no') && $request->aadhaar_no !== null) {
+            $request->merge(['aadhaar_no' => preg_replace('/[\s\-]+/', '', $request->aadhaar_no)]);
+        }
+        if ($request->has('mobile') && $request->mobile !== null) {
+            $request->merge(['mobile' => preg_replace('/[\s\-]+/', '', $request->mobile)]);
+        }
+        if ($request->has('emergency_contact_mobile') && $request->emergency_contact_mobile !== null) {
+            $request->merge(['emergency_contact_mobile' => preg_replace('/[\s\-]+/', '', $request->emergency_contact_mobile)]);
+        }
+
         $validated = $request->validate([
             'first_name'             => 'required|string|max:60',
             'last_name'              => 'required|string|max:60',
             'dob'                    => 'nullable|date|before:today',
             'gender'                 => 'required|in:male,female,other',
-            'mobile'                 => 'required|string|max:15',
+            'mobile'                 => 'required|string|regex:/^[0-9]{10}$/',
             'official_email'         => 'nullable|email|max:100',
             'email'                  => 'nullable|email|max:100',
             'designation'            => 'required|string|max:100',
@@ -130,8 +141,8 @@ class HrController extends Controller
             'residential_address'    => 'nullable|string|max:500',
             'pf_account_no'          => 'nullable|string|max:30',
             'esi_no'                 => 'nullable|string|max:30',
-            'pan_no'                 => 'nullable|string|max:15',
-            'aadhaar_no'             => 'nullable|string|max:15',
+            'pan_no'                 => 'nullable|string|regex:/^[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}$/',
+            'aadhaar_no'             => 'nullable|string|regex:/^[0-9]{12}$/',
             'photo'                  => 'nullable|image|max:2048',
             'basic_salary'           => 'nullable|numeric|min:0',
             'hra'                    => 'nullable|numeric|min:0',
@@ -147,7 +158,17 @@ class HrController extends Controller
             'assigned_block'         => 'nullable|string|max:100',
             'shift_timing'           => 'nullable|string|max:100',
             'emergency_contact_name' => 'nullable|string|max:100',
-            'emergency_contact_mobile'=> 'nullable|string|max:15',
+            'emergency_contact_mobile'=> 'nullable|string|regex:/^[0-9]{10}$/',
+        ], [
+            'aadhaar_no.regex'               => 'Aadhaar number must be exactly 12 digits.',
+            'pan_no.regex'                   => 'PAN number must be 10 characters in valid format (e.g. ABCDE1234F).',
+            'mobile.regex'                   => 'Mobile number must be exactly 10 digits.',
+            'emergency_contact_mobile.regex' => 'Emergency contact number must be exactly 10 digits.',
+            'first_name.required'            => 'First name is required.',
+            'last_name.required'             => 'Last name is required.',
+            'designation.required'           => 'Designation is required.',
+            'joining_date.required'          => 'Joining date is required.',
+            'dob.before'                     => 'Date of birth must be a date before today.',
         ]);
 
         $salaryFields = ['hra', 'da', 'ta', 'medical_allowance', 'other_allowances', 'tds'];
@@ -163,9 +184,15 @@ class HrController extends Controller
             $data['photo'] = $request->file('photo')->store('employee-photos', 'public');
         }
 
-        // Fill email aliases
+        // Fill email and address aliases
         if (!empty($data['official_email']) && empty($data['email'])) {
             $data['email'] = $data['official_email'];
+        }
+        if (!empty($data['address']) && empty($data['residential_address'])) {
+            $data['residential_address'] = $data['address'];
+        }
+        if (!empty($data['residential_address']) && empty($data['address'])) {
+            $data['address'] = $data['residential_address'];
         }
 
         $employee = Employee::create(array_merge($data, [
@@ -620,7 +647,7 @@ class HrController extends Controller
             'email'         => 'nullable|email|max:100',
             'designation'   => 'required|string|max:100',
             'department'    => 'nullable|string|max:100',
-            'employee_type' => 'required|in:teaching,non_teaching,admin,support',
+            'employee_type' => 'required|in:teaching,non_teaching,driver,cleaner,nanny,naani,contract,part_time,admin,support',
             'is_active'     => 'boolean',
             'pf_account_no' => 'nullable|string|max:30',
             'esi_no'        => 'nullable|string|max:30',
@@ -780,9 +807,31 @@ class HrController extends Controller
 
     private function generateEmployeeNumber(): string
     {
-        $year = date('Y');
-        $max  = Employee::whereYear('joining_date', $year)->count();
-        return 'EMP-' . $year . '-' . str_pad($max + 1, 4, '0', STR_PAD_LEFT);
+        $year   = date('Y');
+        $prefix = 'EMP-' . $year . '-';
+
+        // Get max numeric suffix for codes starting with EMP-YYYY-
+        $existingCodes = Employee::withTrashed()
+            ->where('employee_code', 'like', $prefix . '%')
+            ->pluck('employee_code');
+
+        $maxSeq = 0;
+        foreach ($existingCodes as $code) {
+            if (preg_match('/EMP-' . $year . '-(\d+)/', $code, $matches)) {
+                $num = (int)$matches[1];
+                if ($num > $maxSeq) {
+                    $maxSeq = $num;
+                }
+            }
+        }
+
+        $nextNum = $maxSeq + 1;
+        do {
+            $code = $prefix . str_pad($nextNum, 4, '0', STR_PAD_LEFT);
+            $nextNum++;
+        } while (Employee::withTrashed()->where('employee_code', $code)->exists());
+
+        return $code;
     }
 
     public function applyLeaveForm()

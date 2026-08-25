@@ -31,116 +31,82 @@ class AdmissionController extends Controller
             $num = (int)($cls->numeric_value ?? 0);
             $name = strtolower($cls->name);
 
-            // Fee calculations based on grade tier
-            if (preg_match('/(kg|nursery|play|pre|lkg|ukg)/i', $name) || $num === 0) {
-                $tuition = 28000;
-                $admission = 10000;
-                $activity = 6000;
-                $exam = 2000;
-                $library = 1500;
-                $tier = 'Kindergarten Tier';
+            // Fee calculations matching screenshot specifications
+            if (str_contains($name, 'pre') || str_contains($name, 'nursery') || str_contains($name, 'play')) {
+                $tuition = 18000;
+                $book = 2500;
+                $exam = 1500;
+                $lab = 0;
+                $tier = 'Basic Form';
+            } elseif (str_contains($name, 'lkg')) {
+                $tuition = 20000;
+                $book = 2500;
+                $exam = 1500;
+                $lab = 0;
+                $tier = 'Basic Form';
+            } elseif (str_contains($name, 'ukg')) {
+                $tuition = 22000;
+                $book = 2500;
+                $exam = 1500;
+                $lab = 0;
+                $tier = 'Basic Form';
             } elseif ($num >= 1 && $num <= 5) {
-                $tuition = 36000 + ($num * 1500);
-                $admission = 12000;
-                $activity = 7500;
-                $exam = 2500;
-                $library = 2000;
+                $tuition = 25000 + (($num - 1) * 2000);
+                $book = 3000;
+                $exam = 2000;
+                $lab = 1000;
                 $tier = 'Primary Tier';
             } elseif ($num >= 6 && $num <= 8) {
-                $tuition = 45000 + (($num - 5) * 2000);
-                $admission = 15000;
-                $activity = 9000;
-                $exam = 3500;
-                $library = 2500;
+                $tuition = 35000 + (($num - 6) * 2500);
+                $book = 3500;
+                $exam = 2500;
+                $lab = 2000;
                 $tier = 'Middle Tier';
             } elseif ($num >= 9 && $num <= 10) {
-                $tuition = 55000 + (($num - 8) * 3000);
-                $admission = 18000;
-                $activity = 10000;
-                $exam = 5000;
-                $library = 3000;
+                $tuition = 45000 + (($num - 9) * 3000);
+                $book = 4000;
+                $exam = 3000;
+                $lab = 3000;
                 $tier = 'Secondary Tier';
             } else { // 11, 12
-                $tuition = 68000 + (($num - 10) * 4000);
-                $admission = 20000;
-                $activity = 12000;
-                $exam = 6000;
-                $library = 4000;
+                $tuition = 55000 + (($num - 11) * 4000);
+                $book = 5000;
+                $exam = 3500;
+                $lab = 4500;
                 $tier = 'Senior Secondary Tier';
             }
 
-            $total = $tuition + $admission + $activity + $exam + $library;
+            $totalBasic = $tuition + $book + $exam + $lab;
+            $hostel = 30000;
+            $combined = $totalBasic + $hostel;
 
             $standardFees[$cls->id] = [
-                'class_id'       => $cls->id,
-                'class_name'     => $cls->name,
-                'tier'           => $tier,
-                'tuition_fee'    => $tuition,
-                'admission_fee'  => $admission,
-                'activity_fee'   => $activity,
-                'exam_fee'       => $exam,
-                'library_fee'    => $library,
-                'total_annual'   => $total,
-                'term_fee'       => round($total / 3),
-                'enquiries_count'=> Enquiry::where('class_id', $cls->id)->count(),
+                'class_id'        => $cls->id,
+                'class_name'      => $cls->name,
+                'tier'            => $tier,
+                'tuition_fee'     => $tuition,
+                'book_fee'        => $book,
+                'exam_fee'        => $exam,
+                'lab_fee'         => $lab,
+                'total_basic'     => $totalBasic,
+                'total_annual'    => $totalBasic, // For backwards compatibility
+                'hostel_annual'   => $hostel,
+                'hostel_monthly'  => 2500,
+                'combined_total'  => $combined,
+                'term_fee'        => round($totalBasic / 3),
+                'enquiries_count' => Enquiry::where('class_id', $cls->id)->count(),
             ];
         }
 
         $activities = [
-            [
-                'id'          => 'robotics',
-                'name'        => 'Robotics & STEM Lab',
-                'category'    => 'Technology',
-                'icon'        => '🤖',
-                'monthly_fee' => 1200,
-                'annual_fee'  => 12000,
-                'description' => 'Hands-on Arduino, LEGO robotics, and algorithmic thinking for young innovators.',
-            ],
-            [
-                'id'          => 'dance',
-                'name'        => 'Classical & Contemporary Dance',
-                'category'    => 'Performing Arts',
-                'icon'        => '💃',
-                'monthly_fee' => 800,
-                'annual_fee'  => 8000,
-                'description' => 'Bharatanatyam, Kathak, and Western contemporary stage choreography classes.',
-            ],
-            [
-                'id'          => 'martial_arts',
-                'name'        => 'Karate & Self Defense',
-                'category'    => 'Sports & Fitness',
-                'icon'        => '🥋',
-                'monthly_fee' => 900,
-                'annual_fee'  => 9000,
-                'description' => 'Certified belt grading, physical conditioning, discipline, and defense techniques.',
-            ],
-            [
-                'id'          => 'chess',
-                'name'        => 'Chess Masterclass & Tactics',
-                'category'    => 'Mind Sports',
-                'icon'        => '♟️',
-                'monthly_fee' => 750,
-                'annual_fee'  => 7500,
-                'description' => 'FIDE rated coaches, tournament strategy, openings, and endgame masterclasses.',
-            ],
-            [
-                'id'          => 'swimming',
-                'name'        => 'Olympic Swimming Club',
-                'category'    => 'Aquatics',
-                'icon'        => '🏊',
-                'monthly_fee' => 1500,
-                'annual_fee'  => 15000,
-                'description' => 'Heated pool training, freestyle, backstroke, and competitive swimming coaching.',
-            ],
-            [
-                'id'          => 'music',
-                'name'        => 'Instrumental Music & Band',
-                'category'    => 'Music',
-                'icon'        => '🎸',
-                'monthly_fee' => 1000,
-                'annual_fee'  => 10000,
-                'description' => 'Keyboard, guitar, violin, drums, and orchestra vocal ensemble rehearsals.',
-            ],
+            ['id' => 'western_dance',  'name' => 'Western Dance',   'annual_fee' => 3500, 'label' => '₹3,500/yr'],
+            ['id' => 'classical_dance','name' => 'Classical Dance', 'annual_fee' => 4000, 'label' => '₹4,000/yr'],
+            ['id' => 'yoga',           'name' => 'Yoga',            'annual_fee' => 2500, 'label' => '₹2,500/yr'],
+            ['id' => 'skating',        'name' => 'Skating',         'annual_fee' => 4500, 'label' => '₹4,500/yr'],
+            ['id' => 'band',           'name' => 'Band',            'annual_fee' => 5000, 'label' => '₹5,000/yr'],
+            ['id' => 'keyboard',       'name' => 'Keyboard Class',  'annual_fee' => 4200, 'label' => '₹4,200/yr'],
+            ['id' => 'kungfu',         'name' => 'Kungfu',          'annual_fee' => 3800, 'label' => '₹3,800/yr'],
+            ['id' => 'swimming',       'name' => 'Swimming',        'annual_fee' => 6000, 'label' => '₹6,000/yr'],
         ];
 
         return compact('classes', 'academicYear', 'standardFees', 'activities');
@@ -185,44 +151,428 @@ class AdmissionController extends Controller
     {
         $feeData      = $this->getFeeStructureData();
         $classes      = $feeData['classes'];
+        $sections     = \App\Models\Section::where('is_active', true)->get(['id', 'class_id', 'name']);
         $academicYear = $feeData['academicYear'];
         $standardFees = $feeData['standardFees'];
         $activities   = $feeData['activities'];
         $users        = \App\Models\User::where('is_active', true)->orderBy('name')->get(['id', 'name']);
-        return view('admissions.create', compact('classes', 'academicYear', 'standardFees', 'activities', 'users'));
+        return view('admissions.create', compact('classes', 'sections', 'academicYear', 'standardFees', 'activities', 'users'));
+    }
+
+    public function printFeeStructure($classId = null)
+    {
+        $feeData      = $this->getFeeStructureData();
+        $classes      = $feeData['classes'];
+        $academicYear = $feeData['academicYear'];
+        $standardFees = $feeData['standardFees'];
+        $activities   = $feeData['activities'];
+        $school       = \App\Models\SchoolSetting::first() ?? (object)[
+            'school_name' => 'DASA EDUGROUP',
+            'phone'       => '+91 98765 43210',
+            'email'       => 'info@dasaedugroup.com',
+            'website'     => 'www.dasaedugroup.com',
+            'address'     => '123, Education City Campus, India'
+        ];
+
+        $selectedClass = $classId ? $classes->firstWhere('id', $classId) : $classes->first();
+        if (!$selectedClass && $classes->count() > 0) {
+            $selectedClass = $classes->first();
+        }
+
+        $currentFee = $selectedClass ? ($standardFees[$selectedClass->id] ?? null) : null;
+        if (!$currentFee) {
+            $currentFee = [
+                'tuition_fee' => 18000,
+                'book_fee'    => 2500,
+                'exam_fee'    => 1500,
+                'lab_fee'     => 0,
+                'total_basic' => 22000,
+                'hostel_annual' => 30000,
+                'hostel_monthly' => 2500,
+                'combined_total' => 52000,
+                'tier'        => 'Basic Form'
+            ];
+        }
+
+        return view('admissions.print-fee-structure', compact(
+            'classes', 'academicYear', 'standardFees', 'activities', 'school', 'selectedClass', 'currentFee'
+        ));
+    }
+
+    public function printForm()
+    {
+        $feeData      = $this->getFeeStructureData();
+        $classes      = $feeData['classes'];
+        $sections     = \App\Models\Section::where('is_active', true)->get(['id', 'class_id', 'name']);
+        $academicYear = $feeData['academicYear'];
+        $activities   = $feeData['activities'];
+        $school       = \App\Models\SchoolSetting::first() ?? (object)[
+            'school_name' => 'DASA EDUGROUP',
+            'phone'       => '+91 98765 43210',
+            'email'       => 'info@dasaedugroup.com',
+            'website'     => 'www.dasaedugroup.com',
+            'address'     => '123, Education City Campus, India'
+        ];
+
+        return view('admissions.print-application-form', compact(
+            'classes', 'sections', 'academicYear', 'activities', 'school'
+        ));
     }
 
     public function store(Request $request)
     {
+        // Sanitize & normalize section_id if string like "section_a" or non-numeric
+        if ($request->has('section_id') && $request->section_id && !is_numeric($request->section_id)) {
+            $secStr = str_replace(['section_', 'Section ', 'sec_'], '', strtolower($request->section_id));
+            $foundSec = \App\Models\Section::where('class_id', $request->class_id)
+                ->where(function($q) use ($secStr) {
+                    $q->whereRaw('LOWER(name) = ?', [strtolower($secStr)])
+                      ->orWhereRaw('LOWER(name) = ?', ['section ' . strtolower($secStr)])
+                      ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($secStr) . '%']);
+                })->first();
+            if ($foundSec) {
+                $request->merge(['section_id' => $foundSec->id]);
+            } else {
+                $request->merge(['section_id' => null]);
+            }
+        }
+
         $validated = $request->validate([
-            'student_name'    => 'required|string|max:100',
-            'dob'             => 'nullable|date|before:today',
-            'gender'          => 'nullable|in:male,female,other',
-            'class_id'        => 'required|exists:classes,id',
-            'parent_name'     => 'required|string|max:100',
-            'parent_mobile'   => 'required|string|max:15',
-            'parent_email'    => 'nullable|email|max:100',
-            'address'         => 'nullable|string|max:255',
-            'source'          => 'nullable|string|max:50',
-            'notes'           => 'nullable|string',
-            'follow_up_date'  => 'nullable|date|after_or_equal:today',
-            'previous_school' => 'nullable|string|max:150',
-            'previous_class'  => 'nullable|string|max:50',
-            'previous_percentage' => 'nullable|numeric|between:0,100',
-            'assigned_to'         => 'nullable|exists:users,id',
+            'first_name'           => 'required|string|max:50',
+            'last_name'            => 'nullable|string|max:50',
+            'email'                => 'nullable|email|max:100',
+            'dob'                  => 'nullable|date',
+            'gender'               => 'nullable|in:male,female,other',
+            'class_id'             => 'required|exists:classes,id',
+            'section_id'           => 'nullable|exists:sections,id',
+            'parent_name'          => 'required|string|max:100',
+            'parent_mobile'        => 'required|string|max:15',
+            'parent_email'         => 'nullable|email|max:100',
+            'father_occupation'    => 'nullable|string|max:100',
+            'mother_name'          => 'nullable|string|max:100',
+            'mother_occupation'    => 'nullable|string|max:100',
+            'mother_mobile'        => 'nullable|string|max:15',
+            'mother_email'         => 'nullable|email|max:100',
+            'annual_family_income' => 'nullable|numeric|min:0',
+            'address'              => 'nullable|string|max:255',
+            'source'               => 'nullable|string|max:50',
+            'notes'                => 'nullable|string',
+            'follow_up_date'       => 'nullable|date',
+            'previous_school'      => 'nullable|string|max:150',
+            'previous_class'       => 'nullable|string|max:50',
+            'previous_percentage'  => 'nullable|numeric|between:0,100',
+            'assigned_to'          => 'nullable|exists:users,id',
+            'hostel_required'      => 'nullable|boolean',
+            'activities'           => 'nullable|array',
+            'payment_terms'        => 'required|in:single,2_terms,3_terms',
+            'payment_mode'         => 'required|in:UPI,Net Banking,Cash',
+            'amount_collected'     => 'required|numeric|min:0',
+            'payment_date'         => 'nullable|date',
+            'term_2_due_date'      => 'nullable|date',
+            'term_3_due_date'      => 'nullable|date',
+            'blood_group'          => 'nullable|string|max:10',
+            'category'             => 'nullable|string|max:50',
+            'religion'             => 'nullable|string|max:50',
+            'mother_tongue'        => 'nullable|string|max:50',
+            'aadhaar_no'           => 'nullable|string|max:20',
+            'pincode'              => 'nullable|string|max:10',
         ]);
 
         $currentYear = AcademicYear::current();
+        $feeData = $this->getFeeStructureData();
+        $classFee = $feeData['standardFees'][$request->class_id] ?? null;
 
-        $enquiry = Enquiry::create(array_merge($validated, [
-            'enquiry_number'  => Enquiry::generateNumber(),
-            'status'          => 'new',
-            'academic_year_id'=> $currentYear?->id,
-            'created_by'      => Auth::id(),
-        ]));
+        // Calculate Fee Totals from fee structure
+        $tuition = $classFee['tuition_fee'] ?? 18000;
+        $book = $classFee['book_fee'] ?? 2500;
+        $exam = $classFee['exam_fee'] ?? 1500;
+        $lab = $classFee['lab_fee'] ?? 0;
+        $basicTotal = $tuition + $book + $exam + $lab;
 
-        return redirect()->route('admissions.show', $enquiry->id)
-            ->with('success', 'Enquiry ' . $enquiry->enquiry_number . ' created successfully.');
+        $hostelFee = $request->boolean('hostel_required') ? ($classFee['hostel_annual'] ?? 30000) : 0;
+
+        $activitiesFee = 0;
+        if ($request->filled('activities') && is_array($request->activities)) {
+            foreach ($request->activities as $actId) {
+                $act = collect($feeData['activities'])->firstWhere('id', $actId);
+                if ($act) $activitiesFee += $act['annual_fee'];
+            }
+        }
+
+        $totalFee = $basicTotal + $hostelFee + $activitiesFee;
+        $amountCollected = (float)$request->amount_collected;
+
+        if ($amountCollected > $totalFee) {
+            $amountCollected = $totalFee;
+        }
+
+        $pendingAmount = max(0, $totalFee - $amountCollected);
+        $paymentDate = $request->payment_date ?: date('Y-m-d');
+        $paymentMode = $request->payment_mode;
+        $paymentTerms = $request->payment_terms;
+
+        // Term Breakdown Calculations
+        $terms = [];
+        if ($paymentTerms === 'single') {
+            $status = $amountCollected >= $totalFee ? 'paid' : ($amountCollected > 0 ? 'partially_paid' : 'pending');
+            $terms[] = [
+                'term_number'  => 1,
+                'name'         => 'Term 1',
+                'amount'       => $totalFee,
+                'paid'         => $amountCollected,
+                'pending'      => $pendingAmount,
+                'due_date'     => $paymentDate,
+                'status'       => $status,
+                'payment_mode' => $amountCollected > 0 ? $paymentMode : null,
+                'payment_date' => $amountCollected > 0 ? $paymentDate : null,
+            ];
+        } elseif ($paymentTerms === '2_terms') {
+            $t1Amount = (float)round($totalFee / 2, 2);
+            $t2Amount = (float)round($totalFee - $t1Amount, 2);
+
+            $t1Paid = min($amountCollected, $t1Amount);
+            $t1Pending = max(0, $t1Amount - $t1Paid);
+            $t1Status = $t1Paid >= $t1Amount ? 'paid' : ($t1Paid > 0 ? 'partially_paid' : 'pending');
+
+            $t2Paid = max(0, $amountCollected - $t1Amount);
+            $t2Pending = max(0, $t2Amount - $t2Paid);
+            $t2Status = $t2Paid >= $t2Amount ? 'paid' : ($t2Paid > 0 ? 'partially_paid' : 'pending');
+
+            $term2DueDate = $request->term_2_due_date ?: date('Y-m-d', strtotime('+90 days'));
+
+            $terms[] = [
+                'term_number'  => 1,
+                'name'         => 'Term 1',
+                'amount'       => $t1Amount,
+                'paid'         => $t1Paid,
+                'pending'      => $t1Pending,
+                'due_date'     => $paymentDate,
+                'status'       => $t1Status,
+                'payment_mode' => $t1Paid > 0 ? $paymentMode : null,
+                'payment_date' => $t1Paid > 0 ? $paymentDate : null,
+            ];
+
+            $terms[] = [
+                'term_number'  => 2,
+                'name'         => 'Term 2',
+                'amount'       => $t2Amount,
+                'paid'         => $t2Paid,
+                'pending'      => $t2Pending,
+                'due_date'     => $term2DueDate,
+                'status'       => $t2Status,
+                'payment_mode' => $t2Paid > 0 ? $paymentMode : null,
+                'payment_date' => $t2Paid > 0 ? $paymentDate : null,
+            ];
+        } else { // 3_terms
+            $t1Amount = (float)round($totalFee / 3, 2);
+            $t2Amount = (float)round($totalFee / 3, 2);
+            $t3Amount = (float)round($totalFee - ($t1Amount + $t2Amount), 2);
+
+            $rem = $amountCollected;
+
+            $t1Paid = min($rem, $t1Amount);
+            $t1Pending = max(0, $t1Amount - $t1Paid);
+            $t1Status = $t1Paid >= $t1Amount ? 'paid' : ($t1Paid > 0 ? 'partially_paid' : 'pending');
+            $rem = max(0, $rem - $t1Amount);
+
+            $t2Paid = min($rem, $t2Amount);
+            $t2Pending = max(0, $t2Amount - $t2Paid);
+            $t2Status = $t2Paid >= $t2Amount ? 'paid' : ($t2Paid > 0 ? 'partially_paid' : 'pending');
+            $rem = max(0, $rem - $t2Amount);
+
+            $t3Paid = min($rem, $t3Amount);
+            $t3Pending = max(0, $t3Amount - $t3Paid);
+            $t3Status = $t3Paid >= $t3Amount ? 'paid' : ($t3Paid > 0 ? 'partially_paid' : 'pending');
+
+            $term2DueDate = $request->term_2_due_date ?: date('Y-m-d', strtotime('+90 days'));
+            $term3DueDate = $request->term_3_due_date ?: date('Y-m-d', strtotime('+180 days'));
+
+            $terms[] = [
+                'term_number'  => 1,
+                'name'         => 'Term 1',
+                'amount'       => $t1Amount,
+                'paid'         => $t1Paid,
+                'pending'      => $t1Pending,
+                'due_date'     => $paymentDate,
+                'status'       => $t1Status,
+                'payment_mode' => $t1Paid > 0 ? $paymentMode : null,
+                'payment_date' => $t1Paid > 0 ? $paymentDate : null,
+            ];
+
+            $terms[] = [
+                'term_number'  => 2,
+                'name'         => 'Term 2',
+                'amount'       => $t2Amount,
+                'paid'         => $t2Paid,
+                'pending'      => $t2Pending,
+                'due_date'     => $term2DueDate,
+                'status'       => $t2Status,
+                'payment_mode' => $t2Paid > 0 ? $paymentMode : null,
+                'payment_date' => $t2Paid > 0 ? $paymentDate : null,
+            ];
+
+            $terms[] = [
+                'term_number'  => 3,
+                'name'         => 'Term 3',
+                'amount'       => $t3Amount,
+                'paid'         => $t3Paid,
+                'pending'      => $t3Pending,
+                'due_date'     => $term3DueDate,
+                'status'       => $t3Status,
+                'payment_mode' => $t3Paid > 0 ? $paymentMode : null,
+                'payment_date' => $t3Paid > 0 ? $paymentDate : null,
+            ];
+        }
+
+        $overallStatus = $amountCollected >= $totalFee ? 'paid' : ($amountCollected > 0 ? 'partially_paid' : 'pending');
+
+        $student = null;
+
+        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $request, &$student) {
+            $studentFullName = trim($request->first_name . ' ' . ($request->last_name ?? ''));
+
+            // Save Enquiry
+            $enquiry = Enquiry::create(array_merge($validated, [
+                'student_name'         => $studentFullName,
+                'enquiry_number'       => Enquiry::generateNumber(),
+                'status'               => 'converted',
+                'academic_year_id'     => $currentYear?->id,
+                'created_by'           => Auth::id(),
+                'payment_terms'        => $paymentTerms,
+                'total_admission_fee'  => $totalFee,
+                'amount_collected'     => $amountCollected,
+                'pending_amount'       => $pendingAmount,
+                'payment_mode'         => $paymentMode,
+                'payment_date'         => $paymentDate,
+                'payment_status'       => $overallStatus,
+                'fee_breakdown'        => $terms,
+            ]));
+
+            // Generate Admission Number (Max 12 chars for DB column)
+            $admCount = \App\Models\Student::count() + 1;
+            $admNo = substr('ADM' . date('y') . '-' . str_pad($admCount, 4, '0', STR_PAD_LEFT), 0, 12);
+
+            // Generate Formatted Roll Number (e.g. 11A041, Max 12 chars)
+            $classModel = \App\Models\Classes::find($request->class_id);
+            $sectionModel = $request->section_id ? \App\Models\Section::find($request->section_id) : \App\Models\Section::where('class_id', $request->class_id)->first();
+
+            $className = $classModel?->name ?? '1';
+            if (preg_match('/\d+/', $className, $matches)) {
+                $cleanClassName = $matches[0];
+            } else {
+                $cleanClassName = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $className), 0, 3));
+            }
+
+            $cleanSecName = $sectionModel ? strtoupper(trim(preg_replace('/^section\s*/i', '', $sectionModel->name))) : 'A';
+            if (strlen($cleanSecName) > 2) {
+                $cleanSecName = strtoupper(substr($cleanSecName, 0, 1));
+            }
+
+            $classSecCount = \App\Models\StudentEnrollment::where('class_id', $request->class_id)
+                ->when($sectionModel, fn($q) => $q->where('section_id', $sectionModel->id))
+                ->where('academic_year_id', $currentYear?->id)
+                ->count() + 1;
+
+            $autoRollNo = substr($cleanClassName . $cleanSecName . str_pad($classSecCount, 3, '0', STR_PAD_LEFT), 0, 12);
+
+            // Auto Allocate House in Round-Robin Order (Red, Blue, Green, Yellow)
+            $houses = ['Red', 'Blue', 'Green', 'Yellow'];
+            $totalEnrolledCount = \App\Models\StudentEnrollment::count();
+            $autoHouse = $houses[$totalEnrolledCount % count($houses)];
+
+            // Save Student
+            $student = \App\Models\Student::create([
+                'admission_no'             => $admNo,
+                'admission_date'           => $paymentDate,
+                'roll_number'              => $autoRollNo,
+                'first_name'               => $request->first_name,
+                'last_name'                => $request->last_name,
+                'dob'                      => $request->dob,
+                'gender'                   => $request->gender,
+                'blood_group'              => $request->blood_group ? substr($request->blood_group, 0, 5) : null,
+                'category'                 => $request->filled('category') ? strtolower($request->category) : 'general',
+                'religion'                 => $request->religion,
+                'mother_tongue'            => $request->mother_tongue,
+                'aadhaar_no'               => $request->aadhaar_no ? substr(preg_replace('/[^0-9]/', '', $request->aadhaar_no), 0, 12) : null,
+                'pincode'                  => $request->pincode ? substr($request->pincode, 0, 10) : null,
+                'mobile'                   => $request->parent_mobile ? substr($request->parent_mobile, 0, 15) : null,
+                'email'                    => $request->email ?: $request->parent_email,
+                'father_name'              => $request->parent_name,
+                'father_mobile'            => $request->parent_mobile ? substr($request->parent_mobile, 0, 15) : null,
+                'father_email'             => $request->parent_email,
+                'father_occupation'        => $request->father_occupation,
+                'mother_name'              => $request->mother_name,
+                'mother_occupation'        => $request->mother_occupation,
+                'mother_mobile'            => $request->mother_mobile ? substr($request->mother_mobile, 0, 15) : null,
+                'mother_email'             => $request->mother_email,
+                'annual_family_income'     => $request->annual_family_income,
+                'residential_address'      => $request->address,
+                'permanent_address'        => $request->address,
+                'previous_school_name'     => $request->previous_school,
+                'previous_percentage'      => $request->previous_percentage,
+                'status'                   => 'active',
+                'student_type'             => $request->boolean('hostel_required') ? 'hosteller' : 'day_scholar',
+                'payment_terms'            => $paymentTerms,
+                'total_admission_fee'      => $totalFee,
+                'admission_paid_amount'    => $amountCollected,
+                'admission_pending_amount' => $pendingAmount,
+                'payment_mode'             => $paymentMode,
+                'payment_date'             => $paymentDate,
+                'payment_status'           => $overallStatus,
+                'admission_fee_terms'      => $terms,
+            ]);
+
+            // Save Student Enrollment
+            \App\Models\StudentEnrollment::create([
+                'student_id'       => $student->id,
+                'class_id'         => $request->class_id,
+                'section_id'       => $sectionModel?->id,
+                'academic_year_id' => $currentYear?->id,
+                'roll_number'      => $autoRollNo,
+                'house'            => $autoHouse,
+                'status'           => 'active',
+                'enrollment_date'  => $paymentDate,
+            ]);
+
+            // Save Student Fee Charge so Fee Status displays Total Billed accurately
+            DB::table('student_fee_charges')->insert([
+                'student_id'       => $student->id,
+                'academic_year_id' => $currentYear?->id,
+                'amount'           => $totalFee,
+                'due_date'         => $paymentDate,
+                'description'      => 'Annual Admission Fee Charge',
+                'source'           => 'admission',
+                'is_active'        => true,
+                'created_by'       => Auth::id(),
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+
+            // Log Fee Payment if amount collected > 0
+            if ($amountCollected > 0) {
+                $feePaymentMode = match(strtolower($paymentMode)) {
+                    'upi' => 'upi',
+                    'net banking', 'online' => 'online',
+                    default => 'cash',
+                };
+
+                \App\Models\FeePayment::create([
+                    'student_id'       => $student->id,
+                    'academic_year_id' => $currentYear?->id,
+                    'receipt_number'   => 'REC-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT),
+                    'payment_date'     => $paymentDate,
+                    'amount'           => $totalFee,
+                    'amount_paid'      => $amountCollected,
+                    'total_paid'       => $amountCollected,
+                    'payment_mode'     => $feePaymentMode,
+                    'remarks'          => 'Admission Fee Payment (' . str_replace('_', ' ', strtoupper($paymentTerms)) . ')',
+                    'collected_by'     => Auth::id(),
+                ]);
+            }
+        });
+
+        return redirect()->route('students.show', $student->id)
+            ->with('success', 'New Admission completed successfully! Student registered with Admission No: ' . $student->admission_no);
     }
 
     public function show(int $id)

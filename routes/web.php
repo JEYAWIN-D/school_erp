@@ -49,7 +49,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:view admissions')->prefix('admissions')->name('admissions.')->group(function () {
         Route::get('/',            [AdmissionController::class, 'index'])->name('index');
         Route::get('/create',      [AdmissionController::class, 'create'])->name('create');
+        Route::get('/print-form',  [AdmissionController::class, 'printForm'])->name('print-form');
         Route::get('/fee-structure',[AdmissionController::class, 'feeStructure'])->name('fee-structure');
+        Route::get('/fee-structure/{classId?}/print', [AdmissionController::class, 'printFeeStructure'])->name('fee-structure.print');
         Route::post('/',           [AdmissionController::class, 'store'])->name('store');
         // Pipeline & seats
         Route::get('/pipeline',    [AdmissionController::class, 'pipeline'])->name('pipeline');
