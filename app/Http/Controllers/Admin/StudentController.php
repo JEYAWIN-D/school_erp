@@ -292,14 +292,63 @@ class StudentController extends Controller
             ->where('student_id', $id)->where('is_cancelled', false)
             ->orderByDesc('payment_date')->limit(3)->get();
 
-        return view('students.show', compact(
-            'student', 'feeCharged', 'feePaid', 'feeBalance',
-            'attPresent', 'attAbsent', 'attLate', 'attHalfDay', 'attLeave',
-            'attTotal', 'totalDaysConducted', 'fixedAnnualDays', 'effectivePresent',
-            'attPct', 'annualTargetPct', 'statutoryMinDaysRequired',
-            'recentAttendanceRecords', 'monthlyAttendance',
-            'recentPayments'
-        ));
+        return response()
+            ->view('students.show', compact(
+                'student', 'feeCharged', 'feePaid', 'feeBalance',
+                'attPresent', 'attAbsent', 'attLate', 'attHalfDay', 'attLeave',
+                'attTotal', 'totalDaysConducted', 'fixedAnnualDays', 'effectivePresent',
+                'attPct', 'annualTargetPct', 'statutoryMinDaysRequired',
+                'recentAttendanceRecords', 'monthlyAttendance',
+                'recentPayments'
+            ))
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+
+    public function feeStatusJson(int $id)
+    {
+        $student = Student::findOrFail($id);
+        $year = AcademicYear::current();
+
+        $feeChargedFromTable = DB::table('student_fee_charges')
+            ->where('student_id', $id)
+            ->when($year, fn($q) => $q->where('academic_year_id', $year->id))
+            ->sum('amount');
+
+        $feeCharged = max((float)$feeChargedFromTable, (float)($student->total_admission_fee ?? 0));
+
+        $feePaid = (float) DB::table('fee_payments')
+            ->where('student_id', $id)->where('is_cancelled', false)
+            ->when($year, fn($q) => $q->where('academic_year_id', $year->id))
+            ->sum('total_paid');
+
+        $feeBalance = max(0, $feeCharged - $feePaid);
+
+        $recentPayments = DB::table('fee_payments')
+            ->where('student_id', $id)->where('is_cancelled', false)
+            ->orderByDesc('payment_date')->orderByDesc('id')
+            ->limit(3)
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'date' => \Carbon\Carbon::parse($p->payment_date)->format('d M Y'),
+                    'amount' => (float)$p->total_paid,
+                    'amount_formatted' => '₹' . number_format($p->total_paid),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'feeCharged' => $feeCharged,
+            'feeChargedFormatted' => '₹' . number_format($feeCharged),
+            'feePaid' => $feePaid,
+            'feePaidFormatted' => '₹' . number_format($feePaid),
+            'feeBalance' => $feeBalance,
+            'feeBalanceFormatted' => $feeBalance > 0 ? ('₹' . number_format($feeBalance)) : 'Fully Paid',
+            'isPaid' => $feeBalance <= 0,
+            'paymentStatus' => $student->payment_status,
+            'recentPayments' => $recentPayments,
+        ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
     public function edit(int $id)

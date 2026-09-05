@@ -129,8 +129,9 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/concessions/{cId}',[StudentController::class, 'revokeConcession'])->name('concessions.revoke');
 
         // Parameterized routes on {id} (Defined after static routes)
-        Route::get('/{id}',        [StudentController::class, 'show'])->name('show')->where('id', '[0-9]+');
-        Route::get('/{id}/edit',   [StudentController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
+        Route::get('/{id}',            [StudentController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::get('/{id}/fee-status', [StudentController::class, 'feeStatusJson'])->name('fee-status')->where('id', '[0-9]+');
+        Route::get('/{id}/edit',       [StudentController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
         Route::put('/{id}',        [StudentController::class, 'update'])->name('update')->where('id', '[0-9]+');
         Route::delete('/{id}',     [StudentController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
         Route::get('/{id}/tc',     [StudentController::class, 'showTCForm'])->name('tc.form')->where('id', '[0-9]+');
@@ -1052,9 +1053,28 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/attendance/excel',   [\App\Http\Controllers\Admin\ReportsController::class, 'attendanceReportExcel'])->name('attendance.excel');
     });
 
-    // ── Module 14 — Inventory & Store Management ───────────────
+    // ── Warehouse Module ─────────────────────────────────────────
+    Route::middleware('permission:view inventory')->prefix('warehouse')->name('warehouse.')->group(function () {
+        Route::get('/',                     [\App\Http\Controllers\Admin\WarehouseController::class, 'index'])->name('index');
+        Route::post('/items',               [\App\Http\Controllers\Admin\WarehouseController::class, 'storeItem'])->name('items.store');
+        Route::put('/items/{id}',           [\App\Http\Controllers\Admin\WarehouseController::class, 'updateItem'])->name('items.update');
+        Route::post('/stock-in',            [\App\Http\Controllers\Admin\WarehouseController::class, 'stockIn'])->name('stock-in');
+        Route::post('/stock-out',           [\App\Http\Controllers\Admin\WarehouseController::class, 'stockOut'])->name('stock-out');
+        Route::post('/adjustment',          [\App\Http\Controllers\Admin\WarehouseController::class, 'adjustment'])->name('adjustment');
+        Route::get('/items/{id}',           [\App\Http\Controllers\Admin\WarehouseController::class, 'showItem'])->name('show-item');
+        Route::get('/transactions',         [\App\Http\Controllers\Admin\WarehouseController::class, 'transactions'])->name('transactions');
+        Route::get('/admission-kit-config', [\App\Http\Controllers\Admin\WarehouseController::class, 'admissionKitConfig'])->name('admission-kit-config');
+        Route::post('/admission-kit-config',[\App\Http\Controllers\Admin\WarehouseController::class, 'saveKitConfig'])->name('admission-kit-config.save');
+        Route::get('/reports',              [\App\Http\Controllers\Admin\WarehouseController::class, 'reports'])->name('reports');
+        Route::get('/invoice/{id}/download',[\App\Http\Controllers\Admin\WarehouseController::class, 'downloadInvoice'])->name('download-invoice');
+    });
+
+    // API Helper for Admission Form Inventory Kit
+    Route::get('/api/warehouse/kit/{classId}', [\App\Http\Controllers\Admin\WarehouseController::class, 'getKitForClass'])->name('api.warehouse.kit');
+
+    // ── Module 14 — Inventory & Store Management (Backwards Compatibility) ────
     Route::middleware('permission:view inventory')->prefix('inventory')->name('inventory.')->group(function () {
-        Route::get('/',                   [\App\Http\Controllers\Admin\InventoryController::class, 'index'])->name('index');
+        Route::get('/',                   [\App\Http\Controllers\Admin\WarehouseController::class, 'index'])->name('index');
         Route::get('/items/create',       [\App\Http\Controllers\Admin\InventoryController::class, 'createItem'])->name('items.create');
         Route::post('/items',             [\App\Http\Controllers\Admin\InventoryController::class, 'storeItem'])->name('items.store');
         Route::get('/items/{id}/edit',    [\App\Http\Controllers\Admin\InventoryController::class, 'editItem'])->name('items.edit');

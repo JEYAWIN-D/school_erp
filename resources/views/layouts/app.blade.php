@@ -147,7 +147,7 @@
       <x-nav-item route="hostel.index"    icon="building-office-2" label="Hostel" :active="str_starts_with($currentRoute, 'hostel')"    :open="$sidebarOpen ?? true" />
       @endcan
       @can('view inventory')
-      <x-nav-item route="inventory.index" icon="archive-box"  label="Inventory"  :active="str_starts_with($currentRoute, 'inventory')" :open="$sidebarOpen ?? true" />
+      <x-nav-item route="warehouse.index" icon="archive-box"  label="Warehouse"  :active="str_starts_with($currentRoute, 'warehouse') || str_starts_with($currentRoute, 'inventory')" :open="$sidebarOpen ?? true" />
       @endcan
       @endcanany
 

@@ -45,11 +45,19 @@
   <tr><td>Student Name</td><td>{{ $payment->student?->first_name }} {{ $payment->student?->last_name }}</td></tr>
   <tr><td>Admission No</td><td>{{ $payment->student?->admission_no ?? $payment->student?->admission_number ?? '—' }}</td></tr>
   <tr><td>Class</td><td>{{ $payment->student?->currentEnrollment?->class?->name ?? '—' }}</td></tr>
-  <tr><td>Fee Head</td><td>{{ $payment->feeHead?->name ?? '—' }}</td></tr>
+  <tr><td>Fee Head / Term</td><td>{{ $payment->feeHead?->name ?? $payment->term_name ?? ($payment->term_number ? 'Term ' . $payment->term_number : 'Fee Payment') }}</td></tr>
   @if($payment->feeHead?->hsn_code)
   <tr><td>SAC/HSN Code</td><td>{{ $payment->feeHead->hsn_code }}</td></tr>
   @endif
-  <tr><td>Payment Mode</td><td>{{ ucfirst($payment->payment_mode) }}</td></tr>
+  <tr><td>Payment Mode</td><td>{{ $payment->payment_mode === 'split' ? 'Split Payment' : ucfirst($payment->payment_mode) }}</td></tr>
+  @if($payment->payment_mode === 'split' && $payment->splits && $payment->splits->count() > 0)
+    @foreach($payment->splits as $sp)
+      <tr>
+        <td style="padding-left: 20px; font-size: 10px; color: #555;">&bull; {{ ucfirst(str_replace('_', ' ', $sp->payment_mode)) }} ({{ $sp->transaction_id ?? $sp->cheque_number ?? 'Direct' }})</td>
+        <td style="font-size: 10px; font-weight: 600;">₹{{ number_format($sp->amount, 2) }}</td>
+      </tr>
+    @endforeach
+  @endif
   @if($payment->transaction_id)
   <tr><td>Transaction ID</td><td>{{ $payment->transaction_id }}</td></tr>
   @endif

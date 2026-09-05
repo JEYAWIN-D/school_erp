@@ -28,6 +28,10 @@
         <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
         ID Card
       </a>
+      <a href="{{ route('fees.collect', ['student_id' => $student->id]) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs text-slate-700 hover:text-indigo-600">
+        <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        FeePayment
+      </a>
       <a href="{{ route('students.tc.form', $student->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
         <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         TC
@@ -130,13 +134,13 @@
     </div>
 
     {{-- Card 2: Fee Balance Due --}}
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
-      <div class="w-12 h-12 rounded-xl {{ $feeBalance > 0 ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600' }} border flex items-center justify-center shrink-0">
+    <div id="stat-fee-card" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center gap-4 hover:shadow-md transition-all duration-200">
+      <div id="stat-fee-icon-container" class="w-12 h-12 rounded-xl {{ $feeBalance > 0 ? 'bg-rose-50 border-rose-100 text-rose-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600' }} border flex items-center justify-center shrink-0 transition-colors duration-300">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
       </div>
       <div>
         <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Fee Balance</p>
-        <p class="text-xl font-black {{ $feeBalance > 0 ? 'text-rose-600' : 'text-emerald-600' }} mt-0.5">
+        <p id="stat-fee-balance-val" class="text-xl font-black {{ $feeBalance > 0 ? 'text-rose-600' : 'text-emerald-600' }} mt-0.5 transition-colors duration-300">
           {{ $feeBalance > 0 ? '₹' . number_format($feeBalance) : 'Fully Paid' }}
         </p>
       </div>
@@ -441,6 +445,61 @@
         <p class="text-xs text-slate-400 italic">No admission fee payment details recorded for this student.</p>
         @endif
       </div>
+
+      {{-- Issued Inventory Kit History Card --}}
+      @php
+        $issuedKitItems = \App\Models\AdmissionInventoryIssue::with('item')
+          ->where('student_id', $student->id)
+          ->get();
+      @endphp
+      @if($issuedKitItems->isNotEmpty())
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Issued Academic Inventory Kit</h3>
+              <p class="text-xs text-slate-400">Warehouse inventory items issued upon admission</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800">
+            {{ $issuedKitItems->count() }} Kit Items Issued
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
+              <tr>
+                <th class="py-3 px-4">Item Code / Name</th>
+                <th class="py-3 px-4 text-center">Default Qty</th>
+                <th class="py-3 px-4 text-center">Extra Qty</th>
+                <th class="py-3 px-4 text-center">Total Issued</th>
+                <th class="py-3 px-4 text-right">Unit Charge</th>
+                <th class="py-3 px-4 text-right">Extra Charge Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-medium">
+              @foreach($issuedKitItems as $issue)
+              <tr class="hover:bg-slate-50/70 transition">
+                <td class="py-3 px-4">
+                  <span class="font-bold text-slate-900 block">{{ $issue->item?->name ?? 'Inventory Item' }}</span>
+                  <span class="text-[10px] text-slate-400 font-mono">SKU: {{ $issue->item?->item_code }}</span>
+                </td>
+                <td class="py-3 px-4 text-center font-mono text-slate-700">{{ $issue->default_quantity }} {{ $issue->item?->unit }}</td>
+                <td class="py-3 px-4 text-center font-mono font-bold text-blue-600">+{{ $issue->additional_quantity }}</td>
+                <td class="py-3 px-4 text-center font-mono font-black text-slate-900">{{ $issue->total_quantity }} {{ $issue->item?->unit }}</td>
+                <td class="py-3 px-4 text-right font-mono text-slate-700">₹{{ number_format($issue->unit_charge, 2) }}</td>
+                <td class="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹{{ number_format($issue->additional_charge, 2) }}</td>
+              </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+      </div>
+      @endif
 
       {{-- Address Cards --}}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -855,7 +914,7 @@
       </div>
 
       {{-- Fee Status Card --}}
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 p-6 space-y-4">
+      <div id="sidebar-fee-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 p-6 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <div class="flex items-center gap-2">
             <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -867,37 +926,37 @@
         <div class="space-y-2 text-xs">
           <div class="flex justify-between items-center py-1">
             <span class="text-slate-500 font-medium">Total Billed:</span>
-            <span class="font-mono font-bold text-slate-900">₹{{ number_format($feeCharged) }}</span>
+            <span id="fee-card-billed" class="font-mono font-bold text-slate-900">₹{{ number_format($feeCharged) }}</span>
           </div>
           <div class="flex justify-between items-center py-1">
             <span class="text-slate-500 font-medium">Total Paid:</span>
-            <span class="font-mono font-bold text-emerald-600">₹{{ number_format($feePaid) }}</span>
+            <span id="fee-card-paid" class="font-mono font-bold text-emerald-600">₹{{ number_format($feePaid) }}</span>
           </div>
           <div class="border-t border-slate-100 pt-2 flex justify-between items-center">
-            <span class="font-bold {{ $feeBalance > 0 ? 'text-rose-600' : 'text-emerald-600' }}">
+            <span id="fee-card-status-label" class="font-bold {{ $feeBalance > 0 ? 'text-rose-600' : 'text-emerald-600' }} transition-colors duration-300">
               {{ $feeBalance > 0 ? 'Balance Due:' : 'Status:' }}
             </span>
-            <span class="font-mono text-base font-extrabold {{ $feeBalance > 0 ? 'text-rose-600' : 'text-emerald-600' }}">
+            <span id="fee-card-balance-val" class="font-mono text-base font-extrabold {{ $feeBalance > 0 ? 'text-rose-600' : 'text-emerald-600' }} transition-colors duration-300">
               {{ $feeBalance > 0 ? '₹' . number_format($feeBalance) : 'Fully Paid' }}
             </span>
           </div>
         </div>
 
-        @if($recentPayments->count())
-        <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
+        <div id="fee-card-recent-section" class="{{ $recentPayments->count() ? '' : 'hidden' }} mt-3 pt-3 border-t border-slate-100 space-y-2">
           <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Recent Payments</p>
-          @foreach($recentPayments as $pay)
-          <div class="flex justify-between items-center text-xs py-1">
-            <span class="text-slate-500">{{ \Carbon\Carbon::parse($pay->payment_date)->format('d M Y') }}</span>
-            <span class="font-mono font-semibold text-emerald-600">₹{{ number_format($pay->total_paid ?? 0) }}</span>
+          <div id="fee-card-recent-list" class="space-y-2">
+            @foreach($recentPayments as $pay)
+            <div class="flex justify-between items-center text-xs py-1">
+              <span class="text-slate-500">{{ \Carbon\Carbon::parse($pay->payment_date)->format('d M Y') }}</span>
+              <span class="font-mono font-semibold text-emerald-600">₹{{ number_format($pay->total_paid ?? 0) }}</span>
+            </div>
+            @endforeach
           </div>
-          @endforeach
         </div>
-        @endif
 
         <a href="{{ route('fees.collect', ['student_id' => $student->id]) }}" class="mt-2 btn btn-primary btn-sm w-full text-center flex items-center justify-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-          Collect Fee
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          FeePayment
         </a>
       </div>
 
@@ -979,4 +1038,149 @@
     </form>
   </div>
 </div>
+
+{{-- Dynamic Fee Status Auto-Update on Back/Navigation without manual refresh --}}
+<script>
+(function() {
+    const studentId = {{ $student->id }};
+    const feeStatusUrl = "{{ route('students.fee-status', $student->id) }}";
+
+    function updateFeeStatusUI(data) {
+        if (!data || !data.success) return;
+
+        // 1. Update Quick Info Card 2
+        const statBalanceVal = document.getElementById('stat-fee-balance-val');
+        const statIconContainer = document.getElementById('stat-fee-icon-container');
+        if (statBalanceVal) {
+            statBalanceVal.textContent = data.feeBalanceFormatted;
+            if (data.feeBalance > 0) {
+                statBalanceVal.classList.remove('text-emerald-600');
+                statBalanceVal.classList.add('text-rose-600');
+            } else {
+                statBalanceVal.classList.remove('text-rose-600');
+                statBalanceVal.classList.add('text-emerald-600');
+            }
+        }
+        if (statIconContainer) {
+            if (data.feeBalance > 0) {
+                statIconContainer.className = 'w-12 h-12 rounded-xl bg-rose-50 border-rose-100 text-rose-600 border flex items-center justify-center shrink-0 transition-colors duration-300';
+            } else {
+                statIconContainer.className = 'w-12 h-12 rounded-xl bg-emerald-50 border-emerald-100 text-emerald-600 border flex items-center justify-center shrink-0 transition-colors duration-300';
+            }
+        }
+
+        // 2. Update Sidebar Fee Status Card
+        const billedEl = document.getElementById('fee-card-billed');
+        const paidEl = document.getElementById('fee-card-paid');
+        const statusLabelEl = document.getElementById('fee-card-status-label');
+        const balanceValEl = document.getElementById('fee-card-balance-val');
+
+        if (billedEl) billedEl.textContent = data.feeChargedFormatted;
+        if (paidEl) paidEl.textContent = data.feePaidFormatted;
+
+        if (statusLabelEl) {
+            statusLabelEl.textContent = data.feeBalance > 0 ? 'Balance Due:' : 'Status:';
+            if (data.feeBalance > 0) {
+                statusLabelEl.classList.remove('text-emerald-600');
+                statusLabelEl.classList.add('text-rose-600');
+            } else {
+                statusLabelEl.classList.remove('text-rose-600');
+                statusLabelEl.classList.add('text-emerald-600');
+            }
+        }
+
+        if (balanceValEl) {
+            balanceValEl.textContent = data.feeBalanceFormatted;
+            if (data.feeBalance > 0) {
+                balanceValEl.classList.remove('text-emerald-600');
+                balanceValEl.classList.add('text-rose-600');
+            } else {
+                balanceValEl.classList.remove('text-rose-600');
+                balanceValEl.classList.add('text-emerald-600');
+            }
+        }
+
+        // 3. Update Recent Payments List
+        const recentSection = document.getElementById('fee-card-recent-section');
+        const recentList = document.getElementById('fee-card-recent-list');
+        if (recentSection && recentList && Array.isArray(data.recentPayments)) {
+            if (data.recentPayments.length > 0) {
+                recentSection.classList.remove('hidden');
+                recentList.innerHTML = data.recentPayments.map(p => `
+                    <div class="flex justify-between items-center text-xs py-1">
+                        <span class="text-slate-500">${p.date}</span>
+                        <span class="font-mono font-semibold text-emerald-600">${p.amount_formatted}</span>
+                    </div>
+                `).join('');
+            } else {
+                recentSection.classList.add('hidden');
+            }
+        }
+
+        // 4. Subtle green pulse animation on cards to confirm updated state
+        const statCard = document.getElementById('stat-fee-card');
+        const sidebarCard = document.getElementById('sidebar-fee-card');
+        [statCard, sidebarCard].forEach(card => {
+            if (card) {
+                card.classList.add('ring-2', 'ring-emerald-400', 'ring-offset-2');
+                setTimeout(() => {
+                    card.classList.remove('ring-2', 'ring-emerald-400', 'ring-offset-2');
+                }, 1200);
+            }
+        });
+    }
+
+    let isFetching = false;
+    function autoRefreshFeeStatus() {
+        if (isFetching) return;
+        isFetching = true;
+        fetch(feeStatusUrl, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            cache: 'no-store'
+        })
+        .then(res => res.json())
+        .then(data => {
+            updateFeeStatusUI(data);
+        })
+        .catch(err => {
+            console.warn('Could not auto-refresh fee status:', err);
+        })
+        .finally(() => {
+            isFetching = false;
+        });
+    }
+
+    // Trigger on 'pageshow' (handles browser back/forward and bfcache restoration!)
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted || (window.performance && window.performance.getEntriesByType && window.performance.getEntriesByType('navigation')[0]?.type === 'back_forward')) {
+            autoRefreshFeeStatus();
+        } else {
+            const lastUpdated = localStorage.getItem('student_fee_updated_' + studentId);
+            if (lastUpdated) {
+                localStorage.removeItem('student_fee_updated_' + studentId);
+                autoRefreshFeeStatus();
+            }
+        }
+    });
+
+    // Trigger when window regains focus or tab becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            const lastUpdated = localStorage.getItem('student_fee_updated_' + studentId);
+            if (lastUpdated) {
+                localStorage.removeItem('student_fee_updated_' + studentId);
+                autoRefreshFeeStatus();
+            }
+        }
+    });
+
+    // Listen for storage events across tabs/windows
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'student_fee_updated_' + studentId) {
+            localStorage.removeItem('student_fee_updated_' + studentId);
+            autoRefreshFeeStatus();
+        }
+    });
+})();
+</script>
 @endsection

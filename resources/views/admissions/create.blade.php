@@ -8,10 +8,12 @@
   sectionsList: {{ json_encode($sections->map(fn($s) => ['id' => $s->id, 'class_id' => $s->class_id, 'name' => $s->name])) }},
   standardFees: {{ json_encode($standardFees) }},
   activitiesData: {{ json_encode($activities) }},
+  admissionKitsData: {{ json_encode($admissionKits ?? []) }},
   selectedClassId: '{{ request("class_id", "") }}',
   selectedSectionId: '',
   hostelRequired: false,
   selectedActivities: [],
+  additionalItems: {},
 
   // Payment Terms State
   paymentTerms: 'single',
@@ -27,6 +29,42 @@
   },
   get selectedFee() {
     return this.standardFees[this.selectedClassId] || null;
+  },
+  get currentClassKit() {
+    if (!this.selectedClassId || !this.admissionKitsData[this.selectedClassId]) return [];
+    return this.admissionKitsData[this.selectedClassId];
+  },
+  get standardKitFeeTotal() {
+    let sum = 0;
+    this.currentClassKit.forEach(cfg => {
+      let defaultQty = Number(cfg.default_quantity || 0);
+      if (defaultQty > 0) {
+        let price = Number(cfg.student_charge > 0 ? cfg.student_charge : (cfg.item?.student_price || 0));
+        sum += defaultQty * price;
+      }
+    });
+    return sum;
+  },
+  get additionalInventoryFeeTotal() {
+    let sum = 0;
+    this.currentClassKit.forEach(cfg => {
+      let addQty = Number(this.additionalItems[cfg.item_id] || 0);
+      if (addQty > 0) {
+        let price = Number(cfg.student_charge > 0 ? cfg.student_charge : (cfg.item?.student_price || 0));
+        sum += addQty * price;
+      }
+    });
+    return sum;
+  },
+  get totalKitFee() {
+    return this.standardKitFeeTotal + this.additionalInventoryFeeTotal;
+  },
+  get hasLowStockWarning() {
+    return this.currentClassKit.some(cfg => {
+      let addQty = Number(this.additionalItems[cfg.item_id] || 0);
+      let totalQty = cfg.default_quantity + addQty;
+      return (cfg.item?.current_stock || 0) < totalQty;
+    });
   },
   get selectedClassName() {
     let c = this.classList.find(x => x.id == this.selectedClassId);
@@ -47,19 +85,28 @@
     return sum;
   },
   get grandTotal() {
-    return this.basicFeeTotal + this.hostelFeeTotal + this.activitiesFeeTotal;
+    return this.basicFeeTotal + this.hostelFeeTotal + this.activitiesFeeTotal + this.totalKitFee;
+  },
+  get remainingFeesTotal() {
+    return Math.max(0, this.grandTotal - this.totalKitFee);
   },
 
-  // Term amounts calculations
+  // Term amounts calculations: Admission Kit + Additional Kit directly added to Term 1, remaining tuition fees divided evenly
   get term1Amount() {
     if (this.paymentTerms === 'single') return this.grandTotal;
-    if (this.paymentTerms === '2_terms') return Math.round(this.grandTotal / 2);
-    if (this.paymentTerms === '3_terms') return Math.round(this.grandTotal / 3);
+    if (this.paymentTerms === '2_terms') {
+      let remT1 = Math.round(this.remainingFeesTotal / 2);
+      return this.totalKitFee + remT1;
+    }
+    if (this.paymentTerms === '3_terms') {
+      let remT1 = Math.round(this.remainingFeesTotal / 3);
+      return this.totalKitFee + remT1;
+    }
     return this.grandTotal;
   },
   get term2Amount() {
     if (this.paymentTerms === '2_terms') return this.grandTotal - this.term1Amount;
-    if (this.paymentTerms === '3_terms') return Math.round(this.grandTotal / 3);
+    if (this.paymentTerms === '3_terms') return Math.round(this.remainingFeesTotal / 3);
     return 0;
   },
   get term3Amount() {
@@ -199,6 +246,54 @@
                 </template>
               </template>
             </select>
+          </div>
+        </div>
+
+        {{-- Standard-wise Student Admission Kit & Textbook Inventory --}}
+        <div x-show="selectedClassId" x-transition class="pt-4 border-t border-slate-100 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xs font-extrabold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                <span>Student Admission Kit &amp; Textbooks (Standard Kit)</span>
+              </h3>
+              <p class="text-[11px] text-slate-500 font-medium">Items automatically issued from Warehouse for <span class="font-bold text-slate-900" x-text="'Class ' + selectedClassName"></span></p>
+            </div>
+            <span class="text-xs font-extrabold font-mono text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg" x-text="currentClassKit.length + ' Items'"></span>
+          </div>
+
+          {{-- Stock Warning Alert --}}
+          <div x-show="hasLowStockWarning" class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs font-medium text-amber-800 flex items-center gap-2">
+            <svg class="w-4 h-4 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span>Notice: One or more kit items have low or insufficient stock in the Warehouse. Please verify stock before completing admission.</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <template x-for="cfg in currentClassKit" :key="cfg.id">
+              <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/60 flex items-center justify-between gap-3">
+                <div>
+                  <span class="font-extrabold text-slate-900 text-xs block" x-text="cfg.item?.name || 'Item'"></span>
+                  <div class="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5 flex-wrap">
+                    <span>Default: <strong class="text-slate-800 font-mono" x-text="cfg.default_quantity + ' ' + (cfg.item?.unit || '')"></strong></span>
+                    <span>&bull;</span>
+                    <span>Stock: <strong :class="(cfg.item?.current_stock || 0) < (cfg.default_quantity + Number(additionalItems[cfg.item_id]||0)) ? 'text-rose-600 font-mono' : 'text-emerald-700 font-mono'" x-text="(cfg.item?.current_stock || 0) + ' ' + (cfg.item?.unit || '')"></strong></span>
+                    <span>&bull;</span>
+                    <span class="text-slate-700 font-medium">Price: <strong class="font-mono text-blue-700 font-bold" x-text="formatMoney(cfg.student_charge > 0 ? cfg.student_charge : (cfg.item?.student_price || 0)) + '/' + (cfg.item?.unit || 'unit')"></strong></span>
+                  </div>
+                </div>
+
+                {{-- Additional Paid Qty Selector --}}
+                <div x-show="cfg.allow_additional_qty" class="flex flex-col items-end gap-1">
+                  <div class="flex items-center gap-1.5 shrink-0 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+                    <span class="text-[10px] font-bold text-slate-500 pl-1">+ Extra:</span>
+                    <button type="button" @click="additionalItems[cfg.item_id] = Math.max(0, Number(additionalItems[cfg.item_id]||0) - 1)" class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 text-xs cursor-pointer flex items-center justify-center">-</button>
+                    <input type="number" :name="'additional_items[' + cfg.item_id + ']'" x-model.number="additionalItems[cfg.item_id]" min="0" readonly class="w-8 text-center text-xs font-mono font-bold text-blue-700 bg-transparent border-0 p-0 focus:ring-0">
+                    <button type="button" @click="additionalItems[cfg.item_id] = Number(additionalItems[cfg.item_id]||0) + 1" class="w-6 h-6 rounded-lg bg-blue-100 hover:bg-blue-200 font-bold text-blue-800 text-xs cursor-pointer flex items-center justify-center">+</button>
+                  </div>
+                  <span class="text-[10px] font-bold text-blue-700 font-mono pr-1" x-show="Number(additionalItems[cfg.item_id]||0) > 0" x-text="'+ ' + formatMoney((Number(additionalItems[cfg.item_id]||0)) * Number(cfg.student_charge > 0 ? cfg.student_charge : (cfg.item?.student_price || 0)))"></span>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -455,6 +550,14 @@
             <span>Extra Curricular Activities</span>
             <span class="font-mono font-bold" x-text="formatMoney(activitiesFeeTotal)"></span>
           </div>
+          <div class="flex justify-between items-center text-indigo-700 pt-1 border-t border-slate-200/60" x-show="standardKitFeeTotal > 0">
+            <span>Student Admission Kit (Standard Kit)</span>
+            <span class="font-mono font-bold" x-text="formatMoney(standardKitFeeTotal)"></span>
+          </div>
+          <div class="flex justify-between items-center text-indigo-700 pt-1 border-t border-slate-200/60" x-show="additionalInventoryFeeTotal > 0">
+            <span>Additional Inventory &amp; Kit Items Fee</span>
+            <span class="font-mono font-bold" x-text="formatMoney(additionalInventoryFeeTotal)"></span>
+          </div>
         </div>
       </div>
 
@@ -489,8 +592,8 @@
               <span class="text-xs font-extrabold text-slate-900">2 Terms</span>
               <input type="radio" name="payment_terms" value="2_terms" x-model="paymentTerms" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
             </div>
-            <p class="text-[11px] text-slate-500 font-medium">50% at admission, 50% in 2nd Term</p>
-            <p class="text-sm font-black font-mono text-blue-700" x-text="formatMoney(term1Amount) + ' / term'"></p>
+            <p class="text-[11px] text-slate-500 font-medium">100% Kit + 50% tuition in T1, 50% in T2</p>
+            <p class="text-sm font-black font-mono text-blue-700" x-text="formatMoney(term1Amount) + ' (T1) &bull; ' + formatMoney(term2Amount) + ' (T2)'"></p>
           </label>
 
           <label class="p-4 rounded-2xl border transition cursor-pointer flex flex-col justify-between space-y-2 select-none"
@@ -499,8 +602,8 @@
               <span class="text-xs font-extrabold text-slate-900">3 Terms</span>
               <input type="radio" name="payment_terms" value="3_terms" x-model="paymentTerms" class="w-4 h-4 text-blue-600 focus:ring-blue-500">
             </div>
-            <p class="text-[11px] text-slate-500 font-medium">Equal 3 term installments</p>
-            <p class="text-sm font-black font-mono text-blue-700" x-text="formatMoney(term1Amount) + ' / term'"></p>
+            <p class="text-[11px] text-slate-500 font-medium">100% Kit + 1/3 tuition in T1, equal in T2 &amp; T3</p>
+            <p class="text-sm font-black font-mono text-blue-700" x-text="formatMoney(term1Amount) + ' (T1) &bull; ' + formatMoney(term2Amount) + ' (T2/T3)'"></p>
           </label>
         </div>
       </div>

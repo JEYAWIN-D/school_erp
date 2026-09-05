@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class FeePayment extends Model
 {
     protected $fillable = [
-        'student_id', 'enrollment_id', 'fee_head_id', 'academic_year_id',
+        'student_id', 'enrollment_id', 'fee_head_id', 'term_number', 'term_name', 'academic_year_id',
         'receipt_number', 'payment_date', 'amount', 'late_fee', 'discount',
         'amount_paid', 'total_paid', 'payment_mode', 'transaction_id',
         'cheque_number', 'cheque_bank', 'cheque_branch', 'cheque_date',
@@ -58,5 +58,10 @@ class FeePayment extends Model
     public function cancelledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function splits(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(FeePaymentSplit::class, 'fee_payment_id');
     }
 }

@@ -17,10 +17,13 @@ use App\Models\StudentConcession;
 use App\Models\StudentFeeCharge;
 use App\Exports\FeeReportExport;
 use App\Mail\FeeReminderMail;
+use App\Models\FeePaymentSplit;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -118,20 +121,62 @@ class FeeController extends Controller
         $feeHeads = FeeHead::where('is_active', true)->get();
         $currentYear = AcademicYear::current();
 
-        // For autocomplete suggestions
+        // For autocomplete suggestions if needed
         $studentSuggestions = Student::where('status', 'active')
             ->orderBy('first_name')
             ->get(['id', 'first_name', 'last_name', 'admission_no']);
 
         if ($request->student_id) {
             $q = trim($request->student_id);
-            $student = Student::with('currentEnrollment.class')
-                ->where(fn($sq) => $sq->where('id', is_numeric($q) ? $q : 0)
-                    ->orWhere('admission_no', $q)
-                    ->orWhere(DB::raw("CONCAT(first_name,' ',last_name)"), 'like', "%$q%"))
-                ->first();
+            $student = Student::with([
+                'currentEnrollment.class',
+                'currentEnrollment.section',
+                'currentEnrollment.academicYear',
+                'feePayments' => fn($q) => $q->where('is_cancelled', false)->latest('payment_date'),
+            ])->where(fn($sq) => $sq->where('id', is_numeric($q) ? (int)$q : 0)
+                ->orWhere('admission_no', $q)
+                ->orWhere(DB::raw("CONCAT(first_name,' ',last_name)"), 'like', "%$q%"))
+            ->first();
+
             if ($student && $currentYear) {
-                // Determine if student is new admission in current year
+                // 1. Process terms from student admission fee schedule
+                if (!empty($student->admission_fee_terms) && is_array($student->admission_fee_terms)) {
+                    foreach ($student->admission_fee_terms as $idx => $term) {
+                        $pending = (float)($term['pending'] ?? 0);
+                        if ($pending > 0) {
+                            $tNum = $term['term_number'] ?? ($idx + 1);
+                            $tName = $term['name'] ?? ('Term ' . $tNum);
+                            $dues->push((object)[
+                                'id'            => 'term_' . $tNum,
+                                'item_key'      => 'term_' . $tNum,
+                                'item_type'     => 'term',
+                                'term_number'   => $tNum,
+                                'term_name'     => $tName,
+                                'fee_head_id'   => null,
+                                'name'          => $tName,
+                                'display_label' => $tName . ' — ₹' . number_format($pending, 2) . ' due',
+                                'balance'       => $pending,
+                                'due_date'      => $term['due_date'] ?? null,
+                            ]);
+                        }
+                    }
+                } elseif ((float)($student->admission_pending_amount ?? 0) > 0) {
+                    $pending = (float)$student->admission_pending_amount;
+                    $dues->push((object)[
+                        'id'            => 'term_1',
+                        'item_key'      => 'term_1',
+                        'item_type'     => 'term',
+                        'term_number'   => 1,
+                        'term_name'     => 'Term 1',
+                        'fee_head_id'   => null,
+                        'name'          => 'Term 1',
+                        'display_label' => 'Term 1 — ₹' . number_format($pending, 2) . ' due',
+                        'balance'       => $pending,
+                        'due_date'      => null,
+                    ]);
+                }
+
+                // 2. Process class fee structures
                 $isNewAdmission = $currentYear->start_date
                     && $student->created_at->gte(\Carbon\Carbon::parse($currentYear->start_date)->startOfDay());
                 $studentType = $isNewAdmission ? 'new_admission' : 'existing';
@@ -139,31 +184,63 @@ class FeeController extends Controller
                 $paid = FeePayment::where('student_id', $student->id)
                     ->where('academic_year_id', $currentYear->id)
                     ->where('is_cancelled', false)
+                    ->whereNotNull('fee_head_id')
                     ->select('fee_head_id', DB::raw('SUM(total_paid) as paid'))
                     ->groupBy('fee_head_id')->get()->keyBy('fee_head_id');
 
-                $dues = FeeStructure::with('feeHead')
+                $structureDues = FeeStructure::with('feeHead')
                     ->where('class_id', $student->currentEnrollment?->class_id)
                     ->where('academic_year_id', $currentYear->id)
                     ->where(fn($q) => $q->where('applies_to', 'all')->orWhere('applies_to', $studentType))
                     ->get()->map(function ($s) use ($paid) {
-                        $s->paid_amount = $paid[$s->fee_head_id]->paid ?? 0;
-                        $s->balance     = $s->amount - $s->paid_amount;
+                        $s->paid_amount = (float)($paid[$s->fee_head_id]->paid ?? 0);
+                        $s->balance     = (float)($s->amount - $s->paid_amount);
                         return $s;
+                    })->filter(fn($s) => $s->balance > 0)->map(function ($s) {
+                        $name = $s->feeHead?->name ?? 'Fee';
+                        return (object)[
+                            'id'            => 'head_' . $s->fee_head_id,
+                            'item_key'      => 'head_' . $s->fee_head_id,
+                            'item_type'     => 'fee_head',
+                            'term_number'   => null,
+                            'term_name'     => null,
+                            'fee_head_id'   => $s->fee_head_id,
+                            'name'          => $name,
+                            'display_label' => $name . ' — ₹' . number_format($s->balance, 2) . ' due',
+                            'balance'       => $s->balance,
+                            'due_date'      => $s->due_date,
+                        ];
                     });
 
-                // Merge individual student fee charges (e.g., hostel fee auto-linked)
+                $dues = $dues->concat($structureDues);
+
+                // 3. Process individual student charges
+                $hasAdmissionTerms = !empty($student->admission_fee_terms) || ((float)($student->total_admission_fee ?? 0) > 0);
                 $studentCharges = StudentFeeCharge::with('feeHead')
                     ->where('student_id', $student->id)
                     ->where('academic_year_id', $currentYear->id)
                     ->where('is_active', true)
+                    ->when($hasAdmissionTerms, fn($q) => $q->where('source', '!=', 'admission'))
                     ->whereNotIn('fee_head_id', $dues->pluck('fee_head_id')->filter())
                     ->get()->map(function ($c) use ($paid) {
-                        $c->paid_amount = $paid[$c->fee_head_id]->paid ?? 0;
-                        $c->balance     = $c->amount - $c->paid_amount;
-                        $c->due_date    = $c->due_date;
-                        $c->is_mandatory = true;
+                        $paidAmt = (float)($paid[$c->fee_head_id]->paid ?? 0);
+                        $c->paid_amount = $paidAmt;
+                        $c->balance     = (float)($c->amount - $paidAmt);
                         return $c;
+                    })->filter(fn($c) => $c->balance > 0)->map(function ($c) {
+                        $name = $c->feeHead?->name ?? $c->description ?? 'Fee Charge';
+                        return (object)[
+                            'id'            => 'charge_' . $c->id,
+                            'item_key'      => 'charge_' . $c->id,
+                            'item_type'     => 'charge',
+                            'term_number'   => null,
+                            'term_name'     => null,
+                            'fee_head_id'   => $c->fee_head_id,
+                            'name'          => $name,
+                            'display_label' => $name . ' — ₹' . number_format($c->balance, 2) . ' due',
+                            'balance'       => $c->balance,
+                            'due_date'      => $c->due_date,
+                        ];
                     });
 
                 $dues = $dues->concat($studentCharges);
@@ -176,38 +253,223 @@ class FeeController extends Controller
     public function savePayment(Request $request)
     {
         $validated = $request->validate([
-            'student_id'   => 'required|exists:students,id',
-            'fee_head_id'  => 'required|exists:fee_heads,id',
-            'amount'       => 'required|numeric|min:1',
-            'payment_mode' => 'required|in:cash,cheque,dd,online,upi',
-            'payment_date' => 'required|date|before_or_equal:today',
-            'late_fee'     => 'nullable|numeric|min:0',
-            'discount'     => 'nullable|numeric|min:0',
-            'transaction_id'=> 'nullable|string|max:100',
-            'remarks'      => 'nullable|string',
-            'cheque_number'=> 'nullable|string|max:20',
-            'cheque_bank'  => 'nullable|string|max:100',
-            'cheque_branch'=> 'nullable|string|max:100',
-            'cheque_date'  => 'nullable|date',
+            'student_id'       => 'required|exists:students,id',
+            'fee_item_id'      => 'required|string',
+            'amount'           => 'required|numeric|gt:0',
+            'discount'         => 'nullable|numeric|min:0',
+            'payment_date'     => 'required|date|before_or_equal:today',
+            'payment_type'     => 'required|in:single,split',
+            'payment_mode'     => 'required_if:payment_type,single|nullable|in:cash,cheque,dd,online,upi,card,bank_transfer',
+            'transaction_id'   => 'nullable|string|max:100',
+            'remarks'          => 'nullable|string|max:1000',
+            'cheque_number'    => 'nullable|string|max:50',
+            'cheque_bank'      => 'nullable|string|max:100',
+            'cheque_branch'    => 'nullable|string|max:100',
+            'cheque_date'      => 'nullable|date',
+            'idempotency_token'=> 'nullable|string|max:100',
+            'splits'           => 'required_if:payment_type,split|nullable|array',
+            'splits.*.payment_mode'  => 'required_with:splits|string|in:cash,cheque,dd,online,upi,card,bank_transfer',
+            'splits.*.amount'        => 'required_with:splits|numeric|gt:0',
+            'splits.*.transaction_id'=> 'nullable|string|max:100',
+            'splits.*.cheque_number' => 'nullable|string|max:50',
+            'splits.*.cheque_date'   => 'nullable|date',
+            'splits.*.bank_name'     => 'nullable|string|max:100',
+            'splits.*.branch_name'   => 'nullable|string|max:100',
         ]);
 
+        $amount = round((float) $request->input('amount'), 2);
+        $discount = round((float) ($request->input('discount') ?? 0), 2);
+
+        if ($discount < 0) {
+            return back()->withErrors(['discount' => 'Discount cannot be negative.'])->withInput();
+        }
+        if ($discount >= $amount) {
+            return back()->withErrors(['discount' => 'Discount cannot be greater than or equal to the payment amount.'])->withInput();
+        }
+
+        $netPayable = round($amount - $discount, 2);
+        if ($netPayable <= 0) {
+            return back()->withErrors(['amount' => 'Payable amount must be greater than zero.'])->withInput();
+        }
+
+        $isSplit = $request->input('payment_type') === 'split';
+        $splits = $request->input('splits', []);
+
+        if ($isSplit) {
+            if (!is_array($splits) || count($splits) < 2) {
+                return back()->withErrors(['splits' => 'Split payment requires at least two payment methods.'])->withInput();
+            }
+            $splitSum = 0;
+            foreach ($splits as $sp) {
+                $spAmount = (float)($sp['amount'] ?? 0);
+                if ($spAmount <= 0) {
+                    return back()->withErrors(['splits' => 'Payment amounts must be greater than zero.'])->withInput();
+                }
+                $splitSum += $spAmount;
+            }
+            $splitSum = round($splitSum, 2);
+            if (abs($splitSum - $netPayable) > 0.01) {
+                return back()->withErrors(['splits' => 'Payment amounts do not match the selected payment amount.'])->withInput();
+            }
+        }
+
         $currentYear = AcademicYear::current();
-        $lateFee  = $validated['late_fee'] ?? 0;
-        $discount = $validated['discount'] ?? 0;
-        $total    = $validated['amount'] + $lateFee - $discount;
 
-        $payment = FeePayment::create(array_merge($validated, [
-            'receipt_number'  => $this->generateReceiptNumber(),
-            'academic_year_id'=> $currentYear?->id,
-            'late_fee'        => $lateFee,
-            'discount'        => $discount,
-            'total_paid'      => $total,
-            'collected_by'    => Auth::id(),
-            'cheque_status'   => ($validated['payment_mode'] === 'cheque' && !empty($validated['cheque_number'])) ? 'pending' : null,
-        ]));
+        // Idempotency / Double submission protection
+        $idempotencyToken = $request->input('idempotency_token');
+        if ($idempotencyToken) {
+            $lockAcquired = Cache::add('fee_pay_lock_' . $idempotencyToken, true, 30);
+            if (!$lockAcquired) {
+                return back()->withErrors(['error' => 'A payment request is already being processed. Please refresh and check payment history.'])->withInput();
+            }
+        }
 
-        return redirect()->route('fees.receipt', $payment->id)
-            ->with('success', 'Payment recorded. Receipt #' . $payment->receipt_number);
+        DB::beginTransaction();
+        try {
+            $student = Student::where('id', $validated['student_id'])->lockForUpdate()->firstOrFail();
+
+            $feeItemId = $validated['fee_item_id'];
+            $feeHeadId = null;
+            $termNumber = null;
+            $termName = null;
+            $maxAllowed = null;
+
+            if (str_starts_with($feeItemId, 'term_')) {
+                $termNumber = (int) substr($feeItemId, 5);
+                $terms = $student->admission_fee_terms ?? [];
+                $matchedTerm = null;
+                foreach ($terms as $t) {
+                    if (($t['term_number'] ?? null) == $termNumber) {
+                        $matchedTerm = $t;
+                        break;
+                    }
+                }
+                if ($matchedTerm) {
+                    $termName = $matchedTerm['name'] ?? ('Term ' . $termNumber);
+                    $maxAllowed = (float)($matchedTerm['pending'] ?? 0);
+                } else {
+                    $termName = 'Term ' . $termNumber;
+                    $maxAllowed = (float)($student->admission_pending_amount ?? 0);
+                }
+            } elseif (str_starts_with($feeItemId, 'head_')) {
+                $feeHeadId = (int) substr($feeItemId, 5);
+                $head = FeeHead::find($feeHeadId);
+                $termName = $head?->name ?? 'Fee';
+                $struct = FeeStructure::where('class_id', $student->currentEnrollment?->class_id)
+                    ->where('academic_year_id', $currentYear?->id)
+                    ->where('fee_head_id', $feeHeadId)
+                    ->first();
+                if ($struct) {
+                    $paidSoFar = FeePayment::where('student_id', $student->id)
+                        ->where('academic_year_id', $currentYear?->id)
+                        ->where('fee_head_id', $feeHeadId)
+                        ->where('is_cancelled', false)
+                        ->sum('total_paid');
+                    $maxAllowed = max(0, (float)$struct->amount - (float)$paidSoFar);
+                }
+            } elseif (str_starts_with($feeItemId, 'charge_')) {
+                $chargeId = (int) substr($feeItemId, 7);
+                $charge = StudentFeeCharge::find($chargeId);
+                if ($charge) {
+                    $feeHeadId = $charge->fee_head_id;
+                    $termName = $charge->feeHead?->name ?? $charge->description ?? 'Fee Charge';
+                    $paidSoFar = $charge->fee_head_id ? FeePayment::where('student_id', $student->id)
+                        ->where('academic_year_id', $currentYear?->id)
+                        ->where('fee_head_id', $charge->fee_head_id)
+                        ->where('is_cancelled', false)
+                        ->sum('total_paid') : 0;
+                    $maxAllowed = max(0, (float)$charge->amount - (float)$paidSoFar);
+                }
+            }
+
+            if ($maxAllowed !== null && $amount > ($maxAllowed + 0.01)) {
+                DB::rollBack();
+                return back()->withErrors(['amount' => 'Payment amount cannot exceed outstanding due of ₹' . number_format($maxAllowed, 2) . '.'])->withInput();
+            }
+
+            $paymentMode = $isSplit ? 'split' : $validated['payment_mode'];
+
+            $payment = FeePayment::create([
+                'student_id'       => $student->id,
+                'enrollment_id'    => $student->currentEnrollment?->id,
+                'academic_year_id' => $currentYear?->id,
+                'fee_head_id'      => $feeHeadId,
+                'term_number'      => $termNumber,
+                'term_name'        => $termName,
+                'receipt_number'   => $this->generateReceiptNumber(),
+                'payment_date'     => $validated['payment_date'],
+                'amount'           => $amount,
+                'late_fee'         => 0, // Requirement 8: Late fee not used
+                'discount'         => $discount,
+                'amount_paid'      => $netPayable,
+                'total_paid'       => $netPayable,
+                'payment_mode'     => $paymentMode,
+                'transaction_id'   => $isSplit ? null : ($validated['transaction_id'] ?? null),
+                'cheque_number'    => $isSplit ? null : ($validated['cheque_number'] ?? null),
+                'cheque_date'      => $isSplit ? null : ($validated['cheque_date'] ?? null),
+                'cheque_bank'      => $isSplit ? null : ($validated['cheque_bank'] ?? null),
+                'cheque_branch'    => $isSplit ? null : ($validated['cheque_branch'] ?? null),
+                'cheque_status'    => (!$isSplit && $paymentMode === 'cheque' && !empty($validated['cheque_number'])) ? 'pending' : null,
+                'remarks'          => $validated['remarks'] ?? null,
+                'collected_by'     => Auth::id(),
+            ]);
+
+            if ($isSplit) {
+                foreach ($splits as $sp) {
+                    FeePaymentSplit::create([
+                        'fee_payment_id' => $payment->id,
+                        'payment_mode'   => $sp['payment_mode'],
+                        'amount'         => (float)$sp['amount'],
+                        'transaction_id' => $sp['transaction_id'] ?? null,
+                        'cheque_number'  => $sp['cheque_number'] ?? null,
+                        'cheque_date'    => !empty($sp['cheque_date']) ? $sp['cheque_date'] : null,
+                        'bank_name'      => $sp['bank_name'] ?? null,
+                        'branch_name'    => $sp['branch_name'] ?? null,
+                    ]);
+                }
+            }
+
+            // Update student admission fee terms and pending amounts
+            if ($termNumber !== null || str_starts_with($feeItemId, 'term_')) {
+                $terms = $student->admission_fee_terms ?? [];
+                $updatedTerms = [];
+                $splitPaymentSummary = $isSplit
+                    ? 'Split: ' . implode(', ', array_map(fn($s) => ucfirst($s['payment_mode']) . ' (₹' . number_format((float)$s['amount'], 2) . ')', $splits))
+                    : ucfirst($paymentMode);
+
+                if (is_array($terms) && count($terms) > 0) {
+                    foreach ($terms as $t) {
+                        if (($t['term_number'] ?? null) == $termNumber) {
+                            $newPaid = round((float)($t['paid'] ?? 0) + $netPayable, 2);
+                            $newPending = max(0, round((float)($t['amount'] ?? 0) - $newPaid, 2));
+                            $newStatus = $newPending <= 0 ? 'paid' : ($newPaid > 0 ? 'partially_paid' : 'pending');
+                            $t['paid'] = $newPaid;
+                            $t['pending'] = $newPending;
+                            $t['status'] = $newStatus;
+                            $t['payment_mode'] = $splitPaymentSummary;
+                            $t['payment_date'] = $validated['payment_date'];
+                        }
+                        $updatedTerms[] = $t;
+                    }
+                    $student->admission_fee_terms = $updatedTerms;
+                }
+
+                $student->admission_paid_amount = round((float)($student->admission_paid_amount ?? 0) + $netPayable, 2);
+                $student->admission_pending_amount = max(0, round((float)($student->total_admission_fee ?? 0) - $student->admission_paid_amount, 2));
+                $student->payment_status = $student->admission_pending_amount <= 0 ? 'paid' : 'partially_paid';
+                $student->save();
+            }
+
+            DB::commit();
+
+            return redirect()->route('fees.receipt', $payment->id)
+                ->with('success', 'Fee payment recorded successfully. Receipt #' . $payment->receipt_number);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Fee payment failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return back()->withErrors(['error' => 'Unable to record payment: ' . $e->getMessage()])->withInput();
+        }
     }
 
     public function defaulters(Request $request)
@@ -261,7 +523,7 @@ class FeeController extends Controller
 
     public function receipt(int $id)
     {
-        $payment = FeePayment::with(['student.currentEnrollment.class', 'feeHead', 'collectedBy'])->findOrFail($id);
+        $payment = FeePayment::with(['student.currentEnrollment.class', 'feeHead', 'collectedBy', 'splits'])->findOrFail($id);
         return view('fees.receipt', compact('payment'));
     }
 
@@ -591,7 +853,7 @@ class FeeController extends Controller
 
     public function duplicateReceipt(int $id)
     {
-        $payment = FeePayment::with(['student.currentEnrollment.class', 'feeHead', 'collectedBy'])->findOrFail($id);
+        $payment = FeePayment::with(['student.currentEnrollment.class', 'feeHead', 'collectedBy', 'splits'])->findOrFail($id);
         $school  = \App\Models\SchoolSetting::first();
         $pdf = Pdf::loadView('pdf.receipt', compact('payment', 'school'));
         return $pdf->stream('duplicate-receipt-' . $payment->receipt_number . '.pdf');

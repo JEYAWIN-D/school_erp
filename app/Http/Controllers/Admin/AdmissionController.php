@@ -156,7 +156,13 @@ class AdmissionController extends Controller
         $standardFees = $feeData['standardFees'];
         $activities   = $feeData['activities'];
         $users        = \App\Models\User::where('is_active', true)->orderBy('name')->get(['id', 'name']);
-        return view('admissions.create', compact('classes', 'sections', 'academicYear', 'standardFees', 'activities', 'users'));
+
+        // Fetch standard-wise admission kits and inventory stock data
+        $admissionKits = \App\Models\AdmissionKitConfig::with('item')
+            ->get()
+            ->groupBy('class_id');
+
+        return view('admissions.create', compact('classes', 'sections', 'academicYear', 'standardFees', 'activities', 'users', 'admissionKits'));
     }
 
     public function printFeeStructure($classId = null)
@@ -276,6 +282,8 @@ class AdmissionController extends Controller
             'mother_tongue'        => 'nullable|string|max:50',
             'aadhaar_no'           => 'nullable|string|max:20',
             'pincode'              => 'nullable|string|max:10',
+            'additional_items'     => 'nullable|array',
+            'additional_items.*'   => 'nullable|integer|min:0',
         ]);
 
         $currentYear = AcademicYear::current();
@@ -299,7 +307,56 @@ class AdmissionController extends Controller
             }
         }
 
-        $totalFee = $basicTotal + $hostelFee + $activitiesFee;
+        // Warehouse Admission Kit Calculations & Stock Validation
+        $kitConfigs = \App\Models\AdmissionKitConfig::with('item')
+            ->where('class_id', $request->class_id)
+            ->get();
+
+        $standardKitFee = 0;
+        $additionalInventoryFee = 0;
+        $stockCheckErrors = [];
+        $issuedItemsSummary = [];
+
+        foreach ($kitConfigs as $cfg) {
+            $item = $cfg->item;
+            if (!$item || !$item->is_active) continue;
+
+            $defaultQty = $cfg->default_quantity;
+            $addQty = 0;
+            if ($cfg->allow_additional_qty && $request->has("additional_items.{$cfg->item_id}")) {
+                $addQty = max(0, (int)$request->input("additional_items.{$cfg->item_id}"));
+            }
+            $totalQty = $defaultQty + $addQty;
+
+            $unitCharge = (float)($cfg->student_charge > 0 ? $cfg->student_charge : $item->student_price);
+            $standardKitFee += $defaultQty * $unitCharge;
+            $addCharge  = $addQty * $unitCharge;
+            $additionalInventoryFee += $addCharge;
+
+            // Check stock availability
+            if ($item->current_stock < $totalQty) {
+                $stockCheckErrors[] = "Insufficient stock for '{$item->name}'. Required: {$totalQty} {$item->unit}, Available in Warehouse: {$item->current_stock} {$item->unit}.";
+            }
+
+            $issuedItemsSummary[] = [
+                'config'           => $cfg,
+                'item'             => $item,
+                'default_quantity' => $defaultQty,
+                'add_quantity'     => $addQty,
+                'total_quantity'   => $totalQty,
+                'unit_charge'      => $unitCharge,
+                'add_charge'       => $addCharge,
+            ];
+        }
+
+        if (!empty($stockCheckErrors)) {
+            return back()->withInput()->with('error', implode(' ', $stockCheckErrors) . ' Please replenish stock in Warehouse before completing admission.');
+        }
+
+        // Admission kit amount + additional kit amount added to Term 1; remaining tuition fees, etc. divided evenly
+        $totalKitFee = $standardKitFee + $additionalInventoryFee;
+        $remainingFees = $basicTotal + $hostelFee + $activitiesFee;
+        $totalFee = $remainingFees + $totalKitFee;
         $amountCollected = (float)$request->amount_collected;
 
         if ($amountCollected > $totalFee) {
@@ -327,8 +384,12 @@ class AdmissionController extends Controller
                 'payment_date' => $amountCollected > 0 ? $paymentDate : null,
             ];
         } elseif ($paymentTerms === '2_terms') {
-            $t1Amount = (float)round($totalFee / 2, 2);
-            $t2Amount = (float)round($totalFee - $t1Amount, 2);
+            // Kit amounts added directly to Term 1; remaining tuition fees, etc. divided evenly
+            $remT1 = (float)round($remainingFees / 2, 2);
+            $remT2 = (float)round($remainingFees - $remT1, 2);
+
+            $t1Amount = (float)round($totalKitFee + $remT1, 2);
+            $t2Amount = $remT2;
 
             $t1Paid = min($amountCollected, $t1Amount);
             $t1Pending = max(0, $t1Amount - $t1Paid);
@@ -364,9 +425,14 @@ class AdmissionController extends Controller
                 'payment_date' => $t2Paid > 0 ? $paymentDate : null,
             ];
         } else { // 3_terms
-            $t1Amount = (float)round($totalFee / 3, 2);
-            $t2Amount = (float)round($totalFee / 3, 2);
-            $t3Amount = (float)round($totalFee - ($t1Amount + $t2Amount), 2);
+            // Kit amounts added directly to Term 1; remaining tuition fees, etc. divided evenly
+            $remT1 = (float)round($remainingFees / 3, 2);
+            $remT2 = (float)round($remainingFees / 3, 2);
+            $remT3 = (float)round($remainingFees - ($remT1 + $remT2), 2);
+
+            $t1Amount = (float)round($totalKitFee + $remT1, 2);
+            $t2Amount = $remT2;
+            $t3Amount = $remT3;
 
             $rem = $amountCollected;
 
@@ -428,7 +494,7 @@ class AdmissionController extends Controller
 
         $student = null;
 
-        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $request, &$student) {
+        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, &$student) {
             $studentFullName = trim($request->first_name . ' ' . ($request->last_name ?? ''));
 
             // Save Enquiry
@@ -569,10 +635,61 @@ class AdmissionController extends Controller
                     'collected_by'     => Auth::id(),
                 ]);
             }
+
+            // Automatic Stock Deduction & Inventory Issue Records
+            foreach ($issuedItemsSummary as $sItem) {
+                $item       = $sItem['item'];
+                $totalQty   = $sItem['total_quantity'];
+                $defaultQty = $sItem['default_quantity'];
+                $addQty     = $sItem['add_quantity'];
+                $unitCharge = $sItem['unit_charge'];
+                $addCharge  = $sItem['add_charge'];
+
+                $prevStock = $item->current_stock;
+                $newStock  = $prevStock - $totalQty;
+                $unitCost  = $item->effective_purchase_cost;
+
+                // Deduct stock from Academic Inventory
+                $item->update(['current_stock' => $newStock]);
+
+                // Create permanent Inventory Transaction
+                $txn = \App\Models\InventoryTransaction::create([
+                    'transaction_code' => \App\Models\InventoryTransaction::generateTransactionCode('ADM'),
+                    'item_id'          => $item->id,
+                    'transaction_type' => 'admission_issue',
+                    'quantity'         => $totalQty,
+                    'previous_stock'   => $prevStock,
+                    'quantity_changed' => -$totalQty,
+                    'new_stock'        => $newStock,
+                    'unit_cost'        => $unitCost,
+                    'total_cost'       => $totalQty * $unitCost,
+                    'reference_type'   => 'admission',
+                    'reference_id'     => $student->id,
+                    'notes'            => "Issued upon Student Admission #{$student->admission_no} for Class {$classModel?->name} (Default: {$defaultQty}, Additional: {$addQty})",
+                    'performed_by'     => Auth::id(),
+                ]);
+
+                // Record link between Admission and Inventory Issue
+                \App\Models\AdmissionInventoryIssue::create([
+                    'enquiry_id'               => $enquiry->id,
+                    'student_id'               => $student->id,
+                    'academic_year_id'         => $currentYear?->id,
+                    'item_id'                  => $item->id,
+                    'default_quantity'         => $defaultQty,
+                    'additional_quantity'      => $addQty,
+                    'total_quantity'           => $totalQty,
+                    'unit_charge'              => $unitCharge,
+                    'additional_charge'        => $addCharge,
+                    'inventory_transaction_id' => $txn->id,
+                ]);
+            }
+
+            // Flag Enquiry as issued to prevent double deduction
+            $enquiry->update(['is_inventory_issued' => true]);
         });
 
         return redirect()->route('students.show', $student->id)
-            ->with('success', 'New Admission completed successfully! Student registered with Admission No: ' . $student->admission_no);
+            ->with('success', 'New Admission completed successfully! Student registered with Admission No: ' . $student->admission_no . '. Academic Inventory stock has been automatically issued.');
     }
 
     public function show(int $id)
