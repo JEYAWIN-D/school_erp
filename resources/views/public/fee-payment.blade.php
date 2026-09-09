@@ -83,12 +83,22 @@ label-s{display:block;font-size:11px;font-weight:700;color:#374151;text-transfor
     <h2 style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span>📱</span> Pay via UPI</h2>
     <p style="font-size:13px;color:#64748b;margin-bottom:18px">Scan QR or use UPI ID below to pay from any banking app.</p>
     <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:16px;padding:22px;text-align:center;margin-bottom:16px">
-      <img src="https://chart.googleapis.com/chart?cht=qr&chl={{ urlencode($upiUrl) }}&chs=180x180&choe=UTF-8&chld=L|2"
-           alt="UPI QR Code" loading="lazy"
-           style="width:180px;height:180px;border-radius:12px;border:4px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.1);display:block;margin:0 auto 14px">
+      {{-- Server-side QR code (SimpleSoftwareIO) — works without external APIs --}}
+      @if($qrSvg)
+        <div style="width:188px;height:188px;border-radius:12px;border:6px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.1);display:inline-flex;align-items:center;justify-content:center;background:#fff;margin-bottom:14px;padding:4px">
+          {!! $qrSvg !!}
+        </div>
+      @else
+        {{-- Fallback: show UPI details clearly if QR fails --}}
+        <div style="width:188px;height:188px;border-radius:12px;border:4px solid #4ade80;background:#fff;display:inline-flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;margin-bottom:14px">
+          <span style="font-size:40px">📱</span>
+          <span style="font-size:11px;color:#374151;font-weight:700;text-align:center;padding:0 8px">Open any UPI app and pay to the ID below</span>
+        </div>
+      @endif
       <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#166534;padding:8px 18px;background:#fff;border-radius:10px;display:inline-block;border:1px dashed #4ade80;margin-bottom:6px">{{ $upiId }}</div>
       <p style="font-size:12px;color:#6b7280">Pay to <strong>{{ $schoolName }}</strong></p>
     </div>
+
     <div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:12px">
       <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Share this payment link</div>
       <div style="display:flex;align-items:center;gap:8px">

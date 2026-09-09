@@ -5,10 +5,9 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Classes;
 use App\Models\AcademicYear;
-use App\Models\Student;
-use App\Models\FeePayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class PublicFeePaymentController extends Controller
 {
@@ -16,8 +15,8 @@ class PublicFeePaymentController extends Controller
     {
         $class = Classes::findOrFail($classId);
         $academicYear = AcademicYear::current() ?? AcademicYear::first();
-        
-        // Compute standard fees
+
+        // Compute standard fees by class tier
         $tier = match(true) {
             in_array($class->name, ['Pre-KG', 'LKG', 'UKG']) => 'Kindergarten',
             in_array($class->name, ['I', 'II', 'III', 'IV', 'V']) => 'Primary',
@@ -32,17 +31,16 @@ class PublicFeePaymentController extends Controller
             default        => 38000,
         };
 
-        $bookFee = match($tier) {
+        $bookFee  = match($tier) {
             'Kindergarten' => 2500,
             'Primary'      => 3500,
             'Middle'       => 4500,
             default        => 5500,
         };
 
-        $examFee = 1500;
-        $labFee = in_array($tier, ['Middle', 'High School']) ? 3000 : 0;
+        $examFee    = 1500;
+        $labFee     = in_array($tier, ['Middle', 'High School']) ? 3000 : 0;
         $totalBasic = $baseTuition + $bookFee + $examFee + $labFee;
-        $hostelAnnual = 30000;
 
         $feeBreakdown = [
             'tier'          => $tier,
@@ -51,16 +49,31 @@ class PublicFeePaymentController extends Controller
             'exam_fee'      => $examFee,
             'lab_fee'       => $labFee,
             'total_basic'   => $totalBasic,
-            'hostel_annual' => $hostelAnnual,
-            'combined'      => $totalBasic + $hostelAnnual,
+            'hostel_annual' => 30000,
+            'combined'      => $totalBasic + 30000,
         ];
 
-        // UPI link & QR string
-        $upiId = 'schoolerp@upi';
-        $schoolName = 'DASA EduGroup';
-        $upiUrl = "upi://pay?pa={$upiId}&pn=" . urlencode($schoolName) . "&am={$totalBasic}&cu=INR&tn=" . urlencode("Fee Class " . $class->name);
+        // UPI details
+        $upiId     = config('school.upi_id', 'schoolerp@upi');
+        $schoolName = config('app.name', 'DASA EduGroup');
+        $upiUrl    = "upi://pay?pa={$upiId}&pn=" . urlencode($schoolName)
+                   . "&am={$totalBasic}&cu=INR&tn=" . urlencode("Fee Class {$class->name}");
 
-        return view('public.fee-payment', compact('class', 'academicYear', 'feeBreakdown', 'upiUrl', 'upiId', 'schoolName'));
+        // Generate QR code server-side as inline SVG (no external API)
+        $qrSvg = null;
+        try {
+            $qrSvg = QrCode::size(180)->margin(1)->generate($upiUrl);
+        } catch (\Throwable $e) {
+            // Silently fail — blade will show a fallback
+        }
+
+        // Current page URL for sharing
+        $pageUrl = url()->current();
+
+        return view('public.fee-payment', compact(
+            'class', 'academicYear', 'feeBreakdown',
+            'upiUrl', 'upiId', 'schoolName', 'qrSvg', 'pageUrl'
+        ));
     }
 
     public function processPayment(Request $request, int $classId)
@@ -75,8 +88,8 @@ class PublicFeePaymentController extends Controller
             'transaction_ref' => 'nullable|string|max:100',
         ]);
 
-        $class = Classes::findOrFail($classId);
-        $receiptNo = 'REC-ONL-' . strtoupper(Str::random(6)) . '-' . date('Ymd');
+        $class      = Classes::findOrFail($classId);
+        $receiptNo  = 'REC-ONL-' . strtoupper(Str::random(6)) . '-' . date('Ymd');
         $transactionId = $request->transaction_ref ?: ('TXN' . strtoupper(Str::random(8)));
 
         $paymentData = [

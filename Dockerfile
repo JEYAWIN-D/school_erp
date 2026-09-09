@@ -206,10 +206,28 @@ sed -i "s/<VirtualHost \\*:80>/<VirtualHost *:${PORT}>/" \
 php artisan storage:link || true
 
 # ----------------------------------------------------------
+# Create /tmp/storage dirs (Render sets LARAVEL_STORAGE_PATH=/tmp/storage)
+# /tmp is writable on Render — the app dir is read-only after image build
+# ----------------------------------------------------------
+
+if [ -n "$LARAVEL_STORAGE_PATH" ]; then
+    echo "Creating writable storage at ${LARAVEL_STORAGE_PATH} ..."
+    mkdir -p \
+        "${LARAVEL_STORAGE_PATH}/framework/cache/data" \
+        "${LARAVEL_STORAGE_PATH}/framework/sessions" \
+        "${LARAVEL_STORAGE_PATH}/framework/views" \
+        "${LARAVEL_STORAGE_PATH}/framework/testing" \
+        "${LARAVEL_STORAGE_PATH}/logs" \
+        "${LARAVEL_STORAGE_PATH}/app/public"
+    chmod -R 775 "${LARAVEL_STORAGE_PATH}"
+fi
+
+# ----------------------------------------------------------
 # Clear old cached configuration
 # ----------------------------------------------------------
 
 php artisan optimize:clear || true
+
 
 # ----------------------------------------------------------
 # Run database migrations (creates new tables on each deploy)
