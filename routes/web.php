@@ -15,6 +15,8 @@ use App\Http\Controllers\Admin\TransportController;
 use App\Http\Controllers\Admin\HostelController;
 use App\Http\Controllers\Admin\OnlineExamController;
 use App\Http\Controllers\Admin\ClassesController;
+use App\Http\Controllers\Admin\ExpenseController;
+use App\Http\Controllers\Public\PublicFeePaymentController;
 
 // ── Auth ──────────────────────────────────────────────────
 Route::get('/',       [LoginController::class, 'landing'])->name('home');
@@ -37,6 +39,10 @@ Route::post('/students/upload-docs/{token}',            [\App\Http\Controllers\P
 Route::get('/students/upload-docs/{token}/doc/{docId}', [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'downloadDocument'])->name('public.student.documents.download');
 Route::get('/students/upload-docs/{token}/download-qr', [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'downloadQr'])->name('public.student.documents.qr-download');
 Route::get('/students/upload-docs/{token}/print-card',  [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'printCard'])->name('public.student.documents.print-card');
+
+// ── Public Fee Payment Checkout via Link / QR (no auth) ────
+Route::get('/pay/fee/{classId}',  [PublicFeePaymentController::class, 'show'])->name('public.fee.pay');
+Route::post('/pay/fee/{classId}', [PublicFeePaymentController::class, 'processPayment'])->name('public.fee.process');
 
 
 // ── Authenticated routes ──────────────────────────────────
@@ -540,6 +546,19 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/reminder-config',        [FeeController::class, 'reminderConfig'])->name('reminder-config');
         Route::post('/reminder-config',       [FeeController::class, 'saveReminderConfig'])->name('reminder-config.save');
         Route::post('/reminders/send',        [FeeController::class, 'sendReminders'])->name('reminders.send');
+    });
+
+    // ── Module 6.1 — Expenses (Bifurcated: Maintenance vs Academic) ──
+    Route::prefix('expenses')->name('expenses.')->group(function () {
+        Route::get('/',             [ExpenseController::class, 'index'])->name('index');
+        Route::get('/academic',     [ExpenseController::class, 'academic'])->name('academic');
+        Route::get('/maintenance',  [ExpenseController::class, 'maintenance'])->name('maintenance');
+        Route::get('/create',       [ExpenseController::class, 'create'])->name('create');
+        Route::post('/',            [ExpenseController::class, 'store'])->name('store');
+        Route::get('/{expense}',    [ExpenseController::class, 'show'])->name('show');
+        Route::post('/{expense}/verify',  [ExpenseController::class, 'verify'])->name('verify');
+        Route::post('/{expense}/approve', [ExpenseController::class, 'approve'])->name('approve');
+        Route::post('/{expense}/reject',  [ExpenseController::class, 'reject'])->name('reject');
     });
 
     // ── Module 7 — HR & Payroll ───────────────────────────

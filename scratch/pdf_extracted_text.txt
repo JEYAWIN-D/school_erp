@@ -1,0 +1,595 @@
+ 
+ 
+ADMISSION
+ 
+* CLASS 
+-
+ 
+ 
+* SUBJECTS 
+-
+ 
+Subject handling teachers name
+ 
+* TIME TABLE
+ 
+* MARK ENTRY 
+-
+ 
+All exam names 
+-
+ 
+Drop down 
+-
+ 
+Mark
+ 
+* REPORT CARD GENERATION
+ 
+* PROMOTION
+ 
+* ATTENDANCE 
+-
+ 
+Students
+ 
+* MONTHLY & YEAR CALENDAR
+ 
+* CIRCULAR
+ 
+FINANCE
+ 
+* FEE COLLECTION
+ 
+* STAFF PAY ROLL 
+-
+ 
+Include staff data
+ 
+* EXPENSES 
+-
+ 
+Maintenance 
+ 
+                     
+-
+ 
+Academic 
+ 
+                     
+-
+ 
+Need in two Maintenance and academic
+ 
+ 
+ADMINSTRATION
+ 
+ 
+* TRANSPORT 
+-
+ 
+Add GPRS
+ 
+ENGAGEMENT
+ 
+* EVENT 
+-
+ 
+Approval form
+ 
+              
+-
+ 
+Budget
+ 
+              
+-
+ 
+Chief guest 
+ 
+* REPORT 
+-
+ 
+Staff report
+ 
+                
+-
+ 
+Over all student report
+ 
+ 
+ADMISSION
+ 
+* Add guardian name and number
+ 
+* ECA 
+-
+ 
+Remove payment
+ 
+* ADD ASP 
+-
+ 
+Remove hostel facility
+ 
+* ADD SCHOOL TRANSPORT FACILITY 
+-
+ 
+Add stopping 
+ 
+                                                             
+-
+ 
+Add fee
+ 
+                                                             
+-
+ 
+Add k.m
+ 
+                                                             
+-
+ 
+Add location
+ 
+                                                             
+-
+ 
+Add ID card generation
+ 
+                                                             
+-
+ 
+Add personal identification mark
+ 
+                                                             
+-
+ 
+Add photo of the student
+ 
+                                                             
+-
+ 
+Add sibling details
+ 
+                                                             
+-
+ 
+Add EMIS number 
+ 
+                                                             
+-
+ 
+Add concession details => Staff kid
+ 
+                                                                                                   
+=> Topper
+ 
+                                                                                                   
+=> Sports 
+ 
+                                                                                                   
+=> 
+S i n g l e sh o t  
+ 
+                                                                                                   
+=> Referal 
+ 
+                                                                                                   
+=> 
+Si b lin g 
+co nces sio n 
+ 
+* DOCUMENTS UPLOADED 
+ 
+BC \(   \     \
+ 
+CC \(   \     \      \
+ 
+MIGRATION CERTIFICATE  \(      \
+ 
+ENQUIRIES
+ 
+* NAME  
+-
+ 
+Class
+ 
+* LAST SCHOOL STUDIED 
+ 
+* LAST CLASS STUDIED 
+ 
+* FATHER NAME & NO & OCCUPATION
+ 
+* MOTHER NAME & NO & OCCUPATION 
+ 
+* REFERRED BY 
+ 
+* STATUS 
+-
+ 
+Converted => Pending => Remarks 
+ 
+                                                        
+\( Description follow up details\
+ 
+* UNDER ACADEMICS 
+-
+ 
+Academic management => Remove substitutions
+ 
+                                                                     
+=> Need only two terms                                                                                                       
+   
+for portion.
+ 
+* SUBHEADING TERM 
+-
+ 
+Doubt in the term order 
+ 
+* ATTENDANCE REGISTER 
+-
+ 
+Staff under head 
+ 
+                                            
+-
+ 
+Need to add permission coloumn 
+ 
+* In class result summary need to add subject 
+ 
+* In failed student 
+-
+ 
+Need to add subject
+ 
+* In subject 
+-
+ 
+Subject wise performance report
+ 
+* Need to add subject individually 
+ 
+* Need consolidated report of student
+ 
+* IN MARK PROGRESS 
+-
+ 
+Change the heading as mark entry progress.
+ 
+* In fee structure need to add the payment link 
+ 
+TRANSPORT
+ 
+* IN STUDENT 
+-
+ 
+Route allotment 
+ 
+                     
+-
+ 
+Remove pickup time, drop time, monthly fee
+ 
+* STOP MANAGEMENT 
+-
+ 
+Van number has to be added.
+ 
+ 
+ 
+                                   
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ADMISSION
+ 
+ 
+New admission
+ 
+ 
+Students registration
+ 
+ 
+Students data
+ 
+ 
+Documents submitted
+ 
+ 
+Admission confirmation
+ 
+ 
+STUDENTS
+ 
+ 
+Add student
+ 
+ 
+View student profile
+ 
+ 
+Manage students record
+ 
+ 
+ACADEMIC
+ 
+ 
+Subjects
+ 
+ 
+Teacher or class allocation
+ 
+ 
+Time table
+ 
+ 
+ 
+ 
+ATTENDANCE
+ 
+ 
+Select class / date
+ 
+ 
+Mark attendance
+ 
+ 
+Review
+ 
+ 
+Generate attendance records
+ 
+ 
+EXAMINATION
+ 
+ 
+Create exam
+ 
+ 
+Time table
+ 
+ 
+Enter marks
+ 
+ 
+Calculate results
+ 
+ 
+Generate report
+ 
+ 
+FINANCE
+ 
+ 
+Fee management
+ 
+ 
+Fee structure
+ 
+ 
+Assign fees
+ 
+ 
+Collect fees
+ 
+ 
+Track pending fees
+ 
+ 
+Generate report
+ 
+ 
+HR & PAYROLL
+ 
+ 
+Staff details
+ 
+ 
+Salary structure
+ 
+ 
+Attendance
+ 
+ 
+Pay roll processing
+ 
+ 
+Salary record
+ 
+ 
+ADMINISTRATION
+ 
+ 
+Library
+ 
+ 
+Book entry
+ 
+ 
+Issue book
+ 
+ 
+Return book
+ 
+ 
+Track availability or over due books
+ 
+ 
+TRANSPORT
+ 
+ 
+Vehicle details
+ 
+ 
+Routes
+ 
+ 
+Students allocation
+ 
+ 
+GPRS
+ 
+ 
+Maintenance
+ 
+ 
+INVENTORY
+ 
+ 
+Add items
+ 
+ 
+Stock management
+ 
+ 
+Issue or Return items
+ 
+ 
+Track available inventory
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+MIS
+ 
+PREPARED BY
+ 
+APPROVAL
+ 
+Admission
+ 
+Coordinator 
+admin
+ 
+Principal
+ 
+Students
+ 
+Respective teachers 
+ 
+coordinators
+ 
+Principal
+ 
+Classes
+ 
+Respective teachers 
+ 
+coordinators
+ 
+Principal
+ 
+Academic
+ 
+Respective teachers 
+ 
+coordinators
+ 
+Principal
+ 
+Attendance
+ 
+Respective teachers 
+ 
+coordinators
+ 
+Principal
+ 
+Examination
+ 
+Respective teachers 
+ 
+coordinators
+ 
+Principal
+ 
+Fee management
+ 
+Admin
+ 
+Principal
+ 
+HR pay roll 
+ 
+Admin
+ 
+Principal
+ 
+Library
+ 
+Librarian 
+ 
+Admin
+ 
+Principal
+ 
+Transport
+ 
+Transport incharge 
+ 
+Admin
+ 
+Principal
+ 
+Inventory
+ 
+Lab incharge 
+Coordinator 
+Admin
+ 
+Principal
+ 
+Expenses
+ 
+Academic coordinator 
+Admin
+ 
+Principal
+ 
+ 
+Maintenance 
+ 
+Principal
+ 
+ 
+Admin
+ 
+Correspondent
+ 
+Event approval form
+ 
+Coordinator
+ 
+Principal
+ 
+Budget
+ 
+Coordinator
+ 
+Principal
+ 
+Chief guest details
+ 
+Coordinator
+ 
+Principal
+ 
+ 
