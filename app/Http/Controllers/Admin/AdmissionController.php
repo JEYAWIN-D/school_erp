@@ -689,7 +689,8 @@ class AdmissionController extends Controller
         });
 
         return redirect()->route('students.show', $student->id)
-            ->with('success', 'New Admission completed successfully! Student registered with Admission No: ' . $student->admission_no . '. Academic Inventory stock has been automatically issued.');
+            ->with('success', 'New Admission completed successfully! Student registered with Admission No: ' . $student->admission_no . '. Academic Inventory stock has been automatically issued.')
+            ->with('admission_success_qr', true);
     }
 
     public function show(int $id)

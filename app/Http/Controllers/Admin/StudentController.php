@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\FeeReminderMail;
 use App\Models\AcademicYear;
+use App\Models\AuditLog;
 use App\Models\Classes;
 use App\Models\NotificationTemplate;
 use App\Models\ScholarshipScheme;
@@ -32,6 +33,34 @@ use Illuminate\Support\Facades\Storage;
 
 class StudentController extends Controller
 {
+    /**
+     * Verify that the requested student ID is within the user's allowed scope.
+     */
+    private function assertStudentInScope(Request $request, int $studentId): void
+    {
+        if (!$request->is_scoped) {
+            return;
+        }
+
+        // Parent / student scoping
+        if (!empty($request->scope_student_ids) && !in_array($studentId, $request->scope_student_ids)) {
+            abort(403, 'Unauthorized access: you do not have permission to view or modify this student.');
+        }
+
+        // Teacher scoping (restricted to assigned classes)
+        if (!empty($request->scope_class_ids)) {
+            $isInClass = DB::table('student_enrollments')
+                ->where('student_id', $studentId)
+                ->where('status', 'active')
+                ->whereIn('class_id', $request->scope_class_ids)
+                ->exists();
+
+            if (!$isInClass) {
+                abort(403, 'Unauthorized access: this student is not in your assigned classes.');
+            }
+        }
+    }
+
     public function index(Request $request)
     {
         $currentYear = AcademicYear::current();
@@ -183,6 +212,7 @@ class StudentController extends Controller
                 'is_disabled'      => $request->boolean('is_disabled'),
             ]));
             $newStudentId = $student->id;
+            AuditLog::record('student_created', $student, [], ['admission_no' => $student->admission_no, 'first_name' => $student->first_name, 'last_name' => $student->last_name]);
 
             if ($currentYear) {
                 StudentEnrollment::create([
@@ -213,8 +243,10 @@ class StudentController extends Controller
             ->with('success', 'Student admitted successfully.' . $feeMessage);
     }
 
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
+        $this->assertStudentInScope($request, $id);
+
         $student = Student::with([
             'enrollments.class',
             'enrollments.section',
@@ -292,6 +324,12 @@ class StudentController extends Controller
             ->where('student_id', $id)->where('is_cancelled', false)
             ->orderByDesc('payment_date')->limit(3)->get();
 
+        // Student Documents & QR Portal Data
+        $studentDocuments = StudentDocument::where('student_id', $id)->latest()->get();
+        $documentCategories = \App\Http\Controllers\Public\StudentDocumentUploadController::getDocumentCategories();
+        $qrUrl = route('public.student.documents', ['token' => $student->document_token]);
+        $qrSvg = QrCode::size(140)->margin(1)->generate($qrUrl);
+
         return response()
             ->view('students.show', compact(
                 'student', 'feeCharged', 'feePaid', 'feeBalance',
@@ -299,7 +337,8 @@ class StudentController extends Controller
                 'attTotal', 'totalDaysConducted', 'fixedAnnualDays', 'effectivePresent',
                 'attPct', 'annualTargetPct', 'statutoryMinDaysRequired',
                 'recentAttendanceRecords', 'monthlyAttendance',
-                'recentPayments'
+                'recentPayments',
+                'studentDocuments', 'documentCategories', 'qrUrl', 'qrSvg'
             ))
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
@@ -351,8 +390,10 @@ class StudentController extends Controller
         ])->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
-    public function edit(int $id)
+    public function edit(Request $request, int $id)
     {
+        $this->assertStudentInScope($request, $id);
+
         $student  = Student::findOrFail($id);
         $classes  = Classes::active()->get();
         $sections = $student->currentEnrollment
@@ -365,6 +406,8 @@ class StudentController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->assertStudentInScope($request, $id);
+
         $student = Student::findOrFail($id);
 
         $validated = $request->validate([
@@ -407,6 +450,7 @@ class StudentController extends Controller
 
         $oldEmployeeId = $student->parent_employee_id;
         $student->update(array_merge($validated, ['is_disabled' => $request->boolean('is_disabled')]));
+        AuditLog::record('student_updated', $student, [], ['admission_no' => $student->admission_no, 'status' => $student->status]);
 
         if ($request->filled('house')) {
             $student->currentEnrollment?->update(['house' => $request->house]);
@@ -425,6 +469,7 @@ class StudentController extends Controller
     {
         abort_unless(auth()->user()->can('delete students'), 403);
         $student = Student::findOrFail($id);
+        AuditLog::record('student_deleted', $student, ['admission_no' => $student->admission_no], []);
         $student->update(['status' => 'inactive']);
         $student->delete();
 
@@ -528,8 +573,9 @@ class StudentController extends Controller
         return Excel::download(new StudentsExport($request->class_id, $request->section_id), 'students.xlsx');
     }
 
-    public function documents(int $id)
+    public function documents(Request $request, int $id)
     {
+        $this->assertStudentInScope($request, $id);
         $student   = Student::findOrFail($id);
         $documents = StudentDocument::where('student_id', $id)->latest()->get();
         return view('students.documents', compact('student', 'documents'));
@@ -537,11 +583,46 @@ class StudentController extends Controller
 
     public function uploadDocument(Request $request, int $id)
     {
-        $request->validate(['document_type' => 'required|string', 'document' => 'required|file|max:5120', 'expiry_date' => 'nullable|date']);
+        $this->assertStudentInScope($request, $id);
+
+        $request->validate([
+            'document_type' => 'required|string|max:100',
+            'document'      => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'expiry_date'   => 'nullable|date',
+        ]);
+
         $student  = Student::findOrFail($id);
-        $path     = $request->file('document')->store("students/$id/documents", 'public');
-        StudentDocument::create(['student_id' => $id, 'document_type' => $request->document_type, 'file_path' => $path, 'original_name' => $request->file('document')->getClientOriginalName(), 'status' => 'pending', 'expiry_date' => $request->expiry_date]);
-        return back()->with('success', 'Document uploaded.');
+        $path     = $request->file('document')->store("students/{$id}/documents", 'local');
+
+        StudentDocument::create([
+            'student_id'    => $id,
+            'document_type' => $request->document_type,
+            'file_path'     => $path,
+            'original_name' => $request->file('document')->getClientOriginalName(),
+            'status'        => 'pending',
+            'expiry_date'   => $request->expiry_date,
+        ]);
+
+        return back()->with('success', 'Document uploaded successfully.');
+    }
+
+    public function downloadDocument(Request $request, int $id, int $docId)
+    {
+        $this->assertStudentInScope($request, $id);
+
+        $student = Student::findOrFail($id);
+        $doc     = StudentDocument::where('student_id', $id)->findOrFail($docId);
+
+        if ($doc->file_path && Storage::disk('local')->exists($doc->file_path)) {
+            return Storage::disk('local')->download($doc->file_path, $doc->original_name ?? basename($doc->file_path));
+        }
+
+        // Fallback for legacy documents uploaded to public disk
+        if ($doc->file_path && Storage::disk('public')->exists($doc->file_path)) {
+            return Storage::disk('public')->download($doc->file_path, $doc->original_name ?? basename($doc->file_path));
+        }
+
+        abort(404, 'Document file not found.');
     }
 
     public function verifyDocument(int $docId)
@@ -550,10 +631,34 @@ class StudentController extends Controller
         return back()->with('success', 'Document verified.');
     }
 
-    public function deleteDocument(int $docId)
+    public function rejectDocument(Request $request, int $docId)
     {
         $doc = StudentDocument::findOrFail($docId);
-        Storage::disk('public')->delete($doc->file_path);
+        $this->assertStudentInScope($request, $doc->student_id);
+
+        $doc->update([
+            'status'      => 'rejected',
+            'remarks'     => $request->remarks ?: 'Document rejected by admissions verification staff. Please upload a clear original copy.',
+            'verified_by' => Auth::id(),
+            'verified_at' => now(),
+        ]);
+
+        return back()->with('success', 'Document status updated to Rejected.');
+    }
+
+    public function deleteDocument(Request $request, int $docId)
+    {
+        $doc = StudentDocument::findOrFail($docId);
+        $this->assertStudentInScope($request, $doc->student_id);
+
+        if ($doc->file_path) {
+            if (Storage::disk('local')->exists($doc->file_path)) {
+                Storage::disk('local')->delete($doc->file_path);
+            } elseif (Storage::disk('public')->exists($doc->file_path)) {
+                Storage::disk('public')->delete($doc->file_path);
+            }
+        }
+
         $doc->delete();
         return back()->with('success', 'Document deleted.');
     }
@@ -875,8 +980,9 @@ class StudentController extends Controller
         ));
     }
 
-    public function singleIdCard(int $id)
+    public function singleIdCard(Request $request, int $id)
     {
+        $this->assertStudentInScope($request, $id);
         $student = Student::with(['currentEnrollment.class', 'currentEnrollment.section'])->findOrFail($id);
         $enrollment = $student->currentEnrollment;
         $classModel = $enrollment?->class;
@@ -1268,23 +1374,29 @@ class StudentController extends Controller
 
     public function uploadPhoto(Request $request, int $id)
     {
+        $this->assertStudentInScope($request, $id);
         $student = Student::findOrFail($id);
 
         if ($request->filled('cropped_image')) {
             // Base64 data URI from Cropper.js
             $data = $request->input('cropped_image');
-            if (preg_match('/^data:image\/(\w+);base64,/', $data, $type)) {
+            if (preg_match('/^data:image\/(png|jpeg|jpg|webp);base64,/', $data, $type)) {
                 $imageData = base64_decode(substr($data, strpos($data, ',') + 1));
-                $ext  = strtolower($type[1]) === 'png' ? 'png' : 'jpg';
-                $path = "students/{$id}/photo.{$ext}";
-                Storage::disk('public')->put($path, $imageData);
-                $student->update(['photo' => $path]);
+                if ($imageData !== false && strlen($imageData) <= 2097152) { // 2MB max
+                    $ext  = in_array(strtolower($type[1]), ['png', 'webp']) ? strtolower($type[1]) : 'jpg';
+                    $path = "students/{$id}/photo.{$ext}";
+                    Storage::disk('public')->put($path, $imageData);
+                    $student->update(['photo' => $path]);
+                }
             }
         } elseif ($request->hasFile('photo_file')) {
+            $request->validate([
+                'photo_file' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+            ]);
             $file = $request->file('photo_file');
-            $ext  = $file->getClientOriginalExtension() ?: 'jpg';
+            $ext  = in_array(strtolower($file->extension()), ['png', 'webp']) ? strtolower($file->extension()) : 'jpg';
             $path = "students/{$id}/photo.{$ext}";
-            Storage::disk('public')->put($path, file_get_contents($file));
+            Storage::disk('public')->put($path, file_get_contents($file->getRealPath()));
             $student->update(['photo' => $path]);
         }
 

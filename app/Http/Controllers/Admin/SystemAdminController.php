@@ -89,7 +89,7 @@ class SystemAdminController extends Controller
 
         $failedLogins = DB::table('login_attempts')
             ->where('success', false)
-            ->whereRaw('attempted_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)')
+            ->where('attempted_at', '>', now()->subHours(24))
             ->count();
 
         return view('system.security', compact('whitelist', 'recentAttempts', 'failedLogins'));

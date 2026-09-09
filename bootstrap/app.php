@@ -20,15 +20,13 @@ return $app
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
-        $middleware->validateCsrfTokens(except: [
-            '/login',
-            '/logout',
-        ]);
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->alias([
-            'role'              => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission'        => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission'=> \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'scope.user'        => \App\Http\Middleware\ScopeToUser::class,
+            'role'               => \Spatie\Permission\Middleware\RoleMiddleware::class,
+            'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'scope.user'         => \App\Http\Middleware\ScopeToUser::class,
+            'portal.access'      => \App\Http\Middleware\CheckPortalAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -34,6 +34,9 @@ class Employee extends Model
         'ta'             => 'decimal:2',
         'gross_salary'   => 'decimal:2',
         'is_active'      => 'boolean',
+        'aadhaar_no'      => \App\Casts\EncryptedStringResilient::class,
+        'pan_no'          => \App\Casts\EncryptedStringResilient::class,
+        'bank_account_no' => \App\Casts\EncryptedStringResilient::class,
     ];
 
     public function getFullNameAttribute(): string

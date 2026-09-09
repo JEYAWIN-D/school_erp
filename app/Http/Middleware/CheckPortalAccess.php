@@ -25,16 +25,19 @@ class CheckPortalAccess
     {
         $user = Auth::user();
 
-        if ($user && method_exists($user, 'student') && $user->student?->portal_blocked) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+        if ($user) {
+            $student = $user->student ?? ($user->student_id ? \App\Models\Student::find($user->student_id) : null);
+            if ($student && $student->portal_blocked) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
 
-            return redirect()->route('login')->withErrors([
-                'email' => 'Your portal access has been restricted due to pending fee dues. '
-                         . 'Please contact the school office. Reason: '
-                         . ($user->student->portal_block_reason ?? 'Fee defaulter'),
-            ]);
+                return redirect()->route('login')->withErrors([
+                    'email' => 'Your portal access has been restricted due to pending fee dues. '
+                             . 'Please contact the school office. Reason: '
+                             . ($student->portal_block_reason ?? 'Fee defaulter'),
+                ]);
+            }
         }
 
         return $next($request);

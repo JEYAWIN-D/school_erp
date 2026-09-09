@@ -1169,7 +1169,7 @@ class ExaminationController extends Controller
             if ($request->boolean('block_attendance_shortage', true)) {
                 $minPct = (float) \App\Models\SchoolSetting::get('min_attendance_percent', 75);
                 $attendanceSummary = \App\Models\AttendanceRecord::where('academic_year_id', $currentYear?->id)
-                    ->selectRaw('student_id, COUNT(*) as total, SUM(CASE WHEN status="present" THEN 1 WHEN status="late" THEN 1 WHEN status="half_day" THEN 0.5 ELSE 0 END) as present_count')
+                    ->selectRaw("student_id, COUNT(*) as total, SUM(CASE WHEN status='present' THEN 1 WHEN status='late' THEN 1 WHEN status='half_day' THEN 0.5 ELSE 0 END) as present_count")
                     ->groupBy('student_id')
                     ->get()->keyBy('student_id');
 

@@ -9,6 +9,7 @@ use App\Models\FeeBulkAssignment;
 use App\Models\FeeHead;
 use App\Models\FeeInstallmentPlan;
 use App\Models\FeePayment;
+use App\Models\AuditLog;
 use App\Models\FeeReminderConfig;
 use App\Models\FeeStructure;
 use App\Models\LateFeeRule;
@@ -461,6 +462,13 @@ class FeeController extends Controller
             }
 
             DB::commit();
+
+            AuditLog::record('fee_payment_collected', $payment, [], [
+                'receipt_number' => $payment->receipt_number,
+                'amount_paid'    => $payment->amount_paid,
+                'payment_mode'   => $payment->payment_mode,
+                'student_id'     => $student->id,
+            ]);
 
             return redirect()->route('fees.receipt', $payment->id)
                 ->with('success', 'Fee payment recorded successfully. Receipt #' . $payment->receipt_number);

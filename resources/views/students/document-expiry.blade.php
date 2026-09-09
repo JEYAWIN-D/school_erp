@@ -39,7 +39,7 @@
             </td>
             <td class="td text-slate-600 capitalize">{{ str_replace('_',' ',$doc->document_type) }}</td>
             <td class="td text-xs">
-              <a href="{{ Storage::url($doc->file_path) }}" target="_blank" class="text-indigo-600 hover:underline">{{ $doc->original_name }}</a>
+              <a href="{{ route('students.documents.download', [$doc->student_id, $doc->id]) }}" target="_blank" class="text-indigo-600 hover:underline">{{ $doc->original_name }}</a>
             </td>
             <td class="td">{{ $doc->expiry_date?->format('d M Y') }}</td>
             <td class="td">

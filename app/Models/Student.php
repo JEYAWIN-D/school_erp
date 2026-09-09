@@ -33,7 +33,17 @@ class Student extends Model
         'portal_blocked', 'portal_block_reason', 'portal_blocked_at',
         'payment_terms', 'total_admission_fee', 'admission_paid_amount',
         'admission_pending_amount', 'payment_mode', 'payment_date', 'payment_status', 'admission_fee_terms',
+        'document_token',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function ($student) {
+            if (empty($student->document_token)) {
+                $student->document_token = \Illuminate\Support\Str::random(32);
+            }
+        });
+    }
 
     protected $casts = [
         'dob'            => 'date',
@@ -52,6 +62,9 @@ class Student extends Model
         'admission_paid_amount'         => 'decimal:2',
         'admission_pending_amount'      => 'decimal:2',
         'admission_fee_terms'           => 'array',
+        'aadhaar_no'                    => \App\Casts\EncryptedStringResilient::class,
+        'father_aadhaar'                => \App\Casts\EncryptedStringResilient::class,
+        'passport_number'               => \App\Casts\EncryptedStringResilient::class,
     ];
 
     public function getFullNameAttribute(): string
@@ -66,7 +79,7 @@ class Student extends Model
 
     public function getAadhaarNumberAttribute(): ?string
     {
-        return $this->attributes['aadhaar_no'] ?? null;
+        return $this->aadhaar_no;
     }
 
     public function getRollNoAttribute(): ?string
@@ -115,6 +128,27 @@ class Student extends Model
     public function leaveRequests(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(StudentLeaveRequest::class);
+    }
+
+    public function documents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\StudentDocument::class);
+    }
+
+    public function getDocumentTokenAttribute($value): string
+    {
+        if (empty($value)) {
+            $token = \Illuminate\Support\Str::random(32);
+            $this->attributes['document_token'] = $token;
+            \Illuminate\Support\Facades\DB::table('students')->where('id', $this->id)->update(['document_token' => $token]);
+            return $token;
+        }
+        return $value;
+    }
+
+    public function getDocumentUploadUrlAttribute(): string
+    {
+        return route('public.student.documents', ['token' => $this->document_token]);
     }
 
     public function getAttendancePercentageAttribute(): ?float

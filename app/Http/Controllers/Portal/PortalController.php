@@ -108,7 +108,7 @@ class PortalController extends Controller
         try {
             return DB::table('notices')
                 ->where('is_published', true)
-                ->whereRaw('(expiry_date IS NULL OR expiry_date >= CURDATE())')
+                ->whereRaw('(expiry_date IS NULL OR expiry_date >= CURRENT_DATE)')
                 ->orderByDesc('created_at')
                 ->limit($limit)
                 ->get();
@@ -291,7 +291,7 @@ class PortalController extends Controller
                     $j->on('nr.notice_id', '=', 'notices.id')->where('nr.user_id', '=', $userId);
                 })
                 ->where('notices.is_published', true)
-                ->whereRaw('(notices.expiry_date IS NULL OR notices.expiry_date >= CURDATE())')
+                ->whereRaw('(notices.expiry_date IS NULL OR notices.expiry_date >= CURRENT_DATE)')
                 ->orderByDesc('notices.created_at')
                 ->select('notices.*', 'nr.read_at')
                 ->paginate(15);
@@ -591,7 +591,7 @@ class PortalController extends Controller
                     $j->on('nr.notice_id', '=', 'notices.id')->where('nr.user_id', '=', $userId);
                 })
                 ->where('notices.is_published', true)
-                ->whereRaw('(notices.expiry_date IS NULL OR notices.expiry_date >= CURDATE())')
+                ->whereRaw('(notices.expiry_date IS NULL OR notices.expiry_date >= CURRENT_DATE)')
                 ->orderByDesc('notices.created_at')
                 ->select('notices.*', 'nr.read_at')
                 ->paginate(20);
@@ -685,7 +685,7 @@ class PortalController extends Controller
         try {
             $noticeIds = DB::table('notices')
                 ->where('is_published', true)
-                ->whereRaw('(expiry_date IS NULL OR expiry_date >= CURDATE())')
+                ->whereRaw('(expiry_date IS NULL OR expiry_date >= CURRENT_DATE)')
                 ->pluck('id');
             foreach ($noticeIds as $noticeId) {
                 DB::table('notice_reads')->updateOrInsert(
@@ -713,7 +713,7 @@ class PortalController extends Controller
                     $j->on('nr.notice_id', '=', 'notices.id')->where('nr.user_id', '=', $userId);
                 })
                 ->where('notices.is_published', true)
-                ->whereRaw('(notices.expiry_date IS NULL OR notices.expiry_date >= CURDATE())')
+                ->whereRaw('(notices.expiry_date IS NULL OR notices.expiry_date >= CURRENT_DATE)')
                 ->orderByDesc('notices.created_at')
                 ->limit(10)
                 ->select('notices.id', 'notices.title', 'notices.created_at', DB::raw('nr.read_at IS NULL as unread'))

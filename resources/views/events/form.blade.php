@@ -64,7 +64,7 @@
         </div>
         <div id="desc-editor" contenteditable="true"
              class="input min-h-[100px] text-sm leading-relaxed"
-             style="white-space:pre-wrap;">{!! old('description', $event->description ?? '') !!}</div>
+             style="white-space:pre-wrap;">{{ old('description', $event->description ?? '') }}</div>
         <textarea name="description" id="desc-hidden" class="hidden">{{ old('description', $event->description ?? '') }}</textarea>
         <script>
           function fmtDoc(cmd) { document.execCommand(cmd, false, null); document.getElementById('desc-editor').focus(); }

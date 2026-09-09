@@ -35,7 +35,7 @@
               </div>
               <div id="email-body-editor" contenteditable="true"
                    class="input min-h-[200px] text-sm leading-relaxed"
-                   style="white-space:pre-wrap;">{!! old('body') !!}</div>
+                   style="white-space:pre-wrap;">{{ old('body') }}</div>
               <textarea name="body" id="email-body-hidden" class="hidden">{{ old('body') }}</textarea>
               <script>
                 function emailFmt(cmd) { document.execCommand(cmd, false, null); document.getElementById('email-body-editor').focus(); }

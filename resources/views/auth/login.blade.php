@@ -350,98 +350,99 @@
               <div class="role-card-inner"><div class="role-card-name">Class Teacher</div><div class="role-card-email">classteacher@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('teacher@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#0d9488"></div>
+              <div class="role-dot" style="background:#0284c7"></div>
               <div class="role-card-inner"><div class="role-card-name">Teacher</div><div class="role-card-email">teacher@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('subjectteacher@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#059669"></div>
+              <div class="role-dot" style="background:#0369a1"></div>
               <div class="role-card-inner"><div class="role-card-name">Subject Teacher</div><div class="role-card-email">subjectteacher@schoolerp.in</div></div>
             </button>
           </div>
         </div>
 
-        {{-- Finance & HR --}}
+        {{-- Operations & Admin --}}
         <div class="role-group">
-          <div class="role-group-title">Finance &amp; HR</div>
+          <div class="role-group-title">Administration &amp; Operations</div>
           <div class="role-grid">
             <button class="role-card" onclick="fillAndClose('accountant@schoolerp.in','Demo@2026')">
               <div class="role-dot" style="background:#16a34a"></div>
               <div class="role-card-inner"><div class="role-card-name">Accountant</div><div class="role-card-email">accountant@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('hr@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#65a30d"></div>
+              <div class="role-dot" style="background:#059669"></div>
               <div class="role-card-inner"><div class="role-card-name">HR Manager</div><div class="role-card-email">hr@schoolerp.in</div></div>
+            </button>
+            <button class="role-card" onclick="fillAndClose('admissions@schoolerp.in','Demo@2026')">
+              <div class="role-dot" style="background:#0d9488"></div>
+              <div class="role-card-inner"><div class="role-card-name">Admissions</div><div class="role-card-email">admissions@schoolerp.in</div></div>
+            </button>
+            <button class="role-card" onclick="fillAndClose('reception@schoolerp.in','Demo@2026')">
+              <div class="role-dot" style="background:#0891b2"></div>
+              <div class="role-card-inner"><div class="role-card-name">Receptionist</div><div class="role-card-email">reception@schoolerp.in</div></div>
+            </button>
+            <button class="role-card" onclick="fillAndClose('itadmin@schoolerp.in','Demo@2026')">
+              <div class="role-dot" style="background:#475569"></div>
+              <div class="role-card-inner"><div class="role-card-name">IT Admin</div><div class="role-card-email">itadmin@schoolerp.in</div></div>
             </button>
           </div>
         </div>
 
-        {{-- Operations --}}
+        {{-- Facility & Campus --}}
         <div class="role-group">
-          <div class="role-group-title">Operations &amp; Services</div>
+          <div class="role-group-title">Campus &amp; Facilities</div>
           <div class="role-grid">
             <button class="role-card" onclick="fillAndClose('librarian@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#ca8a04"></div>
+              <div class="role-dot" style="background:#d97706"></div>
               <div class="role-card-inner"><div class="role-card-name">Librarian</div><div class="role-card-email">librarian@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('transport@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#d97706"></div>
+              <div class="role-dot" style="background:#b45309"></div>
               <div class="role-card-inner"><div class="role-card-name">Transport Mgr</div><div class="role-card-email">transport@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('hostelwarden@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#c2410c"></div>
+              <div class="role-dot" style="background:#9333ea"></div>
               <div class="role-card-inner"><div class="role-card-name">Hostel Warden</div><div class="role-card-email">hostelwarden@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('warden@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#b45309"></div>
+              <div class="role-dot" style="background:#a855f7"></div>
               <div class="role-card-inner"><div class="role-card-name">Warden</div><div class="role-card-email">warden@schoolerp.in</div></div>
             </button>
-            <button class="role-card" onclick="fillAndClose('admissions@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#be185d"></div>
-              <div class="role-card-inner"><div class="role-card-name">Adm. Counsellor</div><div class="role-card-email">admissions@schoolerp.in</div></div>
-            </button>
-            <button class="role-card" onclick="fillAndClose('reception@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#9d174d"></div>
-              <div class="role-card-inner"><div class="role-card-name">Receptionist</div><div class="role-card-email">reception@schoolerp.in</div></div>
-            </button>
             <button class="role-card" onclick="fillAndClose('inventory@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#6b7280"></div>
+              <div class="role-dot" style="background:#0284c7"></div>
               <div class="role-card-inner"><div class="role-card-name">Inventory Mgr</div><div class="role-card-email">inventory@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('events@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#8b5cf6"></div>
-              <div class="role-card-inner"><div class="role-card-name">Event Coord.</div><div class="role-card-email">events@schoolerp.in</div></div>
-            </button>
-            <button class="role-card" onclick="fillAndClose('itadmin@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#0369a1"></div>
-              <div class="role-card-inner"><div class="role-card-name">IT Admin</div><div class="role-card-email">itadmin@schoolerp.in</div></div>
+              <div class="role-dot" style="background:#db2777"></div>
+              <div class="role-card-inner"><div class="role-card-name">Event Coord</div><div class="role-card-email">events@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('alumni@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#475569"></div>
-              <div class="role-card-inner"><div class="role-card-name">Alumni Coord.</div><div class="role-card-email">alumni@schoolerp.in</div></div>
+              <div class="role-dot" style="background:#4338ca"></div>
+              <div class="role-card-inner"><div class="role-card-name">Alumni Coord</div><div class="role-card-email">alumni@schoolerp.in</div></div>
             </button>
           </div>
         </div>
 
         {{-- Portals --}}
         <div class="role-group">
-          <div class="role-group-title">Student &amp; Parent Portals</div>
+          <div class="role-group-title">Portal Users</div>
           <div class="role-grid">
             <button class="role-card" onclick="fillAndClose('student@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#10b981"></div>
-              <div class="role-card-inner"><div class="role-card-name">Student</div><div class="role-card-email">student@schoolerp.in</div></div>
+              <div class="role-dot" style="background:#059669"></div>
+              <div class="role-card-inner"><div class="role-card-name">Student Portal</div><div class="role-card-email">student@schoolerp.in</div></div>
             </button>
             <button class="role-card" onclick="fillAndClose('parent@schoolerp.in','Demo@2026')">
-              <div class="role-dot" style="background:#a855f7"></div>
-              <div class="role-card-inner"><div class="role-card-name">Parent</div><div class="role-card-email">parent@schoolerp.in</div></div>
+              <div class="role-dot" style="background:#7c3aed"></div>
+              <div class="role-card-inner"><div class="role-card-name">Parent Portal</div><div class="role-card-email">parent@schoolerp.in</div></div>
             </button>
           </div>
         </div>
 
-      </div>
+      </div>{{-- /body --}}
 
       <div class="demo-modal-foot">
-        <div class="demo-modal-foot-text">All accounts use password <strong>Demo@2026</strong> except Admin which uses <strong>Admin@1234</strong></div>
+        <span class="demo-modal-foot-text">Clicking any account fills the form and closes this dialog</span>
       </div>
+
     </div>
   </div>
 
@@ -449,6 +450,7 @@
 function fillLogin(email, password) {
   const e = document.getElementById('email-field');
   const p = document.getElementById('pass-field');
+  if (!e || !p) return;
   e.value = email; p.value = password;
   [e, p].forEach(el => {
     el.style.transition = 'border-color .2s, box-shadow .2s';
@@ -459,12 +461,16 @@ function fillLogin(email, password) {
   e.focus();
 }
 function openDemoModal() {
-  document.getElementById('demo-overlay').classList.add('show');
-  document.body.style.overflow = 'hidden';
+  const el = document.getElementById('demo-overlay');
+  if (el) {
+    el.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
 }
 function closeDemoModal(e) {
-  if (!e || e.target === document.getElementById('demo-overlay')) {
-    document.getElementById('demo-overlay').classList.remove('show');
+  const el = document.getElementById('demo-overlay');
+  if (el && (!e || e.target === el)) {
+    el.classList.remove('show');
     document.body.style.overflow = '';
   }
 }

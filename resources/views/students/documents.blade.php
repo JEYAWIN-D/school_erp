@@ -54,7 +54,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span class="badge-{{ $doc->status === 'verified' ? 'green' : ($doc->status === 'rejected' ? 'red' : 'amber') }} text-xs capitalize">{{ $doc->status }}</span>
-          <a href="{{ Storage::url($doc->file_path) }}" target="_blank" class="btn btn-ghost btn-xs">View</a>
+          <a href="{{ route('students.documents.download', [$student->id, $doc->id]) }}" target="_blank" class="btn btn-ghost btn-xs">View / Download</a>
           @if($doc->status === 'pending')
           <form method="POST" action="{{ route('students.documents.verify',$doc->id) }}" class="inline">@csrf
             <button type="submit" class="btn btn-ghost btn-xs text-green-600">Verify</button>

@@ -24,12 +24,19 @@ Route::post('/logout',[LoginController::class, 'logout'])->name('logout');
 
 // Public enquiry form (no auth)
 Route::get('/enquiry',   [AdmissionController::class, 'enquiryForm'])->name('enquiry.form');
-Route::post('/enquiry',  [AdmissionController::class, 'submitEnquiry'])->name('enquiry.submit');
+Route::post('/enquiry',  [AdmissionController::class, 'submitEnquiry'])->middleware('throttle:10,1')->name('enquiry.submit');
 
 // Public application form (no auth)
 Route::get('/apply/{token}',  [AdmissionController::class, 'publicApplicationForm'])->name('apply.form');
-Route::post('/apply/{token}', [AdmissionController::class, 'submitPublicApplication'])->name('apply.submit');
+Route::post('/apply/{token}', [AdmissionController::class, 'submitPublicApplication'])->middleware('throttle:10,1')->name('apply.submit');
 Route::get('/apply/success/{number}', [AdmissionController::class, 'applicationSuccess'])->name('apply.success');
+
+// ── Public Student Document Portal via QR Code (no auth) ────
+Route::get('/students/upload-docs/{token}',             [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'show'])->name('public.student.documents');
+Route::post('/students/upload-docs/{token}',            [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'upload'])->middleware('throttle:30,1')->name('public.student.documents.upload');
+Route::get('/students/upload-docs/{token}/doc/{docId}', [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'downloadDocument'])->name('public.student.documents.download');
+Route::get('/students/upload-docs/{token}/download-qr', [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'downloadQr'])->name('public.student.documents.qr-download');
+Route::get('/students/upload-docs/{token}/print-card',  [\App\Http\Controllers\Public\StudentDocumentUploadController::class, 'printCard'])->name('public.student.documents.print-card');
 
 
 // ── Authenticated routes ──────────────────────────────────
@@ -100,10 +107,10 @@ Route::middleware(['auth'])->group(function () {
     // ── Module 2 — Students ───────────────────────────────
     Route::middleware(['permission:view students', 'scope.user'])->prefix('students')->name('students.')->group(function () {
         Route::get('/',            [StudentController::class, 'index'])->name('index');
-        Route::get('/create',      [StudentController::class, 'create'])->name('create');
-        Route::post('/',           [StudentController::class, 'store'])->name('store');
+        Route::get('/create',      [StudentController::class, 'create'])->middleware('permission:create students')->name('create');
+        Route::post('/',           [StudentController::class, 'store'])->middleware('permission:create students')->name('store');
         // Export & Import (Must be defined before /{id} parameter routes)
-        Route::get('/export',              [StudentController::class, 'export'])->name('export');
+        Route::get('/export',              [StudentController::class, 'export'])->middleware('permission:export students')->name('export');
         Route::get('/import',              [StudentController::class, 'importForm'])->name('import');
         Route::post('/import',             [StudentController::class, 'processImport'])->name('import.process');
         Route::get('/import/template',     [StudentController::class, 'importTemplate'])->name('import.template');
@@ -125,21 +132,23 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/tc-requests/{id}/reject', [StudentController::class, 'rejectTcRequest'])->name('tc-requests.reject')->where('id', '[0-9]+');
         Route::get('/document-expiry',          [StudentController::class, 'documentExpiryReport'])->name('document-expiry');
         Route::patch('/documents/{docId}/verify', [StudentController::class, 'verifyDocument'])->name('documents.verify');
+        Route::patch('/documents/{docId}/reject', [StudentController::class, 'rejectDocument'])->name('documents.reject');
         Route::delete('/documents/{docId}', [StudentController::class, 'deleteDocument'])->name('documents.delete');
         Route::delete('/concessions/{cId}',[StudentController::class, 'revokeConcession'])->name('concessions.revoke');
 
         // Parameterized routes on {id} (Defined after static routes)
         Route::get('/{id}',            [StudentController::class, 'show'])->name('show')->where('id', '[0-9]+');
         Route::get('/{id}/fee-status', [StudentController::class, 'feeStatusJson'])->name('fee-status')->where('id', '[0-9]+');
-        Route::get('/{id}/edit',       [StudentController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
-        Route::put('/{id}',        [StudentController::class, 'update'])->name('update')->where('id', '[0-9]+');
-        Route::delete('/{id}',     [StudentController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+        Route::get('/{id}/edit',       [StudentController::class, 'edit'])->middleware('permission:edit students')->name('edit')->where('id', '[0-9]+');
+        Route::put('/{id}',        [StudentController::class, 'update'])->middleware('permission:edit students')->name('update')->where('id', '[0-9]+');
+        Route::delete('/{id}',     [StudentController::class, 'destroy'])->middleware('permission:delete students')->name('destroy')->where('id', '[0-9]+');
         Route::get('/{id}/tc',     [StudentController::class, 'showTCForm'])->name('tc.form')->where('id', '[0-9]+');
         Route::post('/{id}/tc',    [StudentController::class, 'generateTC'])->name('tc')->where('id', '[0-9]+');
         Route::get('/{id}/id-card',[StudentController::class, 'singleIdCard'])->name('id-card.single')->where('id', '[0-9]+');
         // Documents
         Route::get('/{id}/documents',     [StudentController::class, 'documents'])->name('documents')->where('id', '[0-9]+');
         Route::post('/{id}/documents',    [StudentController::class, 'uploadDocument'])->name('documents.upload')->where('id', '[0-9]+');
+        Route::get('/{id}/documents/{docId}/download', [StudentController::class, 'downloadDocument'])->name('documents.download')->where('id', '[0-9]+')->where('docId', '[0-9]+');
         // Medical
         Route::get('/{id}/medical',      [StudentController::class, 'medical'])->name('medical')->where('id', '[0-9]+');
         Route::post('/{id}/medical',     [StudentController::class, 'saveMedical'])->name('medical.save')->where('id', '[0-9]+');
@@ -444,10 +453,10 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:view fees')->prefix('fees')->name('fees.')->group(function () {
         Route::get('/',             [FeeController::class, 'index'])->name('index');
         Route::get('/structure',    [FeeController::class, 'structure'])->name('structure');
-        Route::post('/structure',   [FeeController::class, 'saveStructure'])->name('structure.save');
+        Route::post('/structure',   [FeeController::class, 'saveStructure'])->middleware('permission:manage fee structure')->name('structure.save');
         Route::post('/heads',       [FeeController::class, 'storeFeeHead'])->name('heads.store');
         Route::get('/collect',      [FeeController::class, 'collect'])->name('collect');
-        Route::post('/collect',     [FeeController::class, 'savePayment'])->name('collect.save');
+        Route::post('/collect',     [FeeController::class, 'savePayment'])->middleware('permission:collect fees')->name('collect.save');
         // Advance payment
         Route::get('/advance',      [FeeController::class, 'advancePayments'])->name('advance-payments');
         Route::post('/advance',     [FeeController::class, 'storeAdvancePayment'])->name('advance.store');
@@ -487,7 +496,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/ledger/pdf', [FeeController::class, 'ledgerPdf'])->name('ledger.pdf');
         // Cancellation
         Route::get('/cancellation',      [FeeController::class, 'cancellation'])->name('cancellation');
-        Route::post('/cancel/{id}',      [FeeController::class, 'cancelReceipt'])->name('cancel');
+        Route::post('/cancel/{id}',      [FeeController::class, 'cancelReceipt'])->middleware('permission:delete fees')->name('cancel');
         // Tally export
         Route::get('/tally',              [FeeController::class, 'tallyExport'])->name('tally');
         Route::get('/tally/download',     [FeeController::class, 'tallyDownload'])->name('tally.download');
@@ -537,11 +546,11 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:view employees')->prefix('hr')->name('hr.')->group(function () {
         Route::get('/',               [HrController::class, 'index'])->name('index');
         Route::get('/employees',      [HrController::class, 'employees'])->name('employees');
-        Route::get('/employees/create',[HrController::class, 'createEmployee'])->name('employees.create');
-        Route::post('/employees',     [HrController::class, 'storeEmployee'])->name('employees.store');
+        Route::get('/employees/create',[HrController::class, 'createEmployee'])->middleware('permission:create employees')->name('employees.create');
+        Route::post('/employees',     [HrController::class, 'storeEmployee'])->middleware('permission:create employees')->name('employees.store');
         Route::get('/employees/{id}', [HrController::class, 'showEmployee'])->name('employees.show');
-        Route::get('/employees/{id}/edit',[HrController::class, 'editEmployee'])->name('employees.edit');
-        Route::put('/employees/{id}', [HrController::class, 'updateEmployee'])->name('employees.update');
+        Route::get('/employees/{id}/edit',[HrController::class, 'editEmployee'])->middleware('permission:edit employees')->name('employees.edit');
+        Route::put('/employees/{id}', [HrController::class, 'updateEmployee'])->middleware('permission:edit employees')->name('employees.update');
         Route::get('/employees/{id}/id-card', [HrController::class, 'singleEmployeeIdCard'])->name('employees.id-card');
         Route::get('/id-card-studio',                 [HrController::class, 'employeeIdCardStudio'])->name('id-card-studio');
         Route::get('/id-cards/download',              [HrController::class, 'generateStaffIdCards'])->name('id-cards.download');
@@ -1126,7 +1135,7 @@ Route::get('/portal', fn() => redirect('/portal/parent/dashboard'))->name('porta
 Route::get('/portal/login', fn() => redirect('/login'))->name('portal.login');
 
 // Separate auth group — parent/student roles, no admin middleware
-Route::middleware(['auth'])->prefix('portal')->name('portal.')->group(function () {
+Route::middleware(['auth', 'portal.access'])->prefix('portal')->name('portal.')->group(function () {
 
     // Parent portal
     Route::middleware([\Spatie\Permission\Middleware\RoleMiddleware::using('parent')])->prefix('parent')->name('parent.')->group(function () {

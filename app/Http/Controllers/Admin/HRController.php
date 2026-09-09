@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\Employee;
+use App\Models\AuditLog;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeCertification;
 use App\Models\PayrollRecord;
@@ -199,6 +200,7 @@ class HrController extends Controller
             'employee_code' => $this->generateEmployeeNumber(),
             'is_active'     => true,
         ]));
+        AuditLog::record('employee_created', $employee, [], ['employee_code' => $employee->employee_code, 'name' => $employee->full_name]);
 
         // Create salary structure if any salary data was provided
         if ($employee->basic_salary > 0 || count($salaryData) > 0) {
@@ -752,6 +754,7 @@ class HrController extends Controller
         }
 
         $employee->update($data);
+        AuditLog::record('employee_updated', $employee, [], ['employee_code' => $employee->employee_code, 'is_active' => $employee->is_active]);
         return redirect()->route('hr.employees.show', $employee->id)
             ->with('success', 'Employee updated.');
     }
