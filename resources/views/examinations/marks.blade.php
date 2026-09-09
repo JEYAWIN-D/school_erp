@@ -32,21 +32,38 @@
   <div class="alert-warning">Marks are locked. Unlock first to make changes.</div>
   @endif
 
-  {{-- Class selector --}}
-  <form method="GET" class="card-flat py-3">
-    <div class="flex gap-3 items-end">
-      <div>
-        <label class="label text-xs">Select Class</label>
-        <select name="class_id" class="select w-40">
-          <option value="">— Choose Class —</option>
-          @foreach($classes as $c)
-          <option value="{{ $c->id }}" @selected(request('class_id')==$c->id)>{{ $c->name }}</option>
-          @endforeach
-        </select>
+  {{-- Exam and Class selector (All Exam Names Dropdown) --}}
+  <div class="card bg-slate-50 border border-slate-200">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex flex-wrap items-end gap-3 flex-1">
+        <div>
+          <label class="label text-xs font-semibold text-slate-700">Exam (All Exam Names)</label>
+          <select id="exam_switcher" class="select text-sm py-1.5 min-w-[240px]" onchange="if(this.value && this.value != '{{ $exam->id }}'){ window.location.href = '/examinations/' + this.value + '/marks' + (document.getElementById('marks_class_id').value ? '?class_id=' + document.getElementById('marks_class_id').value : ''); }">
+            @foreach($allExams ?? [$exam] as $e)
+              <option value="{{ $e->id }}" @selected($e->id == $exam->id)>{{ $e->name }} ({{ str_replace('_',' ',$e->type) }})</option>
+            @endforeach
+          </select>
+        </div>
+        <form method="GET" class="flex gap-2 items-end">
+          <div>
+            <label class="label text-xs font-semibold text-slate-700">Select Class</label>
+            <select name="class_id" id="marks_class_id" class="select w-44 text-sm py-1.5">
+              <option value="">— Choose Class —</option>
+              @foreach($classes as $c)
+              <option value="{{ $c->id }}" @selected(request('class_id')==$c->id)>{{ $c->name }}</option>
+              @endforeach
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Load Students</button>
+        </form>
       </div>
-      <button type="submit" class="btn btn-secondary btn-sm">Load Students</button>
+      @if($exam->schedules->count())
+      <div class="text-right text-xs text-slate-500">
+        <span class="font-semibold text-slate-700">{{ $exam->schedules->count() }}</span> scheduled subjects for this exam
+      </div>
+      @endif
     </div>
-  </form>
+  </div>
 
   @if(request('class_id') && $schedules->count() && $enrollments->count())
   {{-- Grace marks section --}}

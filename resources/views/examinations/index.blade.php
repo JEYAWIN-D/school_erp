@@ -10,9 +10,10 @@
       <p class="page-subtitle">{{ $currentYear?->name }}</p>
     </div>
     <div class="flex gap-2 flex-wrap">
-      <a href="{{ route('examinations.marks-progress') }}" class="btn btn-secondary btn-sm">Marks Progress</a>
+      <a href="{{ route('examinations.marks-progress') }}" class="btn btn-secondary btn-sm">Marks Entry Progress</a>
       <a href="{{ route('examinations.tabulation') }}" class="btn btn-secondary btn-sm">Tabulation Sheet</a>
       <a href="{{ route('examinations.class-result') }}" class="btn btn-secondary btn-sm">Result Summary</a>
+      <a href="{{ route('examinations.student-result-history') }}" class="btn btn-secondary btn-sm">Consolidated Student Report</a>
       <a href="{{ route('examinations.marks-import-template') }}" class="btn btn-secondary btn-sm">Import Template</a>
       <a href="{{ route('examinations.create') }}" class="btn btn-primary btn-sm">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -41,14 +42,51 @@
     </div>
   </div>
 
+  {{-- Direct Mark Entry Kiosk (All Exam Names Dropdown) --}}
+  <div class="card bg-gradient-to-r from-indigo-50 via-white to-purple-50 border-indigo-100">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800">Direct Mark Entry</span>
+          <h3 class="font-bold text-slate-800 text-base">Mark Entry by Exam &amp; Class</h3>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">Select from all available exams and classes to launch mark entry directly</p>
+      </div>
+      <form onsubmit="event.preventDefault(); const examId = document.getElementById('kiosk_exam_id').value; const classId = document.getElementById('kiosk_class_id').value; if(examId){ window.location.href = '/examinations/' + examId + '/marks' + (classId ? '?class_id=' + classId : ''); }" class="flex flex-wrap items-center gap-3">
+        <div>
+          <label class="sr-only">Exam</label>
+          <select id="kiosk_exam_id" class="select text-sm py-2" required>
+            <option value="">— Select Exam (All Exam Names) —</option>
+            @foreach($exams as $e)
+              <option value="{{ $e->id }}">{{ $e->name }} ({{ str_replace('_',' ',$e->type) }})</option>
+            @endforeach
+          </select>
+        </div>
+        <div>
+          <label class="sr-only">Class</label>
+          <select id="kiosk_class_id" class="select text-sm py-2">
+            <option value="">— Select Class (Optional) —</option>
+            @foreach(\App\Models\Classes::active()->get() as $c)
+              <option value="{{ $c->id }}">{{ $c->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm flex items-center gap-1.5 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          Enter Marks
+        </button>
+      </form>
+    </div>
+  </div>
+
   {{-- Analysis Quick Links --}}
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
     @foreach([
-      ['Result Summary',      'examinations.class-result',          'from-blue-500 to-indigo-600',  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'],
-      ['Failed Students',     'examinations.failed',                'from-red-500 to-rose-600',     '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>'],
-      ['Subject Performance', 'examinations.subject-performance',   'from-purple-500 to-indigo-600','<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>'],
-      ['Student History',     'examinations.student-result-history','from-teal-500 to-cyan-600',    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>'],
-      ['Marks Progress',      'examinations.marks-progress',        'from-green-500 to-emerald-600', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'],
+      ['Result Summary',            'examinations.class-result',          'from-blue-500 to-indigo-600',  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'],
+      ['Failed Students',           'examinations.failed',                'from-red-500 to-rose-600',     '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>'],
+      ['Subject Performance',       'examinations.subject-performance',   'from-purple-500 to-indigo-600','<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>'],
+      ['Consolidated Student Report','examinations.student-result-history','from-teal-500 to-cyan-600',    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>'],
+      ['Marks Entry Progress',      'examinations.marks-progress',        'from-green-500 to-emerald-600', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'],
     ] as [$label,$route,$color,$icon])
     <a href="{{ route($route) }}" class="card-flat flex items-center gap-3 py-4 px-4 hover:shadow-card-md transition">
       <div class="w-9 h-9 rounded-xl bg-gradient-to-br {{ $color }} flex items-center justify-center flex-shrink-0">
