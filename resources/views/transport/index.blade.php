@@ -92,6 +92,61 @@
     </a>
   </div>
 
+  {{-- GPRS Live Fleet Tracking Quick Radar --}}
+  <div class="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-5 text-white shadow-xl relative overflow-hidden">
+    <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4 mb-4">
+      <div class="flex items-center gap-3">
+        <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+          <span class="absolute inline-flex h-full w-full rounded-xl bg-emerald-400 opacity-25 animate-ping"></span>
+          <svg class="w-5 h-5 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-bold text-white tracking-wide">GPRS Live Fleet Radar</h2>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></span>
+              Live GPS Telemetry
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Continuous satellite tracking of school buses, vans, speeds, and student routes.</p>
+        </div>
+      </div>
+      <a href="{{ route('transport.tracking') }}" class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs tracking-wider uppercase transition shadow-lg shadow-emerald-900/40 self-start md:self-auto">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        Launch Full Live Map Console
+      </a>
+    </div>
+
+    @if(isset($gprsVehicles) && $gprsVehicles->count() > 0)
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        @foreach($gprsVehicles as $gv)
+          <div class="rounded-xl bg-slate-800/60 border border-slate-700/60 p-3 flex flex-col justify-between hover:border-emerald-500/40 transition">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm font-bold text-white">{{ $gv->vehicle_number }}</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">{{ $gv->vehicle_type }}</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">Route: <span class="text-slate-200 font-medium">{{ $gv->route?->route_name ?? 'School Campus Transit' }}</span></div>
+              </div>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold {{ $gv->gps_status === 'online' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30' }}">
+                <span class="w-1.5 h-1.5 rounded-full {{ $gv->gps_status === 'online' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400' }}"></span>
+                {{ $gv->gps_status === 'online' ? ($gv->current_speed_kmh > 0 ? $gv->current_speed_kmh . ' km/h' : 'Live') : 'Standby' }}
+              </span>
+            </div>
+            <div class="pt-2 border-t border-slate-700/40 flex items-center justify-between text-[11px] text-slate-300">
+              <span class="truncate max-w-[180px]" title="{{ $gv->current_location_name }}">📍 {{ $gv->current_location_name ?? 'Near Campus Main Gate' }}</span>
+              <span class="text-slate-400 font-mono">🔋 {{ $gv->battery_level ?? 95 }}%</span>
+            </div>
+          </div>
+        @endforeach
+      </div>
+    @else
+      <div class="text-center py-4 text-xs text-slate-400">All fleet vehicles configured with GPS telemetry receivers.</div>
+    @endif
+  </div>
+
   {{-- Quick Links --}}
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
     @foreach([

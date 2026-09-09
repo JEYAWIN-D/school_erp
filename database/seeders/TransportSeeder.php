@@ -25,40 +25,98 @@ class TransportSeeder extends Seeder
             }
         }
 
-        // Routes (transport_routes has: route_name, from_location, to_location, fee, is_active — no vehicle_id)
+        // Routes with route_number, distance, fee
         $routes = [
-            ['route_name' => 'Route A — North Zone', 'from_location' => 'School', 'to_location' => 'North Zone', 'is_active' => true, 'fee' => 1200],
-            ['route_name' => 'Route B — South Zone', 'from_location' => 'School', 'to_location' => 'South Zone', 'is_active' => true, 'fee' => 1000],
-            ['route_name' => 'Route C — East Zone',  'from_location' => 'School', 'to_location' => 'East Zone',  'is_active' => true, 'fee' => 800],
+            [
+                'route_name'    => 'Route 1 — North Campus Express',
+                'route_number'  => 'R-01',
+                'from_location' => 'Main Campus Gate',
+                'to_location'   => 'Anna Nagar Roundtana',
+                'distance_km'   => 15.5,
+                'fee'           => 14000,
+                'is_active'     => true,
+            ],
+            [
+                'route_name'    => 'Route 2 — South City Shuttle',
+                'route_number'  => 'R-02',
+                'from_location' => 'Main Campus Gate',
+                'to_location'   => 'Tambaram Junction',
+                'distance_km'   => 18.0,
+                'fee'           => 16000,
+                'is_active'     => true,
+            ],
+            [
+                'route_name'    => 'Route 3 — Central Ring Road',
+                'route_number'  => 'R-03',
+                'from_location' => 'Main Campus Gate',
+                'to_location'   => 'T. Nagar Bus Terminus',
+                'distance_km'   => 12.0,
+                'fee'           => 12000,
+                'is_active'     => true,
+            ],
         ];
+
         $routeIds = [];
         foreach ($routes as $r) {
             $existing = DB::table('transport_routes')->where('route_name', $r['route_name'])->first();
             if (!$existing) {
                 $routeIds[] = DB::table('transport_routes')->insertGetId(array_merge($r, ['created_at' => now(), 'updated_at' => now()]));
             } else {
+                DB::table('transport_routes')->where('id', $existing->id)->update(array_merge($r, ['updated_at' => now()]));
                 $routeIds[] = $existing->id;
             }
         }
 
-        // Stops for Route A (transport_stops has: route_id, name, stop_order)
+        // Detailed Stops for Route 1 (Stopping, Km, Landmark, Fare)
         if (!empty($routeIds[0])) {
-            $stopsA = ['Main Gate', 'Market Square', 'Railway Station', 'City Park', 'Hospital Junction'];
-            foreach ($stopsA as $i => $stop) {
-                $exists = DB::table('transport_stops')->where('route_id', $routeIds[0])->where('name', $stop)->exists();
+            $stops1 = [
+                ['name' => 'Campus Main Gate',          'stop_order' => 1, 'distance_km' => 0.0,  'fare' => 0,     'landmark' => 'School Entrance',         'pickup_time' => '07:30', 'drop_time' => '16:00'],
+                ['name' => 'Shenoy Nagar Metro Stop',   'stop_order' => 2, 'distance_km' => 4.2,  'fare' => 6500,  'landmark' => 'Near Metro Station Gate 2', 'pickup_time' => '07:45', 'drop_time' => '15:45'],
+                ['name' => 'Kilpauk Water Tank',        'stop_order' => 3, 'distance_km' => 8.0,  'fare' => 9500,  'landmark' => 'Opp. Medical College',     'pickup_time' => '08:00', 'drop_time' => '15:30'],
+                ['name' => 'Chetpet Overbridge',        'stop_order' => 4, 'distance_km' => 11.5, 'fare' => 12000, 'landmark' => 'Near Railway Crossing',     'pickup_time' => '08:15', 'drop_time' => '15:15'],
+                ['name' => 'Anna Nagar Roundtana',      'stop_order' => 5, 'distance_km' => 15.5, 'fare' => 14000, 'landmark' => 'Near Main Clock Tower',     'pickup_time' => '08:30', 'drop_time' => '15:00'],
+            ];
+            foreach ($stops1 as $stop) {
+                $exists = DB::table('transport_stops')->where('route_id', $routeIds[0])->where('name', $stop['name'])->first();
                 if (!$exists) {
-                    DB::table('transport_stops')->insert(['route_id' => $routeIds[0], 'name' => $stop, 'stop_order' => $i + 1, 'created_at' => now(), 'updated_at' => now()]);
+                    DB::table('transport_stops')->insert(array_merge($stop, ['route_id' => $routeIds[0], 'created_at' => now(), 'updated_at' => now()]));
+                } else {
+                    DB::table('transport_stops')->where('id', $exists->id)->update(array_merge($stop, ['updated_at' => now()]));
                 }
             }
         }
 
-        // Stops for Route B
+        // Detailed Stops for Route 2
         if (!empty($routeIds[1])) {
-            $stopsB = ['School Gate', 'Bus Stand', 'Garden Road', 'Old Town'];
-            foreach ($stopsB as $i => $stop) {
-                $exists = DB::table('transport_stops')->where('route_id', $routeIds[1])->where('name', $stop)->exists();
+            $stops2 = [
+                ['name' => 'Guindy Industrial Estate', 'stop_order' => 1, 'distance_km' => 5.0,  'fare' => 7500,  'landmark' => 'Near Kathipara Junction', 'pickup_time' => '07:35', 'drop_time' => '15:55'],
+                ['name' => 'Saidapet Court Junction',  'stop_order' => 2, 'distance_km' => 9.5,  'fare' => 11000, 'landmark' => 'Opp. Sub-Jail Road',      'pickup_time' => '07:50', 'drop_time' => '15:40'],
+                ['name' => 'Chromepet Main Bus Stop',  'stop_order' => 3, 'distance_km' => 14.0, 'fare' => 13500, 'landmark' => 'Near MIT Bridge Gate',     'pickup_time' => '08:05', 'drop_time' => '15:25'],
+                ['name' => 'Tambaram Junction Terminal','stop_order' => 4, 'distance_km' => 18.0, 'fare' => 16000, 'landmark' => 'West Bus Stand Entrance',  'pickup_time' => '08:20', 'drop_time' => '15:10'],
+            ];
+            foreach ($stops2 as $stop) {
+                $exists = DB::table('transport_stops')->where('route_id', $routeIds[1])->where('name', $stop['name'])->first();
                 if (!$exists) {
-                    DB::table('transport_stops')->insert(['route_id' => $routeIds[1], 'name' => $stop, 'stop_order' => $i + 1, 'created_at' => now(), 'updated_at' => now()]);
+                    DB::table('transport_stops')->insert(array_merge($stop, ['route_id' => $routeIds[1], 'created_at' => now(), 'updated_at' => now()]));
+                } else {
+                    DB::table('transport_stops')->where('id', $exists->id)->update(array_merge($stop, ['updated_at' => now()]));
+                }
+            }
+        }
+
+        // Detailed Stops for Route 3
+        if (!empty($routeIds[2])) {
+            $stops3 = [
+                ['name' => 'Nungambakkam High Road',    'stop_order' => 1, 'distance_km' => 3.5,  'fare' => 6000,  'landmark' => 'Near Taj Coromandel',    'pickup_time' => '07:40', 'drop_time' => '15:50'],
+                ['name' => 'Kodambakkam Bridge',        'stop_order' => 2, 'distance_km' => 7.0,  'fare' => 9000,  'landmark' => 'Near Liberty Theatre',   'pickup_time' => '07:55', 'drop_time' => '15:35'],
+                ['name' => 'T. Nagar Bus Terminus',     'stop_order' => 3, 'distance_km' => 12.0, 'fare' => 12000, 'landmark' => 'Usman Road Flyover',    'pickup_time' => '08:15', 'drop_time' => '15:15'],
+            ];
+            foreach ($stops3 as $stop) {
+                $exists = DB::table('transport_stops')->where('route_id', $routeIds[2])->where('name', $stop['name'])->first();
+                if (!$exists) {
+                    DB::table('transport_stops')->insert(array_merge($stop, ['route_id' => $routeIds[2], 'created_at' => now(), 'updated_at' => now()]));
+                } else {
+                    DB::table('transport_stops')->where('id', $exists->id)->update(array_merge($stop, ['updated_at' => now()]));
                 }
             }
         }

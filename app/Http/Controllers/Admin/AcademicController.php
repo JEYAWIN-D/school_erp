@@ -44,13 +44,12 @@ class AcademicController extends Controller
             ->where('employee_type', 'teaching')->count()
             ?: Employee::where('is_active', true)->count();
         $pendingHomework   = DB::table('homework')->where('due_date', '>=', today()->toDateString())->count();
-        $pendingSubstitutions = DB::table('substitutions')->whereDate('date', today())->count();
         $activeNotices    = DB::table('notices')->where('is_published', true)
             ->where(fn($q) => $q->whereNull('expiry_date')->orWhere('expiry_date', '>=', today()))
             ->count();
         return view('academics.index', compact(
             'currentYear', 'classes', 'subjects', 'teachers',
-            'pendingHomework', 'pendingSubstitutions', 'activeNotices'
+            'pendingHomework', 'activeNotices'
         ));
     }
 
@@ -58,7 +57,10 @@ class AcademicController extends Controller
     {
         $classes  = Classes::active()->get();
         $subjects = Subject::where('is_active', true)->orderBy('name')->get();
-        $teachers = Employee::where('is_active', true)->orderBy('first_name')->get();
+        $teachers = Employee::where('is_active', true)->where('employee_type', 'teaching')->orderBy('first_name')->get();
+        if ($teachers->isEmpty()) {
+            $teachers = Employee::where('is_active', true)->orderBy('first_name')->get();
+        }
         $sections = collect();
         $timetable = [];
 
@@ -74,13 +76,79 @@ class AcademicController extends Controller
         return view('academics.timetable', compact('classes', 'sections', 'timetable', 'subjects', 'teachers'));
     }
 
+    public function saveTimetable(Request $request)
+    {
+        $request->validate([
+            'entries'                 => 'required|array',
+            'entries.*.class_id'      => 'required|exists:classes,id',
+            'entries.*.day_of_week'   => 'required',
+            'entries.*.period_number' => 'required|integer',
+        ]);
+
+        $dayMap = [
+            'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3,
+            'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6, 'Sunday' => 7,
+        ];
+
+        foreach ($request->entries as $entry) {
+            $dayOfWeek = $entry['day_of_week'];
+            if (isset($dayMap[$dayOfWeek])) {
+                $dayOfWeek = $dayMap[$dayOfWeek];
+            } else {
+                $dayOfWeek = (int) $dayOfWeek;
+            }
+
+            $teacherId = $entry['teacher_id'] ?? ($entry['employee_id'] ?? null);
+            $subjectId = $entry['subject_id'] ?? null;
+            $periodType = $entry['period_type'] ?? 'class';
+
+            \App\Models\Timetable::updateOrCreate(
+                [
+                    'class_id'      => $entry['class_id'],
+                    'section_id'    => $entry['section_id'] ?? null,
+                    'day_of_week'   => $dayOfWeek,
+                    'period_number' => $entry['period_number'],
+                ],
+                [
+                    'period_type'   => $periodType,
+                    'subject_id'    => $periodType === 'class' ? $subjectId : null,
+                    'teacher_id'    => $periodType === 'class' ? $teacherId : null,
+                    'start_time'    => $entry['start_time'] ?? null,
+                    'end_time'      => $entry['end_time'] ?? null,
+                    'is_active'     => true,
+                ]
+            );
+
+            // Also ensure TeacherSubjectAllocation exists if both subject and teacher are set
+            if ($subjectId && $teacherId && $periodType === 'class') {
+                $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+                \App\Models\TeacherSubjectAllocation::firstOrCreate([
+                    'subject_id'       => $subjectId,
+                    'employee_id'      => $teacherId,
+                    'class_id'         => $entry['class_id'],
+                ], [
+                    'academic_year_id' => $currentYear?->id,
+                ]);
+            }
+        }
+
+        return back()->with('success', 'Timetable period updated successfully.');
+    }
+
     public function subjects(Request $request)
     {
-        $subjects = Subject::when($request->search, fn($q, $v) => $q->where('name', 'like', "%$v%"))
+        $subjects = Subject::with(['class', 'allocations.employee'])
+            ->when($request->search, fn($q, $v) => $q->where('name', 'like', "%$v%"))
             ->when($request->type, fn($q, $v) => $q->where('type', $v))
             ->orderBy('name')->paginate(25)->withQueryString();
 
-        return view('academics.subjects', compact('subjects'));
+        $teachers = Employee::where('is_active', true)->where('employee_type', 'teaching')->orderBy('first_name')->get();
+        if ($teachers->isEmpty()) {
+            $teachers = Employee::where('is_active', true)->orderBy('first_name')->get();
+        }
+        $classes = Classes::active()->orderBy('name')->get();
+
+        return view('academics.subjects', compact('subjects', 'teachers', 'classes'));
     }
 
     public function syllabus(Request $request)
@@ -116,7 +184,6 @@ class AcademicController extends Controller
         $termStats = [
             'Term 1' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
             'Term 2' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
-            'Term 3' => ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pending' => 0, 'pct' => 0],
         ];
         $classOverallStats = [
             'total' => 0,
@@ -148,8 +215,8 @@ class AcademicController extends Controller
                     return $s;
                 });
 
-            // Calculate Term 1, Term 2, Term 3 statistics for this class
-            foreach (['Term 1', 'Term 2', 'Term 3'] as $t) {
+            // Calculate strictly Term 1 and Term 2 statistics for this class
+            foreach (['Term 1', 'Term 2'] as $t) {
                 $tBase = \App\Models\Syllabus::where('class_id', $selectedClass->id)->where('term', $t);
                 $tTotal = (clone $tBase)->count();
                 $tCompleted = (clone $tBase)->where('status', 'completed')->count();
@@ -181,7 +248,7 @@ class AcademicController extends Controller
             $syllabus = \App\Models\Syllabus::with(['subject', 'class'])
                 ->where('class_id', $selectedClass->id)
                 ->when($request->filled('subject_id'), fn($q) => $q->where('subject_id', $request->subject_id))
-                ->when($request->filled('term') && in_array($request->term, ['Term 1', 'Term 2', 'Term 3']), fn($q) => $q->where('term', $request->term))
+                ->when($request->filled('term') && in_array($request->term, ['Term 1', 'Term 2']), fn($q) => $q->where('term', $request->term))
                 ->when($request->filled('status'), fn($q) => $q->where('status', $request->status))
                 ->orderBy('term')
                 ->orderBy('sort_order')
@@ -453,14 +520,15 @@ class AcademicController extends Controller
             'type'         => 'nullable|in:theory,practical,activity,language',
             'credit_hours' => 'nullable|integer|min:0|max:40',
             'class_id'     => 'nullable|exists:classes,id',
-            'term'         => 'nullable|string|in:Term 1,Term 2,Term 3',
+            'teacher_id'   => 'nullable|exists:employees,id',
+            'term'         => 'nullable|string|in:Term 1,Term 2',
             'first_topic'  => 'nullable|string|max:200',
         ]);
 
         $subject = Subject::firstOrCreate(
             ['name' => $request->name],
             array_merge(
-                $request->only(['code', 'medium', 'language_type', 'board_curriculum', 'credit_hours', 'stream']),
+                $request->only(['code', 'class_id', 'medium', 'language_type', 'board_curriculum', 'credit_hours', 'stream']),
                 [
                     'type'            => $request->type ?: 'theory',
                     'code'            => $request->code ?: strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $request->name), 0, 4)),
@@ -471,8 +539,23 @@ class AcademicController extends Controller
             )
         );
 
+        $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+
+        // Assign handling teacher if selected
+        if ($request->filled('teacher_id')) {
+            \App\Models\TeacherSubjectAllocation::updateOrCreate(
+                [
+                    'subject_id' => $subject->id,
+                    'class_id'   => $request->class_id ?: 1,
+                ],
+                [
+                    'employee_id'      => $request->teacher_id,
+                    'academic_year_id' => $currentYear?->id,
+                ]
+            );
+        }
+
         if ($request->class_id) {
-            $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
             $term = $request->term ?: 'Term 1';
             $title = $request->first_topic ?: ($request->name . ' - Introduction & Basics');
 
@@ -498,19 +581,36 @@ class AcademicController extends Controller
             ])->with('success', "Subject '{$subject->name}' added to this standard.");
         }
 
-        return back()->with('success', 'Subject added.');
+        return back()->with('success', 'Subject added successfully.');
     }
 
     public function updateSubject(Request $request, int $id)
     {
-        Subject::findOrFail($id)->update(array_merge(
-            $request->only(['name', 'code', 'type', 'medium', 'language_type', 'board_curriculum', 'credit_hours', 'stream']),
+        $subject = Subject::findOrFail($id);
+        $subject->update(array_merge(
+            $request->only(['name', 'code', 'type', 'class_id', 'medium', 'language_type', 'board_curriculum', 'credit_hours', 'stream']),
             [
                 'is_elective'     => $request->boolean('is_elective'),
                 'is_coscholastic' => $request->boolean('is_coscholastic'),
             ]
         ));
-        return back()->with('success', 'Subject updated.');
+
+        // Sync or assign handling teacher if provided
+        if ($request->filled('teacher_id')) {
+            $currentYear = \App\Models\AcademicYear::current() ?? \App\Models\AcademicYear::first();
+            \App\Models\TeacherSubjectAllocation::updateOrCreate(
+                [
+                    'subject_id' => $subject->id,
+                    'class_id'   => $subject->class_id ?: 1,
+                ],
+                [
+                    'employee_id'      => $request->teacher_id,
+                    'academic_year_id' => $currentYear?->id,
+                ]
+            );
+        }
+
+        return back()->with('success', 'Subject updated successfully.');
     }
 
     public function toggleSubject(int $id)

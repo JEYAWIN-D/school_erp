@@ -99,6 +99,31 @@
             {{ str_replace('_',' ', ucfirst($student->student_type ?? 'Day Scholar')) }}
           </span>
 
+          @if($student->emis_no)
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            EMIS: {{ $student->emis_no }}
+          </span>
+          @endif
+
+          @if($student->is_asp)
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+            🕒 ASP Enrolled (₹{{ number_format($student->asp_fee ?? 0) }})
+          </span>
+          @endif
+
+          @if($student->transport_route_id)
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-cyan-50 text-cyan-800 border border-cyan-200">
+            🚌 Bus: {{ $student->transportRoute?->name ?? 'Route #' . $student->transport_route_id }} @if($student->transportStop) ({{ $student->transportStop->name }}) @endif
+          </span>
+          @endif
+
+          @if($student->concession_type && $student->concession_amount > 0)
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            🏷️ Concession: {{ ucwords(str_replace('_', ' ', $student->concession_type)) }} (-₹{{ number_format($student->concession_amount) }})
+          </span>
+          @endif
+
           @if($student->blood_group)
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
             <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.428.583L2.428 17.428a2 2 0 000 2.828l1.428 1.428a2 2 0 002.828 0l1.428-1.428a2 2 0 00.583-1.428l-.477-2.387a6 6 0 01.517-3.86l.158-.318a6 6 0 00.517-3.86L9.12 5.6a2 2 0 01.583-1.428l1.428-1.428a2 2 0 012.828 0l1.428 1.428a2 2 0 010 2.828l-1.428 1.428a2 2 0 00-.583 1.428l.477 2.387a6 6 0 00-.517 3.86l-.158.318a6 6 0 01-.517 3.86l.477 2.387a2 2 0 001.428.583l1.428-1.428a2 2 0 000-2.828l-1.428-1.428z"/></svg>
@@ -294,13 +319,40 @@
             </p>
           </div>
 
-          {{-- Email Address Tile (Full width across cols) --}}
-          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs sm:col-span-2">
+          {{-- Email Address Tile --}}
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs">
             <div class="flex items-center gap-1.5 text-slate-400">
               <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Email Address</span>
             </div>
             <p class="font-mono text-sm font-semibold text-slate-900 break-all">{{ $student->email ?? '—' }}</p>
+          </div>
+
+          {{-- EMIS / PEN Number Tile --}}
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs">
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">EMIS / PEN Number</span>
+            </div>
+            <p class="font-mono text-sm font-extrabold text-indigo-700">{{ $student->emis_no ?: '—' }}</p>
+          </div>
+
+          {{-- Visible Identification Marks Tile (Full Width across 2 cols if on tablet/desktop) --}}
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs sm:col-span-2 md:col-span-3">
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <svg class="w-4 h-4 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Visible Identification Marks</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-0.5">
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <span class="text-slate-400 font-bold block text-[10px] uppercase">Mark 1</span>
+                <span class="font-semibold text-slate-800">{{ $student->identification_mark_1 ?: 'None specified' }}</span>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <span class="text-slate-400 font-bold block text-[10px] uppercase">Mark 2</span>
+                <span class="font-semibold text-slate-800">{{ $student->identification_mark_2 ?: 'None specified' }}</span>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -438,6 +490,152 @@
           <p class="text-sm text-slate-700 leading-relaxed font-medium">
             {{ $student->permanent_address ?? $student->residential_address ?? $student->address ?? 'Same as residential address.' }}
           </p>
+        </div>
+      </div>
+
+      {{-- Sibling Studying in School Card --}}
+      @if($student->sibling_name || $student->sibling_admission_no)
+      <div class="bg-indigo-50/70 rounded-2xl border border-indigo-200/80 p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 text-indigo-900 font-bold">
+            <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </div>
+            <span class="text-xs uppercase tracking-wider">Sibling Studying in School</span>
+          </div>
+          <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-200/80 text-indigo-900 uppercase">Verified Sibling</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-white p-3.5 rounded-xl border border-indigo-100">
+          <div>
+            <span class="text-slate-400 font-medium block">Sibling Name</span>
+            <span class="font-bold text-slate-900">{{ $student->sibling_name ?? '—' }}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 font-medium block">Admission No.</span>
+            <span class="font-mono font-bold text-indigo-700">{{ $student->sibling_admission_no ?? '—' }}</span>
+          </div>
+          <div>
+            <span class="text-slate-400 font-medium block">Class / Section</span>
+            <span class="font-bold text-slate-800">{{ $student->sibling_class ?? '—' }}</span>
+          </div>
+        </div>
+      </div>
+      @endif
+
+      {{-- Concession Banner Card --}}
+      @if($student->concession_type && $student->concession_amount > 0)
+      <div class="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 rounded-2xl border border-emerald-200 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xl shadow-xs shrink-0">
+            🏷️
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Approved Fee Concession</span>
+              <span class="text-xs px-2.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                {{ ucwords(str_replace('_', ' ', $student->concession_type)) }}
+              </span>
+            </div>
+            <p class="text-xs text-emerald-700 mt-1 font-medium">
+              Approval Remarks: <span class="font-bold text-emerald-950">{{ $student->concession_remarks ?: 'Approved by School Management / Principal' }}</span>
+            </p>
+          </div>
+        </div>
+        <div class="bg-white px-5 py-3 rounded-xl border border-emerald-200 shadow-2xs text-left sm:text-right shrink-0">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Discount Deducted</span>
+          <span class="text-xl font-black text-emerald-600 font-mono">-₹{{ number_format($student->concession_amount) }}</span>
+        </div>
+      </div>
+      @endif
+
+      {{-- Transport, After School Program (ASP) & Activities Card --}}
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0 border border-cyan-100">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Transport &amp; Special Facilities</h3>
+              <p class="text-xs text-slate-400">School bus route, after school program, and complementary activities</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {{-- Transport Facility --}}
+          <div class="p-4 rounded-2xl border {{ $student->transport_route_id ? 'border-cyan-200 bg-cyan-50/30' : 'border-slate-200/80 bg-slate-50/50' }} space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-cyan-900 uppercase tracking-wider flex items-center gap-1.5">
+                🚌 School Bus
+              </span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full {{ $student->transport_route_id ? 'bg-cyan-100 text-cyan-800' : 'bg-slate-200 text-slate-600' }}">
+                {{ $student->transport_route_id ? 'Opted In' : 'Self Commute' }}
+              </span>
+            </div>
+            @if($student->transport_route_id)
+              <div class="space-y-1.5 text-xs bg-white p-3 rounded-xl border border-cyan-100">
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Route:</span>
+                  <span class="font-bold text-slate-900 truncate max-w-[130px]" title="{{ $student->transportRoute?->name }}">{{ $student->transportRoute?->name ?? 'Route #' . $student->transport_route_id }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Stopping Point:</span>
+                  <span class="font-bold text-slate-800 truncate max-w-[130px]" title="{{ $student->transportStop?->name }}">{{ $student->transportStop?->name ?? '—' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Distance:</span>
+                  <span class="font-mono font-bold text-slate-700">{{ $student->transport_distance_km ? $student->transport_distance_km . ' km' : ($student->transportStop?->distance_km ? $student->transportStop->distance_km . ' km' : '—') }}</span>
+                </div>
+                <div class="flex justify-between pt-1 border-t border-slate-100">
+                  <span class="text-slate-500 font-bold">Annual Bus Fee:</span>
+                  <span class="font-mono font-extrabold text-cyan-700">₹{{ number_format($student->transport_fee ?? 0) }}</span>
+                </div>
+              </div>
+            @else
+              <p class="text-xs text-slate-500 py-2">No school transportation requested. Student uses private commute.</p>
+            @endif
+          </div>
+
+          {{-- ASP (After School Program) --}}
+          <div class="p-4 rounded-2xl border {{ $student->is_asp ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200/80 bg-slate-50/50' }} space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                🕒 ASP Program
+              </span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full {{ $student->is_asp ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600' }}">
+                {{ $student->is_asp ? 'Enrolled' : 'Not Enrolled' }}
+              </span>
+            </div>
+            @if($student->is_asp)
+              <div class="space-y-1.5 text-xs bg-white p-3 rounded-xl border border-amber-100">
+                <p class="text-[11px] text-slate-600">Extended supervised evening study, homework guidance &amp; enrichment.</p>
+                <div class="flex justify-between pt-1 border-t border-slate-100">
+                  <span class="text-slate-500 font-bold">ASP Program Fee:</span>
+                  <span class="font-mono font-extrabold text-amber-700">₹{{ number_format($student->asp_fee ?? 0) }}</span>
+                </div>
+              </div>
+            @else
+              <p class="text-xs text-slate-500 py-2">Regular school hours. Not participating in evening ASP sessions.</p>
+            @endif
+          </div>
+
+          {{-- Complimentary Extra Curricular Activity --}}
+          <div class="p-4 rounded-2xl border border-indigo-100 bg-indigo-50/20 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                🎯 Complimentary ECA
+              </span>
+              <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                Free (Included)
+              </span>
+            </div>
+            <div class="space-y-1.5 text-xs bg-white p-3 rounded-xl border border-indigo-100">
+              <span class="text-slate-400 font-medium block">Selected Activity:</span>
+              <span class="text-sm font-bold text-indigo-900 block">{{ $student->selected_eca ?: 'No specific club selected' }}</span>
+              <p class="text-[10px] text-slate-500">School provides 1 complimentary ECA activity per student without extra fees.</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -716,6 +914,49 @@
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           Staff Upload
         </a>
+      </div>
+    </div>
+
+    {{-- Physical Documents Checklist (Submitted at Admission Desk) --}}
+    @php
+      $officialChecklistItems = [
+        'birth_certificate' => 'Birth Certificate (Original / Copy)',
+        'transfer_certificate' => 'Transfer Certificate (TC)',
+        'marksheet' => 'Previous Standard Marksheet',
+        'aadhaar_card' => 'Student Aadhaar Card Copy',
+        'community_certificate' => 'Community / Caste Certificate',
+        'migration_certificate' => 'Migration Certificate',
+        'emis_slip' => 'EMIS / PEN Slip',
+      ];
+      $submittedDocs = is_array($student->documents_submitted) ? $student->documents_submitted : [];
+      $submittedCount = count(array_intersect(array_keys($officialChecklistItems), $submittedDocs));
+    @endphp
+
+    <div class="bg-slate-50/90 rounded-2xl border border-slate-200/80 p-5 space-y-3">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            📋 Physical Hardcopy Documents Submitted to Admission Desk
+          </span>
+        </div>
+        <span class="text-xs font-bold font-mono px-2.5 py-0.5 rounded-full {{ $submittedCount > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600' }}">
+          {{ $submittedCount }} of {{ count($officialChecklistItems) }} Verified Hardcopies
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-1">
+        @foreach($officialChecklistItems as $docKey => $docLabel)
+          @php $hasSubmitted = in_array($docKey, $submittedDocs); @endphp
+          <div class="p-2.5 rounded-xl border {{ $hasSubmitted ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' : 'bg-white border-slate-200 text-slate-500' }} flex items-center gap-2 text-xs">
+            @if($hasSubmitted)
+              <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+              <span class="font-bold text-emerald-950">{{ $docLabel }}</span>
+            @else
+              <span class="w-4 h-4 rounded-full border border-slate-300 text-slate-300 flex items-center justify-center text-[10px] shrink-0 font-bold">○</span>
+              <span class="text-slate-400 font-medium">{{ $docLabel }}</span>
+            @endif
+          </div>
+        @endforeach
       </div>
     </div>
 

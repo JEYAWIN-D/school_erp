@@ -18,7 +18,7 @@
         </span>
       </div>
       <p class="text-xs text-slate-500 mt-1">
-        Manage class sections, faculty assignments, substitutions, and live daily period schedules.
+        Manage class sections, faculty assignments, subject handling teachers, and live daily period schedules.
       </p>
     </div>
 
@@ -1025,7 +1025,7 @@
             </template>
           </div>
           <div class="text-[11px] text-slate-400 font-medium">
-            💡 Click on any period card below to change subject, teacher, or assign substitution.
+            💡 Click on any period card below to change subject, handling teacher, or period timings.
           </div>
         </div>
 
@@ -1210,10 +1210,10 @@
                         :class="editSlotData.period_type === 'free' ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'">
                   ⚡ Free
                 </button>
-                <button type="button" @click="editSlotData.period_type = 'substitution'"
+                <button type="button" @click="editSlotData.period_type = 'lab'"
                         class="px-2.5 py-2 rounded-xl text-xs font-bold border text-center transition cursor-pointer"
-                        :class="editSlotData.period_type === 'substitution' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'">
-                  🔄 Sub
+                        :class="editSlotData.period_type === 'lab' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'">
+                  🔬 Practical
                 </button>
                 <button type="button" @click="editSlotData.period_type = 'activity'"
                         class="px-2.5 py-2 rounded-xl text-xs font-bold border text-center transition cursor-pointer"
@@ -1236,24 +1236,10 @@
 
             {{-- Teacher Selection --}}
             <div x-show="editSlotData.period_type !== 'free'">
-              <label class="block text-xs font-bold text-slate-700 mb-1" x-text="editSlotData.period_type === 'substitution' ? 'Regular Assigned Teacher' : 'Assigned Teacher'"></label>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Assigned Handling Teacher</label>
               <select x-model="editSlotData.teacher_id"
                       class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white transition cursor-pointer">
-                <option value="">-- No Teacher --</option>
-                <template x-for="t in allTeachers" :key="t.id">
-                  <option :value="t.id" x-text="t.first_name + ' ' + (t.last_name || '') + ' (' + (t.employee_code || 'EMP') + ')'"></option>
-                </template>
-              </select>
-            </div>
-
-            {{-- Substitute Teacher Selection (when Sub is selected) --}}
-            <div x-show="editSlotData.period_type === 'substitution'" class="p-3.5 bg-purple-50 rounded-xl border border-purple-200 space-y-2">
-              <div class="flex items-center gap-1.5 text-xs font-bold text-purple-900">
-                <span>🔄</span> Substitute Faculty Member
-              </div>
-              <select x-model="editSlotData.substitute_teacher_id"
-                      class="w-full px-3.5 py-2 bg-white border border-purple-300 rounded-xl text-xs font-bold text-purple-950 focus:ring-2 focus:ring-purple-500 transition cursor-pointer">
-                <option value="">-- Select Substitute Teacher --</option>
+                <option value="">-- Select Handling Teacher --</option>
                 <template x-for="t in allTeachers" :key="t.id">
                   <option :value="t.id" x-text="t.first_name + ' ' + (t.last_name || '') + ' (' + (t.employee_code || 'EMP') + ')'"></option>
                 </template>

@@ -37,7 +37,7 @@
   </div>
 
   {{-- Quick Stats Row --}}
-  @if($pendingHomework > 0 || $activeNotices > 0 || $pendingSubstitutions > 0)
+  @if($pendingHomework > 0 || $activeNotices > 0)
   <div class="flex flex-wrap gap-3">
     @if($activeNotices > 0)
     <a href="{{ route('academics.notices') }}" class="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-xl text-sm font-medium text-blue-700 hover:bg-blue-100 transition">
@@ -49,12 +49,6 @@
     <a href="{{ route('academics.homework') }}" class="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-xl text-sm font-medium text-purple-700 hover:bg-purple-100 transition">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
       {{ $pendingHomework }} Pending Assignment{{ $pendingHomework > 1 ? 's' : '' }}
-    </a>
-    @endif
-    @if($pendingSubstitutions > 0)
-    <a href="{{ route('academics.substitutions') }}" class="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-sm font-medium text-amber-700 hover:bg-amber-100 transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-      {{ $pendingSubstitutions }} Substitution{{ $pendingSubstitutions > 1 ? 's' : '' }} Today
     </a>
     @endif
   </div>
@@ -82,14 +76,14 @@
     </div>
   </div>
 
-  {{-- Module Cards — Section 2: Planning & Communication --}}
+  {{-- Module Cards — Section 2: Planning & Faculty --}}
   <div>
-    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Planning & Communication</p>
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Planning &amp; Faculty</p>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       @foreach([
+        ['Teacher Allocation','academics.allocation',    'from-emerald-500 to-teal-600', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>'],
         ['Lesson Plans',    'academics.lesson-plans',   'from-rose-500 to-pink-600',    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'],
         ['Notices',         'academics.notices',        'from-blue-500 to-sky-600',     '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>'],
-        ['Substitutions',   'academics.substitutions',  'from-amber-500 to-yellow-600', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>'],
         ['Terms / Semesters','academics.terms',         'from-violet-500 to-purple-600','<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>'],
         ['Working Days',    'academics.working-days',   'from-slate-500 to-gray-600',   '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>'],
       ] as [$label,$route,$color,$icon])

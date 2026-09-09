@@ -22,6 +22,10 @@ class Enquiry extends Model
         'missing_docs', 'docs_flag_note',
         'payment_terms', 'total_admission_fee', 'amount_collected', 'pending_amount',
         'payment_mode', 'payment_date', 'payment_status', 'fee_breakdown',
+        'last_school_studied', 'last_class_studied',
+        'father_name', 'father_mobile', 'father_occupation',
+        'mother_name', 'mother_mobile', 'mother_occupation',
+        'referred_by', 'follow_up_remarks',
     ];
 
     protected $casts = [

@@ -36,6 +36,21 @@ class Subject extends Model
         return $this->hasMany(TeacherSubjectAllocation::class, 'subject_id');
     }
 
+    public function teachers(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Employee::class, 'teacher_subject_allocations', 'subject_id', 'employee_id')
+            ->distinct();
+    }
+
+    public function getHandlingTeacherNamesAttribute(): string
+    {
+        $names = $this->allocations->map(fn($a) => $a->employee?->full_name ?: $a->employee?->first_name)->filter()->unique();
+        if ($names->isEmpty()) {
+            return 'Not Assigned';
+        }
+        return $names->implode(', ');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

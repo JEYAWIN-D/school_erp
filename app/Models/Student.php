@@ -34,6 +34,12 @@ class Student extends Model
         'payment_terms', 'total_admission_fee', 'admission_paid_amount',
         'admission_pending_amount', 'payment_mode', 'payment_date', 'payment_status', 'admission_fee_terms',
         'document_token',
+        'emis_no', 'identification_mark_1', 'identification_mark_2',
+        'is_asp', 'asp_fee',
+        'concession_type', 'concession_amount', 'concession_remarks',
+        'transport_route_id', 'transport_stop_id', 'transport_distance_km', 'transport_fee',
+        'sibling_name', 'sibling_admission_no', 'sibling_class',
+        'documents_submitted', 'selected_eca',
     ];
 
     protected static function booted(): void
@@ -62,10 +68,27 @@ class Student extends Model
         'admission_paid_amount'         => 'decimal:2',
         'admission_pending_amount'      => 'decimal:2',
         'admission_fee_terms'           => 'array',
+        'is_asp'                        => 'boolean',
+        'asp_fee'                       => 'decimal:2',
+        'concession_amount'             => 'decimal:2',
+        'transport_distance_km'         => 'decimal:2',
+        'transport_fee'                 => 'decimal:2',
+        'documents_submitted'           => 'array',
+        'selected_eca'                  => 'array',
         'aadhaar_no'                    => \App\Casts\EncryptedStringResilient::class,
         'father_aadhaar'                => \App\Casts\EncryptedStringResilient::class,
         'passport_number'               => \App\Casts\EncryptedStringResilient::class,
     ];
+
+    public function transportRoute(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(TransportRoute::class, 'transport_route_id');
+    }
+
+    public function transportStop(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(TransportStop::class, 'transport_stop_id');
+    }
 
     public function getFullNameAttribute(): string
     {

@@ -251,6 +251,8 @@ class StudentController extends Controller
             'enrollments.class',
             'enrollments.section',
             'enrollments.academicYear',
+            'transportRoute',
+            'transportStop',
         ])->findOrFail($id);
 
         $year = AcademicYear::current();

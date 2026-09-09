@@ -258,27 +258,26 @@
       </div>
     </div>
 
-    {{-- ── 3. Term Division Cards (Term 1, Term 2, Term 3) ── --}}
+    {{-- ── 3. Term Division Cards (Term 1 & Term 2 — Official School Structure) ── --}}
     <div>
       <div class="flex items-center justify-between mb-2.5">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
           <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          3-Term Curriculum Breakdown
+          2-Term Academic Portion Breakdown
         </h3>
         @if(request('term'))
           <a href="{{ route('academics.syllabus', ['class_id' => $selectedClass->id, 'subject_id' => request('subject_id')]) }}"
              class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
-            View All Terms
+            View Complete Year
           </a>
         @endif
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         @php
           $termMeta = [
-            'Term 1' => ['label' => 'Term 1', 'subtitle' => 'Jun – Sep (Quarterly)', 'color' => 'indigo'],
-            'Term 2' => ['label' => 'Term 2', 'subtitle' => 'Oct – Dec (Half-Yearly)', 'color' => 'amber'],
-            'Term 3' => ['label' => 'Term 3', 'subtitle' => 'Jan – Apr (Annual)', 'color' => 'emerald'],
+            'Term 1' => ['label' => 'Term 1', 'subtitle' => 'Jun – Nov (Half-Yearly)', 'color' => 'indigo'],
+            'Term 2' => ['label' => 'Term 2', 'subtitle' => 'Nov – Apr (Annual / Final)', 'color' => 'emerald'],
           ];
         @endphp
 
@@ -287,8 +286,8 @@
            class="term-card {{ !request('term') ? 'active' : '' }}">
           <div class="flex items-start justify-between">
             <div>
-              <p class="font-extrabold text-sm text-slate-800">All Terms</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Complete Academic Year</p>
+              <p class="font-extrabold text-sm text-slate-800">Complete Academic Year</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">All Portions (Term 1 &amp; Term 2)</p>
             </div>
             <span class="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
               {{ $classOverallStats['pct'] }}%
@@ -305,8 +304,8 @@
           </div>
         </a>
 
-        <!-- Term 1, 2, 3 Cards -->
-        @foreach(['Term 1', 'Term 2', 'Term 3'] as $t)
+        <!-- Term 1 and Term 2 Cards -->
+        @foreach(['Term 1', 'Term 2'] as $t)
           @php
             $stats = $termStats[$t] ?? ['total' => 0, 'completed' => 0, 'in_progress' => 0, 'pct' => 0];
             $meta = $termMeta[$t];
@@ -619,9 +618,8 @@
                   <div>
                     <label class="label text-xs">Term <span class="text-red-500">*</span></label>
                     <select name="term" class="select text-xs" required>
-                      <option value="Term 1" @selected($item->term === 'Term 1')>Term 1</option>
-                      <option value="Term 2" @selected($item->term === 'Term 2')>Term 2</option>
-                      <option value="Term 3" @selected($item->term === 'Term 3')>Term 3</option>
+                      <option value="Term 1" @selected($item->term === 'Term 1')>Term 1 (Jun–Nov)</option>
+                      <option value="Term 2" @selected($item->term === 'Term 2')>Term 2 (Nov–Apr)</option>
                     </select>
                   </div>
                   <div>
@@ -749,9 +747,8 @@
           <div>
             <label class="label text-xs font-bold text-slate-700">Assign to Term</label>
             <select name="term" class="select text-xs font-semibold">
-              <option value="Term 1">Term 1</option>
-              <option value="Term 2">Term 2</option>
-              <option value="Term 3">Term 3</option>
+              <option value="Term 1">Term 1 (Jun–Nov)</option>
+              <option value="Term 2">Term 2 (Nov–Apr)</option>
             </select>
           </div>
           <div class="sm:col-span-2">
@@ -802,9 +799,8 @@
         <div>
           <label class="label text-xs">Term Division <span class="text-red-500">*</span></label>
           <select name="term" class="select text-xs" required>
-            <option value="Term 1" @selected(request('term') === 'Term 1' || !request('term'))>Term 1 (Jun–Sep)</option>
-            <option value="Term 2" @selected(request('term') === 'Term 2')>Term 2 (Oct–Dec)</option>
-            <option value="Term 3" @selected(request('term') === 'Term 3')>Term 3 (Jan–Apr)</option>
+            <option value="Term 1" @selected(request('term') === 'Term 1' || !request('term'))>Term 1 (Jun–Nov)</option>
+            <option value="Term 2" @selected(request('term') === 'Term 2')>Term 2 (Nov–Apr)</option>
           </select>
         </div>
         <div>
@@ -876,9 +872,8 @@
         <div>
           <label class="label text-xs font-bold text-slate-700">Target Term <span class="text-red-500">*</span></label>
           <select name="term" class="select text-xs font-semibold" required>
-            <option value="Term 1" @selected(request('term') === 'Term 1' || !request('term'))>Term 1</option>
-            <option value="Term 2" @selected(request('term') === 'Term 2')>Term 2</option>
-            <option value="Term 3" @selected(request('term') === 'Term 3')>Term 3</option>
+            <option value="Term 1" @selected(request('term') === 'Term 1' || !request('term'))>Term 1 (Jun–Nov)</option>
+            <option value="Term 2" @selected(request('term') === 'Term 2')>Term 2 (Nov–Apr)</option>
           </select>
         </div>
         <div class="sm:col-span-2">

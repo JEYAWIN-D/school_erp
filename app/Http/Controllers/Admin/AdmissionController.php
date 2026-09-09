@@ -162,7 +162,37 @@ class AdmissionController extends Controller
             ->get()
             ->groupBy('class_id');
 
-        return view('admissions.create', compact('classes', 'sections', 'academicYear', 'standardFees', 'activities', 'users', 'admissionKits'));
+        // Fetch active transport routes with stops for Transport facility
+        $transportRoutes = \App\Models\TransportRoute::with(['stops' => fn($q) => $q->orderBy('stop_order')])
+            ->where('is_active', true)
+            ->get();
+
+        // Concession categories specified by school
+        $concessionTypes = [
+            'none'        => 'No Concession',
+            'staff_kid'   => 'Staff Kid (50% Concession)',
+            'topper'      => 'Academic Topper Concession',
+            'sports'      => 'Sports / Athletic Quota',
+            'single_shot' => 'Single Shot Payment (Full Payment Discount)',
+            'referral'    => 'Parent / Staff Referral Concession',
+            'sibling'     => 'Sibling Concession',
+        ];
+
+        // Mandatory & Optional official documents submitted at admission
+        $officialDocChecklist = [
+            'birth_certificate'     => 'Birth Certificate',
+            'aadhaar_card'          => 'Aadhaar Card (Student & Parents)',
+            'community_certificate' => 'Community Certificate',
+            'transfer_certificate'  => 'Transfer Certificate (TC - Original)',
+            'marksheet'             => 'Previous Marksheet / Report Card',
+            'migration_certificate' => 'Migration Certificate',
+            'emis_slip'             => 'Previous EMIS / PEN Number Slip',
+        ];
+
+        return view('admissions.create', compact(
+            'classes', 'sections', 'academicYear', 'standardFees', 'activities', 'users', 'admissionKits',
+            'transportRoutes', 'concessionTypes', 'officialDocChecklist'
+        ));
     }
 
     public function printFeeStructure($classId = null)
@@ -244,46 +274,66 @@ class AdmissionController extends Controller
         }
 
         $validated = $request->validate([
-            'first_name'           => 'required|string|max:50',
-            'last_name'            => 'nullable|string|max:50',
-            'email'                => 'nullable|email|max:100',
-            'dob'                  => 'nullable|date',
-            'gender'               => 'nullable|in:male,female,other',
-            'class_id'             => 'required|exists:classes,id',
-            'section_id'           => 'nullable|exists:sections,id',
-            'parent_name'          => 'required|string|max:100',
-            'parent_mobile'        => 'required|string|max:15',
-            'parent_email'         => 'nullable|email|max:100',
-            'father_occupation'    => 'nullable|string|max:100',
-            'mother_name'          => 'nullable|string|max:100',
-            'mother_occupation'    => 'nullable|string|max:100',
-            'mother_mobile'        => 'nullable|string|max:15',
-            'mother_email'         => 'nullable|email|max:100',
-            'annual_family_income' => 'nullable|numeric|min:0',
-            'address'              => 'nullable|string|max:255',
-            'source'               => 'nullable|string|max:50',
-            'notes'                => 'nullable|string',
-            'follow_up_date'       => 'nullable|date',
-            'previous_school'      => 'nullable|string|max:150',
-            'previous_class'       => 'nullable|string|max:50',
-            'previous_percentage'  => 'nullable|numeric|between:0,100',
-            'assigned_to'          => 'nullable|exists:users,id',
-            'hostel_required'      => 'nullable|boolean',
-            'activities'           => 'nullable|array',
-            'payment_terms'        => 'required|in:single,2_terms,3_terms',
-            'payment_mode'         => 'required|in:UPI,Net Banking,Cash',
-            'amount_collected'     => 'required|numeric|min:0',
-            'payment_date'         => 'nullable|date',
-            'term_2_due_date'      => 'nullable|date',
-            'term_3_due_date'      => 'nullable|date',
-            'blood_group'          => 'nullable|string|max:10',
-            'category'             => 'nullable|string|max:50',
-            'religion'             => 'nullable|string|max:50',
-            'mother_tongue'        => 'nullable|string|max:50',
-            'aadhaar_no'           => 'nullable|string|max:20',
-            'pincode'              => 'nullable|string|max:10',
-            'additional_items'     => 'nullable|array',
-            'additional_items.*'   => 'nullable|integer|min:0',
+            'first_name'             => 'required|string|max:50',
+            'last_name'              => 'nullable|string|max:50',
+            'email'                  => 'nullable|email|max:100',
+            'dob'                    => 'nullable|date',
+            'gender'                 => 'nullable|in:male,female,other',
+            'photo'                  => 'nullable|image|max:3072',
+            'class_id'               => 'required|exists:classes,id',
+            'section_id'             => 'nullable|exists:sections,id',
+            'parent_name'            => 'required|string|max:100',
+            'parent_mobile'          => 'required|string|max:15',
+            'parent_email'           => 'nullable|email|max:100',
+            'father_occupation'      => 'nullable|string|max:100',
+            'mother_name'            => 'nullable|string|max:100',
+            'mother_occupation'      => 'nullable|string|max:100',
+            'mother_mobile'          => 'nullable|string|max:15',
+            'mother_email'           => 'nullable|email|max:100',
+            'guardian_name'          => 'nullable|string|max:100',
+            'guardian_mobile'        => 'nullable|string|max:15',
+            'guardian_relation'      => 'nullable|string|max:50',
+            'annual_family_income'   => 'nullable|numeric|min:0',
+            'address'                => 'nullable|string|max:255',
+            'source'                 => 'nullable|string|max:50',
+            'referred_by'            => 'nullable|string|max:100',
+            'notes'                  => 'nullable|string',
+            'follow_up_date'         => 'nullable|date',
+            'previous_school'        => 'nullable|string|max:150',
+            'previous_class'         => 'nullable|string|max:50',
+            'previous_percentage'    => 'nullable|numeric|between:0,100',
+            'assigned_to'            => 'nullable|exists:users,id',
+            'emis_no'                => 'nullable|string|max:50',
+            'identification_mark_1'  => 'nullable|string|max:255',
+            'identification_mark_2'  => 'nullable|string|max:255',
+            'is_asp'                 => 'nullable|boolean',
+            'asp_fee'                => 'nullable|numeric|min:0',
+            'transport_route_id'     => 'nullable|exists:transport_routes,id',
+            'transport_stop_id'      => 'nullable|exists:transport_stops,id',
+            'transport_distance_km'  => 'nullable|numeric|min:0',
+            'transport_fee'          => 'nullable|numeric|min:0',
+            'concession_type'        => 'nullable|string|max:50',
+            'concession_amount'      => 'nullable|numeric|min:0',
+            'concession_remarks'     => 'nullable|string|max:255',
+            'sibling_name'           => 'nullable|string|max:255',
+            'sibling_admission_no'   => 'nullable|string|max:50',
+            'sibling_class'          => 'nullable|string|max:50',
+            'documents_submitted'    => 'nullable|array',
+            'activities'             => 'nullable|array',
+            'payment_terms'          => 'required|in:single,2_terms,3_terms',
+            'payment_mode'           => 'required|in:UPI,Net Banking,Cash',
+            'amount_collected'       => 'required|numeric|min:0',
+            'payment_date'           => 'nullable|date',
+            'term_2_due_date'        => 'nullable|date',
+            'term_3_due_date'        => 'nullable|date',
+            'blood_group'            => 'nullable|string|max:10',
+            'category'               => 'nullable|string|max:50',
+            'religion'               => 'nullable|string|max:50',
+            'mother_tongue'          => 'nullable|string|max:50',
+            'aadhaar_no'             => 'nullable|string|max:20',
+            'pincode'                => 'nullable|string|max:10',
+            'additional_items'       => 'nullable|array',
+            'additional_items.*'     => 'nullable|integer|min:0',
         ]);
 
         $currentYear = AcademicYear::current();
@@ -297,15 +347,24 @@ class AdmissionController extends Controller
         $lab = $classFee['lab_fee'] ?? 0;
         $basicTotal = $tuition + $book + $exam + $lab;
 
-        $hostelFee = $request->boolean('hostel_required') ? ($classFee['hostel_annual'] ?? 30000) : 0;
+        // After School Program (ASP) Fee — replaces hostel per school requirement
+        $isAsp = $request->boolean('is_asp');
+        $aspFee = $isAsp ? (float)($request->asp_fee ?? 15000) : 0;
 
-        $activitiesFee = 0;
-        if ($request->filled('activities') && is_array($request->activities)) {
-            foreach ($request->activities as $actId) {
-                $act = collect($feeData['activities'])->firstWhere('id', $actId);
-                if ($act) $activitiesFee += $act['annual_fee'];
+        // Transport Facility Fee — based on chosen Route & Stopping distance
+        $transportFee = 0;
+        if ($request->filled('transport_route_id')) {
+            if ($request->filled('transport_stop_id')) {
+                $stop = \App\Models\TransportStop::find($request->transport_stop_id);
+                $transportFee = (float)($stop?->fare ?? $request->transport_fee ?? 0);
+            } else {
+                $route = \App\Models\TransportRoute::find($request->transport_route_id);
+                $transportFee = (float)($route?->fee ?? $request->transport_fee ?? 0);
             }
         }
+
+        // Note: Extra Curricular Activities (ECA) are complimentary activity choices without adding fee ("ECA - Remove payment")
+        $activitiesFee = 0;
 
         // Warehouse Admission Kit Calculations & Stock Validation
         $kitConfigs = \App\Models\AdmissionKitConfig::with('item')
@@ -353,10 +412,13 @@ class AdmissionController extends Controller
             return back()->withInput()->with('error', implode(' ', $stockCheckErrors) . ' Please replenish stock in Warehouse before completing admission.');
         }
 
-        // Admission kit amount + additional kit amount added to Term 1; remaining tuition fees, etc. divided evenly
+        // Subtotal before Concession: Tuition + ASP + Transport + Admission Kits
         $totalKitFee = $standardKitFee + $additionalInventoryFee;
-        $remainingFees = $basicTotal + $hostelFee + $activitiesFee;
-        $totalFee = $remainingFees + $totalKitFee;
+        $subTotal = $basicTotal + $aspFee + $transportFee + $totalKitFee;
+
+        // Concessions (Staff kid, Topper, Sports, Single shot, Referral, Sibling)
+        $concessionAmount = max(0, min((float)($request->concession_amount ?? 0), $subTotal));
+        $totalFee = max(0, $subTotal - $concessionAmount);
         $amountCollected = (float)$request->amount_collected;
 
         if ($amountCollected > $totalFee) {
@@ -494,7 +556,12 @@ class AdmissionController extends Controller
 
         $student = null;
 
-        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, &$student) {
+        $photoPath = null;
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('students/photos', 'public');
+        }
+
+        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, $photoPath, $isAsp, $aspFee, $transportFee, $concessionAmount, &$student) {
             $studentFullName = trim($request->first_name . ' ' . ($request->last_name ?? ''));
 
             // Save Enquiry
@@ -504,6 +571,16 @@ class AdmissionController extends Controller
                 'status'               => 'converted',
                 'academic_year_id'     => $currentYear?->id,
                 'created_by'           => Auth::id(),
+                'father_name'          => $request->parent_name,
+                'father_mobile'        => $request->parent_mobile,
+                'father_occupation'    => $request->father_occupation,
+                'mother_name'          => $request->mother_name,
+                'mother_mobile'        => $request->mother_mobile,
+                'mother_occupation'    => $request->mother_occupation,
+                'last_school_studied'  => $request->previous_school,
+                'last_class_studied'   => $request->previous_class,
+                'referred_by'          => $request->referred_by ?? $request->source,
+                'follow_up_remarks'    => $request->notes,
                 'payment_terms'        => $paymentTerms,
                 'total_admission_fee'  => $totalFee,
                 'amount_collected'     => $amountCollected,
@@ -546,7 +623,7 @@ class AdmissionController extends Controller
             $totalEnrolledCount = \App\Models\StudentEnrollment::count();
             $autoHouse = $houses[$totalEnrolledCount % count($houses)];
 
-            // Save Student
+            // Save Student with school-requirement fields
             $student = \App\Models\Student::create([
                 'admission_no'             => $admNo,
                 'admission_date'           => $paymentDate,
@@ -555,6 +632,7 @@ class AdmissionController extends Controller
                 'last_name'                => $request->last_name,
                 'dob'                      => $request->dob,
                 'gender'                   => $request->gender,
+                'photo'                    => $photoPath,
                 'blood_group'              => $request->blood_group ? substr($request->blood_group, 0, 5) : null,
                 'category'                 => $request->filled('category') ? strtolower($request->category) : 'general',
                 'religion'                 => $request->religion,
@@ -571,13 +649,33 @@ class AdmissionController extends Controller
                 'mother_occupation'        => $request->mother_occupation,
                 'mother_mobile'            => $request->mother_mobile ? substr($request->mother_mobile, 0, 15) : null,
                 'mother_email'             => $request->mother_email,
+                'guardian_name'            => $request->guardian_name,
+                'guardian_mobile'          => $request->guardian_mobile ? substr($request->guardian_mobile, 0, 15) : null,
+                'guardian_relation'        => $request->guardian_relation,
                 'annual_family_income'     => $request->annual_family_income,
                 'residential_address'      => $request->address,
                 'permanent_address'        => $request->address,
                 'previous_school_name'     => $request->previous_school,
                 'previous_percentage'      => $request->previous_percentage,
                 'status'                   => 'active',
-                'student_type'             => $request->boolean('hostel_required') ? 'hosteller' : 'day_scholar',
+                'student_type'             => $request->filled('transport_route_id') ? 'transport' : ($isAsp ? 'asp' : 'day_scholar'),
+                'emis_no'                  => $request->emis_no,
+                'identification_mark_1'    => $request->identification_mark_1,
+                'identification_mark_2'    => $request->identification_mark_2,
+                'is_asp'                   => $isAsp,
+                'asp_fee'                  => $aspFee,
+                'transport_route_id'       => $request->transport_route_id,
+                'transport_stop_id'        => $request->transport_stop_id,
+                'transport_distance_km'    => $request->transport_distance_km,
+                'transport_fee'            => $transportFee,
+                'concession_type'          => $request->concession_type !== 'none' ? $request->concession_type : null,
+                'concession_amount'        => $concessionAmount,
+                'concession_remarks'       => $request->concession_remarks,
+                'sibling_name'             => $request->sibling_name,
+                'sibling_admission_no'     => $request->sibling_admission_no,
+                'sibling_class'            => $request->sibling_class,
+                'documents_submitted'      => $request->documents_submitted ?? [],
+                'selected_eca'             => $request->activities ?? [],
                 'payment_terms'            => $paymentTerms,
                 'total_admission_fee'      => $totalFee,
                 'admission_paid_amount'    => $amountCollected,

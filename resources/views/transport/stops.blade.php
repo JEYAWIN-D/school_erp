@@ -29,6 +29,17 @@
           </select>
         </div>
         <div>
+          <label class="label">Van / Vehicle Assigned</label>
+          <select name="vehicle_id" class="select">
+            <option value="">Auto-assign from Route (Default)</option>
+            @foreach($vehicles as $v)
+            <option value="{{ $v->id }}" {{ old('vehicle_id') == $v->id ? 'selected' : '' }}>
+              {{ $v->vehicle_number }} ({{ ucfirst($v->vehicle_type ?? 'Van') }} • {{ $v->driver_name ?: 'Driver TBD' }})
+            </option>
+            @endforeach
+          </select>
+        </div>
+        <div>
           <label class="label">Stop Name <span class="text-red-500">*</span></label>
           <input type="text" name="name" class="input" value="{{ old('name') }}" placeholder="e.g. Main Market" required>
         </div>
@@ -45,8 +56,8 @@
           <input type="time" name="drop_time" class="input" value="{{ old('drop_time') }}">
         </div>
         <div>
-          <label class="label">Monthly Fare (₹)</label>
-          <input type="number" name="fare" class="input" value="{{ old('fare') }}" step="0.01" min="0">
+          <label class="label">Annual Transport Fare (₹)</label>
+          <input type="number" name="fare" class="input" value="{{ old('fare') }}" step="0.01" min="0" placeholder="e.g. 8500">
         </div>
         <div>
           <label class="label">Distance from School (km)</label>
@@ -54,7 +65,7 @@
         </div>
         <div>
           <label class="label">Landmark</label>
-          <input type="text" name="landmark" class="input" value="{{ old('landmark') }}" placeholder="Near temple, etc.">
+          <input type="text" name="landmark" class="input" value="{{ old('landmark') }}" placeholder="Near temple, metro, etc.">
         </div>
         <button type="submit" class="btn btn-primary w-full">Add Stop</button>
       </form>
@@ -82,9 +93,8 @@
                 <th class="th">#</th>
                 <th class="th">Stop Name</th>
                 <th class="th">Route</th>
-                <th class="th">Order</th>
-                <th class="th">Pickup</th>
-                <th class="th">Drop</th>
+                <th class="th">Van / Vehicle No</th>
+                <th class="th">Distance</th>
                 <th class="th">Fare</th>
                 <th class="th">Actions</th>
               </tr>
@@ -94,17 +104,20 @@
               <tr class="tr">
                 <td class="td text-slate-400">{{ $loop->iteration }}</td>
                 <td class="td font-medium">
-                  {{ $stop->name }}
+                  <span class="text-slate-900 font-bold">{{ $stop->name }}</span>
                   @if($stop->landmark)
-                  <div class="text-xs text-slate-400">{{ $stop->landmark }}</div>
+                  <div class="text-xs text-slate-400 font-normal">📍 {{ $stop->landmark }}</div>
                   @endif
                 </td>
-                <td class="td text-slate-500 text-sm">{{ $stop->route?->route_name ?? '—' }}</td>
-                <td class="td text-center">{{ $stop->stop_order }}</td>
-                <td class="td text-sm">{{ $stop->pickup_time ? \Carbon\Carbon::parse($stop->pickup_time)->format('h:i A') : '—' }}</td>
-                <td class="td text-sm">{{ $stop->drop_time ? \Carbon\Carbon::parse($stop->drop_time)->format('h:i A') : '—' }}</td>
-                <td class="td">{{ $stop->fare ? '₹' . $stop->fare : '—' }}</td>
-                <td class="td">
+                <td class="td text-slate-600 text-xs font-semibold">{{ $stop->route?->route_name ?? '—' }}</td>
+                <td class="td whitespace-nowrap">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs">
+                    🚐 {{ $stop->effective_van_number }}
+                  </span>
+                </td>
+                <td class="td text-xs font-mono font-bold text-slate-700">{{ $stop->distance_km ? $stop->distance_km . ' km' : '—' }}</td>
+                <td class="td font-mono font-bold text-emerald-700">{{ $stop->fare ? '₹' . number_format($stop->fare) : '—' }}</td>
+                <td class="td whitespace-nowrap">
                   <a href="{{ route('transport.stops.edit', $stop->id) }}" class="btn-icon" title="Edit">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                   </a>
@@ -117,7 +130,7 @@
                 </td>
               </tr>
               @empty
-              <tr><td colspan="8" class="td text-center py-8 text-slate-400">No stops found. Add your first stop.</td></tr>
+              <tr><td colspan="7" class="td text-center py-8 text-slate-400">No stops found. Add your first stop.</td></tr>
               @endforelse
             </tbody>
           </table>

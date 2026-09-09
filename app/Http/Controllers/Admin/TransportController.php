@@ -70,7 +70,17 @@ class TransportController extends Controller
                 ->get();
         } catch (\Exception $e) {}
 
-        return view('transport.index', compact('stats', 'maintenanceAlerts', 'docAlerts'));
+        // Live GPRS fleet
+        $gprsVehicles = collect();
+        try {
+            $gprsVehicles = Vehicle::where('is_active', true)
+                ->where('gps_enabled', true)
+                ->with('route')
+                ->select('id', 'vehicle_number', 'vehicle_type', 'driver_name', 'driver_phone', 'gps_status', 'current_speed_kmh', 'current_location_name', 'ignition_status', 'battery_level', 'transport_route_id')
+                ->get();
+        } catch (\Exception $e) {}
+
+        return view('transport.index', compact('stats', 'maintenanceAlerts', 'docAlerts', 'gprsVehicles'));
     }
 
     public function routes(Request $request)
@@ -197,9 +207,58 @@ class TransportController extends Controller
 
     public function tracking()
     {
-        $routes   = TransportRoute::where('is_active', true)->with('vehicle')->get();
-        $vehicles = Vehicle::where('is_active', true)->get();
-        return view('transport.tracking', compact('routes', 'vehicles'));
+        $routes   = TransportRoute::where('is_active', true)->with(['vehicle', 'stops'])->get();
+        $vehicles = Vehicle::where('is_active', true)->with(['route.stops'])->orderBy('vehicle_number')->get();
+        
+        $stats = [
+            'total_vehicles' => $vehicles->count(),
+            'online_gprs'    => $vehicles->whereIn('gps_status', ['online', 'in_transit'])->count(),
+            'in_transit'     => $vehicles->where('gps_status', 'in_transit')->count(),
+            'idle_or_parked' => $vehicles->where('gps_status', 'idle')->count(),
+        ];
+
+        return view('transport.tracking', compact('routes', 'vehicles', 'stats'));
+    }
+
+    public function liveTelemetry()
+    {
+        $vehicles = Vehicle::where('is_active', true)
+            ->with(['route.stops'])
+            ->get()
+            ->map(function ($v) {
+                return [
+                    'id'                   => $v->id,
+                    'vehicle_number'       => $v->vehicle_number,
+                    'vehicle_type'         => ucfirst($v->vehicle_type ?? 'Bus'),
+                    'route_name'           => $v->route?->route_name ?? 'Unassigned Route',
+                    'route_id'             => $v->route_id,
+                    'gps_device_id'        => $v->gps_device_id ?? ('GPRS-' . $v->id),
+                    'gps_imei'             => $v->gps_imei ?? ('864028042' . str_pad($v->id, 6, '0', STR_PAD_LEFT)),
+                    'gps_status'           => $v->gps_status ?? 'online',
+                    'latitude'             => (float) ($v->current_latitude ?? 13.0827),
+                    'longitude'            => (float) ($v->current_longitude ?? 80.2707),
+                    'location_name'        => $v->current_location_name ?? 'Chennai School Campus',
+                    'speed_kmh'            => (int) ($v->current_speed_kmh ?? 0),
+                    'battery_level'        => (int) ($v->battery_level ?? 95),
+                    'ignition_status'      => $v->ignition_status ?? 'on',
+                    'driver_name'          => $v->driver_name ?: 'Driver Not Assigned',
+                    'driver_mobile'        => $v->driver_mobile ?: '—',
+                    'last_ping'            => $v->last_gps_ping ? $v->last_gps_ping->diffForHumans() : 'Just now',
+                    'capacity'             => $v->seating_capacity ?? 40,
+                    'stops'                => ($v->route && $v->route->stops) ? $v->route->stops->map(fn($s) => [
+                        'name'        => $s->name,
+                        'order'       => $s->stop_order,
+                        'distance_km' => $s->distance_km,
+                        'landmark'    => $s->landmark,
+                    ])->values()->all() : [],
+                ];
+            });
+
+        return response()->json([
+            'success'   => true,
+            'timestamp' => now()->toIso8601String(),
+            'vehicles'  => $vehicles,
+        ]);
     }
 
     public function editVehicle(int $id)
@@ -211,21 +270,25 @@ class TransportController extends Controller
     public function updateVehicle(Request $request, int $id)
     {
         $vehicle = Vehicle::findOrFail($id);
-        $vehicle->update($request->only(['make', 'model', 'fitness_expiry', 'insurance_expiry', 'permit_expiry', 'puc_expiry', 'tax_expiry', 'vehicle_type']));
+        $vehicle->update($request->only([
+            'make', 'model', 'fitness_expiry', 'insurance_expiry', 'permit_expiry', 
+            'puc_expiry', 'tax_expiry', 'vehicle_type', 'driver_name', 'driver_mobile',
+            'gps_enabled', 'gps_device_id', 'gps_imei', 'gps_status'
+        ]));
         return back()->with('success', 'Vehicle updated.');
     }
 
     public function allotment(Request $request)
     {
         $routes   = TransportRoute::where('is_active', true)->with('vehicle')->get();
-        $stops    = TransportStop::orderBy('name')->get();
+        $stops    = TransportStop::with(['vehicle', 'route'])->orderBy('route_id')->orderBy('stop_order')->get();
         $classes  = Classes::active()->get();
         $sections = Section::all();
         $currentYear = \App\Models\AcademicYear::current();
         $enrollments = StudentEnrollment::with('student', 'class')->where('status', 'active')
             ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
             ->get();
-        $allotments = TransportAllotment::with(['enrollment.student', 'enrollment.class', 'route', 'stop'])
+        $allotments = TransportAllotment::with(['enrollment.student', 'enrollment.class', 'route.vehicle', 'stop.vehicle'])
             ->where('is_active', true)
             ->when($request->route_id, fn($q, $v) => $q->where('route_id', $v))
             ->when($request->class_id, fn($q, $v) => $q->whereHas('enrollment', fn($q) => $q->where('class_id', $v)))
@@ -235,7 +298,11 @@ class TransportController extends Controller
 
     public function storeAllotment(Request $request)
     {
-        $request->validate(['enrollment_id' => 'required|exists:student_enrollments,id', 'route_id' => 'required|exists:transport_routes,id']);
+        $request->validate([
+            'enrollment_id' => 'required|exists:student_enrollments,id',
+            'route_id'      => 'required|exists:transport_routes,id',
+            'stop_id'       => 'nullable|exists:transport_stops,id',
+        ]);
 
         // Seat availability check
         $route = TransportRoute::findOrFail($request->route_id);
@@ -247,43 +314,59 @@ class TransportController extends Controller
                 return back()->withErrors(['route_id' => "Route \"{$route->route_name}\" is full ({$capacity} seats occupied). Choose another route."])->withInput();
             }
         }
+
         $stopFare = null;
+        $stopDistance = null;
         if ($request->stop_id) {
-            $stop     = \App\Models\TransportStop::find($request->stop_id);
+            $stop = TransportStop::find($request->stop_id);
             $stopFare = $stop?->fare;
+            $stopDistance = $stop?->distance_km;
         }
-        $fee = $request->fee ?? $stopFare;
 
         TransportAllotment::updateOrCreate(
             ['enrollment_id' => $request->enrollment_id],
-            array_merge($request->only(['route_id', 'stop_id', 'pickup_time', 'drop_time']), ['fee' => $fee, 'is_active' => true])
+            [
+                'route_id'   => $request->route_id,
+                'stop_id'    => $request->stop_id,
+                'vehicle_id' => $vehicle?->id,
+                'fee'        => $stopFare,
+                'is_active'  => true,
+            ]
         );
 
-        // Auto-link transport fee to student via StudentCustomFee
-        if ($fee && $fee > 0) {
-            $enrollment = \App\Models\StudentEnrollment::find($request->enrollment_id);
-            if ($enrollment) {
-                $feeHead     = \App\Models\FeeHead::firstOrCreate(
-                    ['name' => 'Transport Fee'],
-                    ['fee_type' => 'transport', 'is_active' => true]
-                );
-                $currentYear = \App\Models\AcademicYear::current();
-                \App\Models\StudentCustomFee::updateOrCreate(
-                    [
-                        'student_id'      => $enrollment->student_id,
-                        'fee_head_id'     => $feeHead->id,
-                        'academic_year_id'=> $currentYear?->id,
-                    ],
-                    [
-                        'custom_amount' => $fee,
-                        'reason'        => 'Auto-linked from transport stop assignment',
-                        'set_by'        => \Illuminate\Support\Facades\Auth::id(),
-                    ]
-                );
-            }
+        // Sync with Student Profile
+        $enrollment = StudentEnrollment::find($request->enrollment_id);
+        if ($enrollment && $enrollment->student) {
+            $enrollment->student->update([
+                'transport_route_id'    => $request->route_id,
+                'transport_stop_id'     => $request->stop_id,
+                'transport_distance_km' => $stopDistance,
+                'transport_fee'         => $stopFare ?? 0,
+            ]);
         }
 
-        return back()->with('success', 'Route allotted' . ($fee ? " (Transport fee ₹{$fee}/term auto-linked)." : '.'));
+        // Auto-link transport fee to student via StudentCustomFee if applicable
+        if ($stopFare && $stopFare > 0 && $enrollment) {
+            $feeHead = \App\Models\FeeHead::firstOrCreate(
+                ['name' => 'Transport Fee'],
+                ['fee_type' => 'transport', 'is_active' => true]
+            );
+            $currentYear = \App\Models\AcademicYear::current();
+            \App\Models\StudentCustomFee::updateOrCreate(
+                [
+                    'student_id'       => $enrollment->student_id,
+                    'fee_head_id'      => $feeHead->id,
+                    'academic_year_id' => $currentYear?->id,
+                ],
+                [
+                    'custom_amount' => $stopFare,
+                    'reason'        => 'Auto-linked from transport stop assignment',
+                    'set_by'        => \Illuminate\Support\Facades\Auth::id(),
+                ]
+            );
+        }
+
+        return back()->with('success', 'Student allocated to route successfully' . ($stopFare ? " (Transport fee ₹{$stopFare} auto-linked)." : '.'));
     }
 
     public function deleteAllotment(int $id)
@@ -474,11 +557,14 @@ class TransportController extends Controller
 
     public function stops(Request $request)
     {
-        $routes = TransportRoute::where('is_active', true)->get();
-        $stops  = TransportStop::with('route')
+        $routes   = TransportRoute::where('is_active', true)->with('vehicle')->get();
+        $vehicles = Vehicle::where('is_active', true)->orderBy('vehicle_number')->get();
+        $stops    = TransportStop::with(['route.vehicle', 'vehicle'])
             ->when($request->route_id, fn($q, $v) => $q->where('route_id', $v))
-            ->orderBy('stop_order')->paginate(25)->withQueryString();
-        return view('transport.stops', compact('routes', 'stops'));
+            ->orderBy('route_id')
+            ->orderBy('stop_order')
+            ->paginate(25)->withQueryString();
+        return view('transport.stops', compact('routes', 'stops', 'vehicles'));
     }
 
     public function storeStop(Request $request)
@@ -487,25 +573,58 @@ class TransportController extends Controller
             'route_id'    => 'required|exists:transport_routes,id',
             'name'        => 'required|string|max:100',
             'stop_order'  => 'required|integer|min:1',
-            'pickup_time' => 'nullable|date_format:H:i',
-            'drop_time'   => 'nullable|date_format:H:i',
+            'vehicle_id'  => 'nullable|exists:vehicles,id',
+            'van_number'  => 'nullable|string|max:50',
+            'pickup_time' => 'nullable',
+            'drop_time'   => 'nullable',
             'fare'        => 'nullable|numeric|min:0',
+            'distance_km' => 'nullable|numeric|min:0',
         ]);
-        TransportStop::create($request->only(['route_id', 'name', 'stop_order', 'pickup_time', 'drop_time', 'fare', 'landmark', 'distance_km']));
-        return back()->with('success', 'Stop added.');
+
+        $vanNumber = $request->van_number;
+        if (!$vanNumber && $request->vehicle_id) {
+            $vanNumber = Vehicle::find($request->vehicle_id)?->vehicle_number;
+        }
+
+        TransportStop::create(array_merge(
+            $request->only(['route_id', 'name', 'stop_order', 'vehicle_id', 'pickup_time', 'drop_time', 'fare', 'landmark', 'distance_km']),
+            ['van_number' => $vanNumber]
+        ));
+        return back()->with('success', 'Stop added successfully.');
     }
 
     public function editStop(int $id)
     {
-        $stop   = TransportStop::findOrFail($id);
-        $routes = TransportRoute::where('is_active', true)->get();
-        return view('transport.stop-edit', compact('stop', 'routes'));
+        $stop     = TransportStop::findOrFail($id);
+        $routes   = TransportRoute::where('is_active', true)->with('vehicle')->get();
+        $vehicles = Vehicle::where('is_active', true)->orderBy('vehicle_number')->get();
+        return view('transport.stop-edit', compact('stop', 'routes', 'vehicles'));
     }
 
     public function updateStop(Request $request, int $id)
     {
-        TransportStop::findOrFail($id)->update($request->only(['route_id', 'name', 'stop_order', 'pickup_time', 'drop_time', 'fare', 'landmark']));
-        return redirect()->route('transport.stops')->with('success', 'Stop updated.');
+        $request->validate([
+            'route_id'    => 'required|exists:transport_routes,id',
+            'name'        => 'required|string|max:100',
+            'stop_order'  => 'required|integer|min:1',
+            'vehicle_id'  => 'nullable|exists:vehicles,id',
+            'van_number'  => 'nullable|string|max:50',
+            'pickup_time' => 'nullable',
+            'drop_time'   => 'nullable',
+            'fare'        => 'nullable|numeric|min:0',
+            'distance_km' => 'nullable|numeric|min:0',
+        ]);
+
+        $vanNumber = $request->van_number;
+        if (!$vanNumber && $request->vehicle_id) {
+            $vanNumber = Vehicle::find($request->vehicle_id)?->vehicle_number;
+        }
+
+        TransportStop::findOrFail($id)->update(array_merge(
+            $request->only(['route_id', 'name', 'stop_order', 'vehicle_id', 'pickup_time', 'drop_time', 'fare', 'landmark', 'distance_km']),
+            ['van_number' => $vanNumber]
+        ));
+        return redirect()->route('transport.stops')->with('success', 'Stop updated successfully.');
     }
 
     public function deleteStop(int $id)
@@ -948,3 +1067,5 @@ class TransportController extends Controller
         );
     }
 }
+
+

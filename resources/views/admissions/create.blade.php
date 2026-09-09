@@ -9,11 +9,39 @@
   standardFees: {{ json_encode($standardFees) }},
   activitiesData: {{ json_encode($activities) }},
   admissionKitsData: {{ json_encode($admissionKits ?? []) }},
+  transportRoutesData: {{ json_encode($transportRoutes ?? []) }},
   selectedClassId: '{{ request("class_id", "") }}',
   selectedSectionId: '',
-  hostelRequired: false,
+
+  // After School Program (ASP) State — replaces Hostel per school requirement
+  aspRequired: false,
+  aspFee: 15000,
+
+  // School Transport Facility State (Stopping, Km, Fee)
+  transportRequired: false,
+  selectedRouteId: '',
+  selectedStopId: '',
+
+  // Concession Categories State (Staff kid, Topper, Sports, Single shot, Referral, Sibling)
+  concessionType: 'none',
+  concessionAmountInput: '',
+  concessionRemarks: '',
+
+  // Sibling in Same School
+  hasSibling: false,
+
+  // Extra Curricular Activities (ECA) — Complimentary per school requirement
   selectedActivities: [],
   additionalItems: {},
+
+  // Live Student Photo Preview
+  photoPreview: null,
+  handlePhotoChange(event) {
+    const file = event.target.files[0];
+    if (file) {
+      this.photoPreview = URL.createObjectURL(file);
+    }
+  },
 
   // Payment Terms State
   paymentTerms: 'single',
@@ -73,19 +101,52 @@
   get basicFeeTotal() {
     return this.selectedFee ? (this.selectedFee.total_basic || 0) : 0;
   },
-  get hostelFeeTotal() {
-    return (this.hostelRequired && this.selectedFee) ? (this.selectedFee.hostel_annual || 30000) : 0;
+  get aspFeeTotal() {
+    return this.aspRequired ? Number(this.aspFee || 15000) : 0;
   },
-  get activitiesFeeTotal() {
-    let sum = 0;
-    this.selectedActivities.forEach(id => {
-      let act = this.activitiesData.find(a => a.id === id);
-      if (act) sum += act.annual_fee;
-    });
-    return sum;
+  get currentRoute() {
+    if (!this.transportRequired || !this.selectedRouteId) return null;
+    return this.transportRoutesData.find(r => r.id == this.selectedRouteId) || null;
+  },
+  get currentRouteStops() {
+    return this.currentRoute?.stops || [];
+  },
+  get currentStop() {
+    if (!this.currentRoute || !this.selectedStopId) return null;
+    return (this.currentRoute.stops || []).find(s => s.id == this.selectedStopId) || null;
+  },
+  get transportFee() {
+    if (!this.transportRequired) return 0;
+    if (this.currentStop && this.currentStop.fare !== null) return Number(this.currentStop.fare);
+    if (this.currentRoute) return Number(this.currentRoute.fee || 0);
+    return 0;
+  },
+  get transportDistanceKm() {
+    if (!this.transportRequired) return 0;
+    if (this.currentStop && this.currentStop.distance_km !== null) return Number(this.currentStop.distance_km);
+    if (this.currentRoute) return Number(this.currentRoute.distance_km || 0);
+    return 0;
+  },
+  get subTotal() {
+    return this.basicFeeTotal + this.aspFeeTotal + this.transportFee + this.totalKitFee;
+  },
+  get calculatedConcession() {
+    if (this.concessionType === 'none') return 0;
+    if (this.concessionType === 'staff_kid') return Math.round(this.basicFeeTotal * 0.50);
+    if (this.concessionType === 'single_shot') return Math.round(this.subTotal * 0.05);
+    if (this.concessionType === 'topper') return Math.round(this.basicFeeTotal * 0.25);
+    if (this.concessionType === 'sports') return Math.round(this.basicFeeTotal * 0.20);
+    if (this.concessionType === 'sibling') return Math.round(this.basicFeeTotal * 0.15);
+    return 0;
+  },
+  get concessionAmount() {
+    if (this.concessionAmountInput !== '' && !isNaN(Number(this.concessionAmountInput))) {
+      return Number(this.concessionAmountInput);
+    }
+    return this.calculatedConcession;
   },
   get grandTotal() {
-    return this.basicFeeTotal + this.hostelFeeTotal + this.activitiesFeeTotal + this.totalKitFee;
+    return Math.max(0, this.subTotal - this.concessionAmount);
   },
   get remainingFeesTotal() {
     return Math.max(0, this.grandTotal - this.totalKitFee);
@@ -163,7 +224,7 @@
     <p class="text-xs text-slate-500 font-medium mt-0.5">Academic Year: {{ $academicYear?->name ?? '2025-2026' }} &bull; Date: {{ date('d-m-Y') }}</p>
   </div>
 
-  <form method="POST" action="{{ route('admissions.store') }}" class="space-y-6">
+  <form method="POST" action="{{ route('admissions.store') }}" enctype="multipart/form-data" class="space-y-6">
     @csrf
 
     {{-- ── Step 1: Student Information ──────────────────────────── --}}
@@ -174,6 +235,27 @@
       </div>
 
       <div class="space-y-4">
+        {{-- Student Passport Photograph Upload with Live Preview --}}
+        <div class="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-blue-50/40 border border-blue-100/80">
+          <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white border-2 border-dashed border-blue-300 flex items-center justify-center overflow-hidden shrink-0 relative shadow-inner">
+            <template x-if="photoPreview">
+              <img :src="photoPreview" class="w-full h-full object-cover" alt="Student Photo Preview">
+            </template>
+            <template x-if="!photoPreview">
+              <div class="text-center p-2 text-slate-400">
+                <svg class="w-8 h-8 mx-auto text-blue-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span class="text-[10px] font-bold uppercase tracking-wider block">Student Photo</span>
+              </div>
+            </template>
+          </div>
+          <div class="flex-1 space-y-1.5 text-center sm:text-left">
+            <label class="block text-xs font-bold text-slate-800">Student Passport Photograph</label>
+            <p class="text-[11px] text-slate-500 font-medium">Upload recent formal photograph of the student (JPEG, PNG, max 3MB). Will appear on the student profile, ID card, and registers.</p>
+            <input type="file" name="photo" accept="image/*" @change="handlePhotoChange($event)" class="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+            @error('photo') <p class="text-xs text-rose-500 font-semibold">{{ $message }}</p> @enderror
+          </div>
+        </div>
+
         {{-- First Name & Last Name in same line with gaps --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -246,6 +328,30 @@
                 </template>
               </template>
             </select>
+          </div>
+        </div>
+
+        {{-- EMIS / PEN Number and Identification Marks --}}
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700">EMIS / PEN Number</label>
+              <span class="text-[9px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">State EMIS</span>
+            </div>
+            <input type="text" name="emis_no" value="{{ old('emis_no') }}" placeholder="e.g. 33020100101234"
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium font-mono transition text-slate-900">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Identification Mark 1</label>
+            <input type="text" name="identification_mark_1" value="{{ old('identification_mark_1') }}" placeholder="e.g. Mole on right cheek"
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Identification Mark 2</label>
+            <input type="text" name="identification_mark_2" value="{{ old('identification_mark_2') }}" placeholder="e.g. Scar on left forehead"
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
           </div>
         </div>
 
@@ -459,6 +565,64 @@
         </div>
       </div>
 
+      {{-- Guardian Details --}}
+      <div class="space-y-4 pt-4 border-t border-slate-100">
+        <h3 class="text-xs font-extrabold text-amber-600 uppercase tracking-wider">Guardian Details (If Applicable)</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Guardian Name</label>
+            <input type="text" name="guardian_name" value="{{ old('guardian_name') }}"
+                   placeholder="e.g. Grandparent / Local Guardian"
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Guardian Mobile Number</label>
+            <input type="text" name="guardian_mobile" value="{{ old('guardian_mobile') }}"
+                   placeholder="10-digit mobile"
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900 font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Relationship to Student</label>
+            <input type="text" name="guardian_relation" value="{{ old('guardian_relation') }}"
+                   placeholder="e.g. Uncle / Aunt / Grandfather"
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
+          </div>
+        </div>
+      </div>
+
+      {{-- Sibling Information (School Requirement) --}}
+      <div class="space-y-3 pt-4 border-t border-slate-100">
+        <div class="flex items-center gap-3">
+          <input type="checkbox" id="has_sibling" x-model="hasSibling" class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+          <label for="has_sibling" class="text-xs font-bold text-slate-800 cursor-pointer select-none flex items-center gap-1.5">
+            <span>Does the student have a sibling currently studying in this school?</span>
+            <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">Sibling Concession Eligible</span>
+          </label>
+        </div>
+
+        <div x-show="hasSibling" x-transition class="p-4 rounded-2xl bg-indigo-50/40 border border-indigo-100 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Sibling Student Name</label>
+            <input type="text" name="sibling_name" value="{{ old('sibling_name') }}" placeholder="e.g. Priya Sharma"
+                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-xs font-medium text-slate-900">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Sibling Admission No.</label>
+            <input type="text" name="sibling_admission_no" value="{{ old('sibling_admission_no') }}" placeholder="e.g. ADM25-0142"
+                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-xs font-mono font-bold text-slate-900">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Sibling Class &amp; Section</label>
+            <input type="text" name="sibling_class" value="{{ old('sibling_class') }}" placeholder="e.g. Class 7 - Section A"
+                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 text-xs font-medium text-slate-900">
+          </div>
+        </div>
+      </div>
+
       {{-- Address & Income Details --}}
       <div class="space-y-4 pt-4 border-t border-slate-100">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -479,23 +643,182 @@
       </div>
     </div>
 
-    {{-- ── Hostel Facility Required Section ───────────────────── --}}
-    <div class="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-5 flex items-start gap-3.5 transition print-card">
-      <input type="checkbox" id="hostel_check" name="hostel_required" value="1" x-model="hostelRequired"
-             class="mt-1 w-4 h-4 text-blue-600 rounded border-amber-300 focus:ring-blue-500 cursor-pointer">
-      <label for="hostel_check" class="cursor-pointer select-none">
-        <span class="block text-sm font-extrabold text-amber-950">Hostel Facility Required</span>
-        <span class="block text-xs text-amber-700 font-medium mt-0.5">Includes residential lodging &amp; dining mess charges in total fee.</span>
-      </label>
+    {{-- ── Special School Facilities: ASP & Transport (School Requirements) ── --}}
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6 print-card">
+      <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">School Facilities &amp; Programs</h2>
+          <p class="text-xs text-slate-500 font-medium">After School Program (ASP) and Transport Facility</p>
+        </div>
+        <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">Optional Facilities</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {{-- 1. After School Program (ASP) — Replaces Hostel --}}
+        <div class="p-5 rounded-2xl border transition-all"
+             :class="aspRequired ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-100 shadow-xs' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/70'">
+          <div class="flex items-start gap-3.5">
+            <input type="checkbox" id="asp_check" name="is_asp" value="1" x-model="aspRequired"
+                   class="mt-1 w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer">
+            <div class="space-y-2 flex-1">
+              <label for="asp_check" class="cursor-pointer select-none block">
+                <span class="text-sm font-extrabold text-amber-950 block">After School Program (ASP)</span>
+                <span class="text-xs text-amber-800 font-medium block mt-0.5 leading-relaxed">
+                  Special academic tutoring, homework guidance, supervised athletic activities, and evening refreshments.
+                </span>
+              </label>
+
+              <div x-show="aspRequired" x-transition class="pt-2 border-t border-amber-200/70 flex items-center justify-between gap-3">
+                <span class="text-xs font-bold text-amber-900">Annual ASP Fee:</span>
+                <div class="flex items-center gap-1">
+                  <span class="text-xs font-bold text-slate-500">₹</span>
+                  <input type="number" name="asp_fee" x-model.number="aspFee" min="0" step="500"
+                         class="w-28 px-3 py-1.5 rounded-xl border border-amber-300 bg-white font-mono font-bold text-xs text-amber-900 text-right focus:ring-amber-500">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {{-- 2. School Transport Facility (Stopping, Km, Fee) --}}
+        <div class="p-5 rounded-2xl border transition-all"
+             :class="transportRequired ? 'bg-blue-50/70 border-blue-300 ring-2 ring-blue-100 shadow-xs' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/70'">
+          <div class="flex items-start gap-3.5">
+            <input type="checkbox" id="transport_check" x-model="transportRequired"
+                   class="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+            <div class="space-y-3 flex-1">
+              <label for="transport_check" class="cursor-pointer select-none block">
+                <span class="text-sm font-extrabold text-blue-950 block">School Transport Facility</span>
+                <span class="text-xs text-blue-800 font-medium block mt-0.5 leading-relaxed">
+                  GPS-monitored school bus/van transit with fixed stopping points and distance-based annual fare.
+                </span>
+              </label>
+
+              {{-- Hidden Transport Form Inputs for Database --}}
+              <input type="hidden" name="transport_route_id" :value="transportRequired ? selectedRouteId : ''">
+              <input type="hidden" name="transport_stop_id" :value="transportRequired ? selectedStopId : ''">
+              <input type="hidden" name="transport_distance_km" :value="transportRequired ? transportDistanceKm : 0">
+              <input type="hidden" name="transport_fee" :value="transportRequired ? transportFee : 0">
+
+              <div x-show="transportRequired" x-transition class="space-y-3 pt-2 border-t border-blue-200/70">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Select Transport Route</label>
+                  <select x-model="selectedRouteId" @change="selectedStopId = ''"
+                          class="w-full px-3 py-2 rounded-xl border border-blue-200 bg-white text-xs font-semibold text-slate-800 focus:border-blue-500">
+                    <option value="">-- Choose School Route --</option>
+                    <template x-for="route in transportRoutesData" :key="route.id">
+                      <option :value="route.id" x-text="route.route_name + ' (' + route.distance_km + ' km total)'"></option>
+                    </template>
+                  </select>
+                </div>
+
+                <div x-show="selectedRouteId">
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Select Boarding / Stopping Point</label>
+                  <select x-model="selectedStopId"
+                          class="w-full px-3 py-2 rounded-xl border border-blue-200 bg-white text-xs font-semibold text-slate-800 focus:border-blue-500">
+                    <option value="">-- Choose Stop / Landmark --</option>
+                    <template x-for="stop in currentRouteStops" :key="stop.id">
+                      <option :value="stop.id" x-text="stop.name + ' • ' + stop.distance_km + ' km • ' + (stop.landmark ? '(' + stop.landmark + ') • ' : '') + formatMoney(stop.fare)"></option>
+                    </template>
+                  </select>
+                </div>
+
+                {{-- Live Stopping, Km & Fee Summary Badge --}}
+                <div x-show="currentStop" class="p-3 bg-white rounded-xl border border-blue-200 flex items-center justify-between text-xs">
+                  <div>
+                    <span class="font-extrabold text-blue-950 block" x-text="currentStop?.name"></span>
+                    <span class="text-[11px] text-slate-500" x-text="'Distance: ' + currentStop?.distance_km + ' km' + (currentStop?.landmark ? ' • Landmark: ' + currentStop.landmark : '')"></span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Transport Fee</span>
+                    <span class="font-mono font-black text-blue-700 text-sm" x-text="formatMoney(transportFee)"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    {{-- ── Extra Curricular Activities Section ──────────────────── --}}
+    {{-- ── Concessions & Scholarships (School Requirements) ───── --}}
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-5 print-card">
+      <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Fee Concession &amp; Discounts</h2>
+          <p class="text-xs text-slate-500 font-medium">Staff Kid, Academic Topper, Sports Quota, Single Shot Payment, Referral, Sibling</p>
+        </div>
+        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">Fee Concessions</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Concession Category</label>
+          <select name="concession_type" x-model="concessionType"
+                  class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-xs font-bold text-slate-800 transition">
+            @foreach($concessionTypes as $k => $label)
+              <option value="{{ $k }}">{{ $label }}</option>
+            @endforeach
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Discount Amount (₹)</label>
+          <input type="number" step="0.01" min="0" name="concession_amount"
+                 :value="concessionAmount"
+                 @input="concessionAmountInput = $event.target.value"
+                 placeholder="0.00"
+                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-sm font-bold font-mono transition text-emerald-700">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1.5">Concession Approval Remarks</label>
+          <input type="text" name="concession_remarks" x-model="concessionRemarks"
+                 placeholder="e.g. Approved by Principal / Correspondent"
+                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-xs font-medium transition text-slate-800">
+        </div>
+      </div>
+
+      {{-- Concession Notice Pill --}}
+      <div x-show="concessionType !== 'none'" x-transition class="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+        <span class="text-emerald-800 font-medium">
+          Concession Applied: <strong class="capitalize" x-text="concessionType.replace('_', ' ')"></strong>
+        </span>
+        <span class="font-mono font-black text-emerald-700 text-sm" x-text="'- ' + formatMoney(concessionAmount)"></span>
+      </div>
+    </div>
+
+    {{-- ── Official Document Submission Checklist ───────────────── --}}
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 print-card">
+      <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Official Document Submission Checklist</h2>
+          <p class="text-xs text-slate-500 font-medium">Physical certificates and documents received during admission desk verification</p>
+        </div>
+        <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">Verification Checklist</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+        @foreach($officialDocChecklist as $docKey => $docTitle)
+          <label class="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 flex items-center gap-3 cursor-pointer transition select-none">
+            <input type="checkbox" name="documents_submitted[]" value="{{ $docKey }}"
+                   class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+            <span class="text-xs font-bold text-slate-800 leading-snug">{{ $docTitle }}</span>
+          </label>
+        @endforeach
+      </div>
+    </div>
+
+    {{-- ── Extra Curricular Activities Section (Complimentary) ──── --}}
     <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-5 print-card">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-          <span>✨ Extra Curricular Activities</span>
-        </h2>
-        <span class="text-xs text-slate-400 font-medium">Select activities for fixed per annum fees</span>
+        <div>
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <span>✨ Extra Curricular Activities (ECA)</span>
+          </h2>
+          <p class="text-xs text-slate-500 font-medium">Select student hobby preferences. <strong class="text-blue-600">Complimentary with admission (No extra fee added).</strong></p>
+        </div>
+        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">No Extra Charge</span>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -507,7 +830,7 @@
                    class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
             <span class="text-xs font-bold text-slate-800 truncate">{{ $act['name'] }}</span>
           </div>
-          <span class="text-xs font-extrabold font-mono text-blue-600 shrink-0">{{ $act['label'] }}</span>
+          <span class="text-[11px] font-bold text-emerald-600 shrink-0">Included</span>
         </label>
         @endforeach
       </div>
@@ -542,13 +865,13 @@
             <span>Lab / Computer Fee</span>
             <span class="font-mono font-bold text-slate-900" x-text="formatMoney(selectedFee?.lab_fee)"></span>
           </div>
-          <div class="flex justify-between items-center text-amber-700 pt-1 border-t border-slate-200/60" x-show="hostelRequired">
-            <span>Hostel &amp; Mess Fee</span>
-            <span class="font-mono font-bold" x-text="formatMoney(selectedFee?.hostel_annual || 30000)"></span>
+          <div class="flex justify-between items-center text-amber-800 pt-1 border-t border-slate-200/60" x-show="aspRequired">
+            <span>After School Program (ASP) Fee</span>
+            <span class="font-mono font-bold text-amber-900" x-text="formatMoney(aspFeeTotal)"></span>
           </div>
-          <div class="flex justify-between items-center text-blue-700 pt-1 border-t border-slate-200/60" x-show="activitiesFeeTotal > 0">
-            <span>Extra Curricular Activities</span>
-            <span class="font-mono font-bold" x-text="formatMoney(activitiesFeeTotal)"></span>
+          <div class="flex justify-between items-center text-blue-800 pt-1 border-t border-slate-200/60" x-show="transportRequired && transportFee > 0">
+            <span>School Transport Facility Fee</span>
+            <span class="font-mono font-bold text-blue-900" x-text="formatMoney(transportFee)"></span>
           </div>
           <div class="flex justify-between items-center text-indigo-700 pt-1 border-t border-slate-200/60" x-show="standardKitFeeTotal > 0">
             <span>Student Admission Kit (Standard Kit)</span>
@@ -558,14 +881,18 @@
             <span>Additional Inventory &amp; Kit Items Fee</span>
             <span class="font-mono font-bold" x-text="formatMoney(additionalInventoryFeeTotal)"></span>
           </div>
+          <div class="flex justify-between items-center text-emerald-700 pt-1 border-t border-slate-200/60 font-bold" x-show="concessionAmount > 0">
+            <span>Concession Discount (<span class="capitalize" x-text="concessionType.replace('_', ' ')"></span>)</span>
+            <span class="font-mono" x-text="'- ' + formatMoney(concessionAmount)"></span>
+          </div>
         </div>
       </div>
 
       {{-- Grand Total Highlight Banner --}}
       <div class="bg-blue-50/80 border border-blue-100 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 class="text-xs font-extrabold text-blue-950 uppercase tracking-wider">GRAND TOTAL ANNUAL ADMISSION FEE</h3>
-          <p class="text-xs text-blue-600 font-medium mt-0.5">Studies + Hostel + Extra Curricular Activities</p>
+          <h3 class="text-xs font-extrabold text-blue-950 uppercase tracking-wider">NET GRAND TOTAL ADMISSION FEE</h3>
+          <p class="text-xs text-blue-600 font-medium mt-0.5">Studies + Facilities + Admission Kit (After Concessions)</p>
         </div>
         <div class="text-left sm:text-right">
           <span class="text-2xl sm:text-3xl font-black text-blue-700 font-mono" x-text="formatMoney(grandTotal)"></span>

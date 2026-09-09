@@ -29,6 +29,15 @@
           </select>
         </div>
         <div>
+          <label class="label">Handling Teacher</label>
+          <select name="teacher_id" class="select w-full">
+            <option value="">— Select Teacher —</option>
+            @foreach($teachers ?? [] as $t)
+              <option value="{{ $t->id }}">{{ $t->full_name ?: $t->first_name . ' ' . $t->last_name }} ({{ $t->employee_code ?: 'EMP-' . $t->id }})</option>
+            @endforeach
+          </select>
+        </div>
+        <div>
           <label class="label">Subject Type</label>
           <select name="type" class="select w-full">
             <option value="theory">Theory</option>
@@ -103,8 +112,8 @@
 @endpush
 <div class="space-y-6">
   <div class="flex items-center justify-between">
-    <h1 class="page-title">Subjects</h1>
-    <button x-data @click="$dispatch('open-modal','add-subject')" class="btn btn-primary btn-sm">Add Subject</button>
+    <h1 class="page-title">Subjects &amp; Faculty Handling</h1>
+    <button x-data @click="$dispatch('open-modal','add-subject')" class="btn btn-primary btn-sm">+ Add Subject</button>
   </div>
   <form method="GET" class="card-flat py-3">
     <div class="flex gap-3">
@@ -121,7 +130,7 @@
   <div class="card overflow-hidden">
     <table class="min-w-full text-sm">
       <thead class="bg-slate-50 border-b border-slate-100"><tr>
-        @foreach(['Subject','Code','Type','Board','Medium','Credits','Flags','Status','Actions'] as $h)
+        @foreach(['Subject','Code','Class','Handling Teacher(s)','Type','Board / Medium','Credits','Flags','Status','Actions'] as $h)
         <th class="text-left px-4 py-3 text-slate-500 font-medium text-xs uppercase tracking-wide">{{ $h }}</th>
         @endforeach
       </tr></thead>
@@ -133,9 +142,32 @@
             @if($s->stream)<span class="ml-1 badge-purple text-xs">{{ ucfirst($s->stream) }}</span>@endif
           </td>
           <td class="px-4 py-3 font-mono text-slate-500 text-xs">{{ $s->code ?? '—' }}</td>
+          <td class="px-4 py-3 text-xs font-semibold text-slate-600">{{ $s->class?->name ?? 'All Classes' }}</td>
+          <td class="px-4 py-3">
+            @php
+              $allocatedTeachers = $s->allocations->map(fn($a) => $a->employee)->filter()->unique('id');
+            @endphp
+            @if($allocatedTeachers->isNotEmpty())
+              <div class="flex flex-wrap gap-1">
+                @foreach($allocatedTeachers as $at)
+                  <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <svg class="w-3 h-3 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <span>{{ $at->full_name ?: $at->first_name . ' ' . $at->last_name }}</span>
+                  </span>
+                @endforeach
+              </div>
+            @else
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                Unassigned
+              </span>
+            @endif
+          </td>
           <td class="px-4 py-3"><span class="badge-slate capitalize">{{ $s->type ?? 'theory' }}</span></td>
-          <td class="px-4 py-3 text-xs text-slate-500">{{ strtoupper($s->board_curriculum ?? 'cbse') }}</td>
-          <td class="px-4 py-3 text-xs text-slate-500 capitalize">{{ $s->medium ?? 'english' }}</td>
+          <td class="px-4 py-3 text-xs text-slate-500">
+            <span class="font-medium text-slate-700">{{ strtoupper($s->board_curriculum ?? 'cbse') }}</span>
+            <span class="text-slate-400">·</span>
+            <span class="capitalize">{{ $s->medium ?? 'english' }}</span>
+          </td>
           <td class="px-4 py-3 text-center text-xs text-slate-500">{{ $s->credit_hours ?? 0 }}</td>
           <td class="px-4 py-3">
             @if($s->is_elective)<span class="badge-amber text-xs">Elective</span>@endif
@@ -150,12 +182,29 @@
                 <button class="btn btn-ghost btn-xs text-slate-500">{{ $s->is_active ? 'Deactivate' : 'Activate' }}</button>
               </form>
             </div>
-            <div x-show="edit" x-transition class="mt-2">
+            <div x-show="edit" x-transition class="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
               <form method="POST" action="{{ route('academics.subjects.update', $s->id) }}" class="space-y-2">
                 @csrf @method('PUT')
                 <div class="grid grid-cols-2 gap-2">
-                  <input type="text" name="name" value="{{ $s->name }}" class="input text-xs py-1" placeholder="Name">
-                  <input type="text" name="code" value="{{ $s->code }}" class="input text-xs py-1" placeholder="Code">
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase">Subject Name</label>
+                    <input type="text" name="name" value="{{ $s->name }}" class="input text-xs py-1 w-full" placeholder="Name">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase">Subject Code</label>
+                    <input type="text" name="code" value="{{ $s->code }}" class="input text-xs py-1 w-full" placeholder="Code">
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase">Assigned Handling Teacher</label>
+                    <select name="teacher_id" class="select text-xs py-1 w-full">
+                      <option value="">— Select Handling Teacher —</option>
+                      @foreach($teachers ?? [] as $t)
+                        <option value="{{ $t->id }}" @selected($s->allocations->contains('employee_id', $t->id))>
+                          {{ $t->full_name ?: $t->first_name . ' ' . $t->last_name }} ({{ $t->employee_code ?: 'EMP-' . $t->id }})
+                        </option>
+                      @endforeach
+                    </select>
+                  </div>
                   <select name="board_curriculum" class="select text-xs py-1">
                     @foreach(['cbse'=>'CBSE','state'=>'State Board','both'=>'Both'] as $v=>$l)
                       <option value="{{ $v }}" @selected($s->board_curriculum===$v)>{{ $l }}</option>
@@ -189,7 +238,7 @@
           </td>
         </tr>
         @empty
-        <tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">No subjects found.</td></tr>
+        <tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">No subjects found.</td></tr>
         @endforelse
       </tbody>
     </table>

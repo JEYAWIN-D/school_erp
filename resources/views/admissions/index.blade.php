@@ -342,27 +342,72 @@
           <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
             <tr>
               <th class="py-3.5 px-4">Enquiry No</th>
-              <th class="py-3.5 px-4">Student Name</th>
+              <th class="py-3.5 px-4">Student Name &amp; Prior School</th>
               <th class="py-3.5 px-4">Standard</th>
               <th class="py-3.5 px-4">Parent Details</th>
-              <th class="py-3.5 px-4">Total Fee</th>
-              <th class="py-3.5 px-4">Collected</th>
-              <th class="py-3.5 px-4">Status</th>
+              <th class="py-3.5 px-4">Referral</th>
+              <th class="py-3.5 px-4 text-right">Total Fee</th>
+              <th class="py-3.5 px-4 text-right">Collected</th>
+              <th class="py-3.5 px-4 text-center">Status</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 font-medium">
             @forelse($enquiries as $enquiry)
               <tr class="hover:bg-slate-50/60 transition">
-                <td class="py-3.5 px-4 font-mono font-bold text-blue-600">{{ $enquiry->enquiry_number }}</td>
-                <td class="py-3.5 px-4 font-bold text-slate-900">{{ $enquiry->student_name }}</td>
-                <td class="py-3.5 px-4 font-bold text-slate-700">Class {{ $enquiry->class?->name ?? '—' }}</td>
-                <td class="py-3.5 px-4">
-                  <p class="font-bold text-slate-800">{{ $enquiry->parent_name }}</p>
-                  <p class="font-mono text-[11px] text-slate-500">{{ $enquiry->parent_mobile }}</p>
+                <td class="py-3.5 px-4 font-mono font-bold text-blue-600 whitespace-nowrap">
+                  {{ $enquiry->enquiry_number }}
                 </td>
-                <td class="py-3.5 px-4 font-mono font-bold text-slate-900">₹{{ number_format($enquiry->total_admission_fee ?? 0) }}</td>
-                <td class="py-3.5 px-4 font-mono font-bold text-emerald-600">₹{{ number_format($enquiry->amount_collected ?? 0) }}</td>
                 <td class="py-3.5 px-4">
+                  <p class="font-bold text-slate-900">{{ $enquiry->student_name }}</p>
+                  @if($enquiry->last_school_studied || $enquiry->last_class_studied)
+                    <p class="text-[11px] text-slate-500 mt-0.5">
+                      <span class="text-slate-400">Prev:</span> {{ $enquiry->last_school_studied ?: 'Prior School' }}
+                      @if($enquiry->last_class_studied)
+                        <span class="text-indigo-600 font-semibold">({{ $enquiry->last_class_studied }})</span>
+                      @endif
+                    </p>
+                  @endif
+                </td>
+                <td class="py-3.5 px-4 font-bold text-slate-700 whitespace-nowrap">
+                  <span class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-100 text-xs">
+                    Class {{ $enquiry->class?->name ?? '—' }}
+                  </span>
+                </td>
+                <td class="py-3.5 px-4 space-y-0.5">
+                  <p class="font-bold text-slate-800">
+                    {{ $enquiry->father_name ?: ($enquiry->parent_name ?: '—') }}
+                    @if($enquiry->father_occupation)
+                      <span class="text-[10px] font-normal text-slate-500">({{ $enquiry->father_occupation }})</span>
+                    @endif
+                  </p>
+                  @if($enquiry->father_mobile || $enquiry->parent_mobile)
+                    <p class="font-mono text-[11px] text-slate-500">{{ $enquiry->father_mobile ?: $enquiry->parent_mobile }}</p>
+                  @endif
+                  @if($enquiry->mother_name)
+                    <p class="text-[11px] text-slate-500 pt-0.5">
+                      <span class="text-slate-400">Mother:</span> {{ $enquiry->mother_name }}
+                      @if($enquiry->mother_occupation)
+                        <span class="text-[10px]">({{ $enquiry->mother_occupation }})</span>
+                      @endif
+                    </p>
+                  @endif
+                </td>
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                  @if($enquiry->referred_by)
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {{ $enquiry->referred_by }}
+                    </span>
+                  @else
+                    <span class="text-slate-400 text-xs">—</span>
+                  @endif
+                </td>
+                <td class="py-3.5 px-4 font-mono font-bold text-slate-900 text-right whitespace-nowrap">
+                  ₹{{ number_format($enquiry->total_admission_fee ?? 0) }}
+                </td>
+                <td class="py-3.5 px-4 font-mono font-bold text-emerald-600 text-right whitespace-nowrap">
+                  ₹{{ number_format($enquiry->amount_collected ?? 0) }}
+                </td>
+                <td class="py-3.5 px-4 text-center whitespace-nowrap">
                   <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border bg-emerald-100 text-emerald-700 border-emerald-200">
                     {{ ucfirst($enquiry->status) }}
                   </span>
@@ -370,7 +415,7 @@
               </tr>
             @empty
               <tr>
-                <td colspan="7" class="py-12 text-center text-slate-400 font-medium">
+                <td colspan="8" class="py-12 text-center text-slate-400 font-medium">
                   No admission enquiries recorded yet.
                 </td>
               </tr>

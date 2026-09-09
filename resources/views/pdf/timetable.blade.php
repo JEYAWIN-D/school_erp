@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -50,7 +50,7 @@ foreach($timetable as $entries) { $maxPeriods = max($maxPeriods, $entries->count
           <td>
             @if($entry)
               <div class="subject">{{ $entry->subject?->name ?? '—' }}</div>
-              <div class="teacher">{{ $entry->teacher?->first_name ? ($entry->teacher->first_name . ' ' . substr($entry->teacher->last_name,0,1) . '.') : '' }}</div>
+              <div class="teacher" style="font-weight: 600; color: #4338ca;">{{ $entry->teacher?->full_name ?: ($entry->teacher?->first_name ? $entry->teacher->first_name . ' ' . $entry->teacher->last_name : 'Faculty') }}</div>
               @if($entry->start_time) <div style="font-size:7px;color:#94a3b8;">{{ $entry->start_time }}–{{ $entry->end_time }}</div> @endif
             @endif
           </td>

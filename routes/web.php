@@ -778,6 +778,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/stops/{id}',    [TransportController::class, 'updateStop'])->name('stops.update');
         Route::delete('/stops/{id}', [TransportController::class, 'deleteStop'])->name('stops.delete');
         Route::get('/tracking', [TransportController::class, 'tracking'])->name('tracking');
+        Route::get('/tracking/telemetry', [TransportController::class, 'liveTelemetry'])->name('tracking.telemetry');
         // Student allotment
         Route::get('/allotment',         [TransportController::class, 'allotment'])->name('allotment');
         Route::post('/allotment',        [TransportController::class, 'storeAllotment'])->name('allotment.store');

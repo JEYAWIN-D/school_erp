@@ -42,5 +42,21 @@ class Timetable extends Model
     {
         $this->attributes['teacher_id'] = $value;
     }
+
+    public function getEmployeeIdAttribute()
+    {
+        return $this->teacher_id ?? ($this->attributes['employee_id'] ?? null);
+    }
+
+    public function getTeacherNameAttribute(): string
+    {
+        return $this->teacher?->full_name ?: $this->teacher?->first_name ?: 'Faculty In-charge';
+    }
+
+    public function getDayNameAttribute(): string
+    {
+        $dayMap = [1 => 'Monday', 2 => 'Tuesday', 3 => 'Wednesday', 4 => 'Thursday', 5 => 'Friday', 6 => 'Saturday', 7 => 'Sunday'];
+        return $dayMap[$this->day_of_week] ?? (string)$this->day_of_week;
+    }
 }
 
