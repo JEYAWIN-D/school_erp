@@ -33,15 +33,22 @@ class FeeController extends Controller
     public function index()
     {
         $currentYear = AcademicYear::current();
+        $yearId = (int) ($currentYear?->id ?? 0);
+        $todayStr = today()->toDateString();
+        $currMonth = (int) now()->month;
+        $currYear = (int) now()->year;
 
-        $todayCollection = FeePayment::whereDate('payment_date', today())
-            ->where('is_cancelled', false)->sum('total_paid');
-        $monthCollection = FeePayment::whereMonth('payment_date', now()->month)
-            ->whereYear('payment_date', now()->year)
-            ->where('is_cancelled', false)->sum('total_paid');
-        $yearCollection = FeePayment::where('is_cancelled', false)
-            ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
-            ->sum('total_paid');
+        $feeAgg = DB::table('fee_payments')
+            ->where('is_cancelled', false)
+            ->selectRaw("
+                COALESCE(SUM(CASE WHEN payment_date::date = '{$todayStr}' THEN total_paid ELSE 0 END), 0) as today_collection,
+                COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM payment_date) = {$currMonth} AND EXTRACT(YEAR FROM payment_date) = {$currYear} THEN total_paid ELSE 0 END), 0) as month_collection,
+                COALESCE(SUM(CASE WHEN academic_year_id = {$yearId} THEN total_paid ELSE 0 END), 0) as year_collection
+            ")->first();
+
+        $todayCollection = (float) ($feeAgg->today_collection ?? 0);
+        $monthCollection = (float) ($feeAgg->month_collection ?? 0);
+        $yearCollection  = (float) ($feeAgg->year_collection ?? 0);
         $yearDemand = StudentFeeCharge::when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
             ->sum('amount');
         $outstanding = max(0, $yearDemand - $yearCollection);

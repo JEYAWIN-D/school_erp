@@ -127,21 +127,20 @@ class StudentController extends Controller
         $students = $query->paginate(25)->withQueryString();
         $classes  = Classes::activeCached();
 
-        // Distinct section names (e.g. A, B, C, D)
-        $sectionNames = Section::where('is_active', true)
-            ->pluck('name')
-            ->map(function ($n) {
-                $clean = trim(preg_replace('/^section\s*/i', '', $n));
-                return strtoupper($clean);
-            })
-            ->unique()
-            ->sort()
-            ->values();
+        // Distinct section names (cached 1 hour)
+        $sectionNames = \Illuminate\Support\Facades\Cache::remember('active_section_names', 3600, function () {
+            $names = Section::where('is_active', true)
+                ->pluck('name')
+                ->map(function ($n) {
+                    $clean = trim(preg_replace('/^section\s*/i', '', $n));
+                    return strtoupper($clean);
+                })
+                ->unique()
+                ->sort()
+                ->values();
 
-        // Fallback default sections if database has raw names
-        if ($sectionNames->isEmpty()) {
-            $sectionNames = collect(['A', 'B', 'C', 'D']);
-        }
+            return $names->isNotEmpty() ? $names : collect(['A', 'B', 'C', 'D']);
+        });
 
         return view('students.index', compact('students', 'classes', 'sectionNames', 'currentYear'));
     }

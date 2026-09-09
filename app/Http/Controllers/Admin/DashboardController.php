@@ -64,19 +64,22 @@ class DashboardController extends Controller
 
     private function managementDashboard($currentYear)
     {
-        $cacheKey = 'mgmt_dashboard_v1_' . ($currentYear?->id ?? 0);
+        $cacheKey = 'mgmt_dashboard_v2_' . ($currentYear?->id ?? 0);
 
-        $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, 60, function () use ($currentYear) {
+        $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, 180, function () use ($currentYear) {
+            $currMonth = (int) now()->month;
+            $currYear = (int) now()->year;
+            $studentCounts = DB::table('students')->where('status', 'active')->selectRaw("
+                COUNT(*) as total_students,
+                COUNT(CASE WHEN EXTRACT(MONTH FROM created_at) = {$currMonth} AND EXTRACT(YEAR FROM created_at) = {$currYear} THEN 1 END) as new_admissions_month
+            ")->first();
+
             $stats = [
-                'total_students'       => DB::table('students')->where('status', 'active')->count(),
+                'total_students'       => (int) ($studentCounts->total_students ?? 0),
                 'total_staff'          => DB::table('employees')->where('is_active', true)->count(),
                 'total_users'          => User::where('is_active', true)->count(),
                 'academic_year'        => $currentYear?->name ?? '—',
-                'new_admissions_month' => DB::table('students')
-                    ->where('status', 'active')
-                    ->whereMonth('created_at', now()->month)
-                    ->whereYear('created_at', now()->year)
-                    ->count(),
+                'new_admissions_month' => (int) ($studentCounts->new_admissions_month ?? 0),
             ];
 
             $todayAttendance = null;

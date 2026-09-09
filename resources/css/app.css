@@ -339,6 +339,11 @@
     color: white;
   }
 
+  .nav-item:active {
+    background: rgba(99, 102, 241, 0.35);
+    transform: scale(0.98);
+  }
+
   .nav-item svg { transition: color 0.15s; }
   .nav-item:hover svg { color: #a5b4fc; }
 

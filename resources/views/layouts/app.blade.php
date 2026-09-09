@@ -25,6 +25,8 @@
 </head>
 <body class="bg-slate-50 font-sans">
 
+@include('partials.mobile-nav-speed')
+
 {{-- ── Toast Notifications ───────────────────────────────── --}}
 <div id="toast-container" class="fixed top-3 sm:top-4 right-3 sm:right-4 z-[9999] flex flex-col gap-2 w-[calc(100vw-1.5rem)] sm:w-80 max-w-sm pointer-events-none" x-data="toasts()">
   <template x-for="toast in list" :key="toast.id">

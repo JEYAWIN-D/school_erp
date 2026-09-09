@@ -26,6 +26,10 @@ class AdmissionController extends Controller
         $classes = Classes::with('sections')->active()->orderBy('numeric_value')->get();
         $academicYear = AcademicYear::current();
 
+        $enquiryCounts = Enquiry::selectRaw('class_id, count(*) as total')
+            ->groupBy('class_id')
+            ->pluck('total', 'class_id');
+
         $standardFees = [];
         foreach ($classes as $cls) {
             $num = (int)($cls->numeric_value ?? 0);
@@ -94,7 +98,7 @@ class AdmissionController extends Controller
                 'hostel_monthly'  => 2500,
                 'combined_total'  => $combined,
                 'term_fee'        => round($totalBasic / 3),
-                'enquiries_count' => Enquiry::where('class_id', $cls->id)->count(),
+                'enquiries_count' => $enquiryCounts[$cls->id] ?? 0,
             ];
         }
 
@@ -134,15 +138,24 @@ class AdmissionController extends Controller
             ->latest();
 
         $enquiries = $query->paginate(20)->withQueryString();
-        $classes   = Classes::active()->get();
-        $stats     = [
-            'total'      => Enquiry::count(),
-            'new'        => Enquiry::where('status', 'new')->count(),
-            'follow_up'  => Enquiry::where('status', 'follow_up')->count(),
-            'converted'  => Enquiry::where('status', 'converted')->count(),
-            'lost'       => Enquiry::where('status', 'lost')->count(),
+        $feeData   = $this->getFeeStructureData();
+        $classes   = $feeData['classes'];
+
+        $statsRow = DB::table('enquiries')->whereNull('deleted_at')->selectRaw("
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = 'new' THEN 1 END) as new,
+            COUNT(CASE WHEN status = 'follow_up' THEN 1 END) as follow_up,
+            COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted,
+            COUNT(CASE WHEN status = 'lost' THEN 1 END) as lost
+        ")->first();
+
+        $stats = [
+            'total'     => (int) ($statsRow->total ?? 0),
+            'new'       => (int) ($statsRow->new ?? 0),
+            'follow_up' => (int) ($statsRow->follow_up ?? 0),
+            'converted' => (int) ($statsRow->converted ?? 0),
+            'lost'      => (int) ($statsRow->lost ?? 0),
         ];
-        $feeData = $this->getFeeStructureData();
 
         return view('admissions.index', array_merge($feeData, compact('enquiries', 'classes', 'stats')));
     }

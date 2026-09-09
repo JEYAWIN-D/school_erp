@@ -27,18 +27,9 @@ class AcademicController extends Controller
     public function index()
     {
         $currentYear  = AcademicYear::current();
-        $classes      = Classes::active()->withCount(['sections as sections_count' => function ($q) use ($currentYear) {
+        $classes = Classes::active()->withCount(['sections' => function ($q) {
             $q->where('is_active', true);
-            if ($currentYear) {
-                $q->where('academic_year_id', $currentYear->id);
-            }
         }])->get();
-        // Fallback: if no current year or all classes show 0, count without year filter
-        if ($classes->sum('sections_count') === 0) {
-            $classes = Classes::active()->withCount(['sections as sections_count' => function ($q) {
-                $q->where('is_active', true);
-            }])->get();
-        }
         $subjects     = Subject::where('is_active', true)->count();
         $teachers     = Employee::where('is_active', true)
             ->where('employee_type', 'teaching')->count()

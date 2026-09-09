@@ -133,6 +133,7 @@
   </style>
 </head>
 <body>
+@include('partials.mobile-nav-speed')
 
 <div class="ps-shell">
 

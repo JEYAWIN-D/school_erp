@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\AcademicYear;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -35,20 +36,23 @@ class ExpenseController extends Controller
 
         $expenses = $query->orderByDesc('expense_date')->orderByDesc('id')->paginate(15)->withQueryString();
 
-        // High level stats
-        $baseQuery = Expense::when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id));
-        $totalAmount = (clone $baseQuery)->where('approval_status', 'approved')->sum('amount');
-        $academicAmount = (clone $baseQuery)->academic()->where('approval_status', 'approved')->sum('amount');
-        $maintenanceAmount = (clone $baseQuery)->maintenance()->where('approval_status', 'approved')->sum('amount');
-        $pendingCount = (clone $baseQuery)->whereIn('approval_status', ['pending', 'verified'])->count();
-        $totalCount = (clone $baseQuery)->count();
+        // High level stats — single aggregated query
+        $statsRow = DB::table('expenses')
+            ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
+            ->selectRaw("
+                COALESCE(SUM(CASE WHEN approval_status = 'approved' THEN amount ELSE 0 END), 0) as total_amount,
+                COALESCE(SUM(CASE WHEN category = 'academic' AND approval_status = 'approved' THEN amount ELSE 0 END), 0) as academic_amount,
+                COALESCE(SUM(CASE WHEN category = 'maintenance' AND approval_status = 'approved' THEN amount ELSE 0 END), 0) as maintenance_amount,
+                COUNT(CASE WHEN approval_status IN ('pending', 'verified') THEN 1 END) as pending_count,
+                COUNT(*) as total_count
+            ")->first();
 
         $stats = [
-            'total_amount'       => $totalAmount,
-            'academic_amount'    => $academicAmount,
-            'maintenance_amount' => $maintenanceAmount,
-            'pending_count'      => $pendingCount,
-            'total_count'        => $totalCount,
+            'total_amount'       => (float) ($statsRow->total_amount ?? 0),
+            'academic_amount'    => (float) ($statsRow->academic_amount ?? 0),
+            'maintenance_amount' => (float) ($statsRow->maintenance_amount ?? 0),
+            'pending_count'      => (int) ($statsRow->pending_count ?? 0),
+            'total_count'        => (int) ($statsRow->total_count ?? 0),
         ];
 
         return view('expenses.index', compact('expenses', 'stats', 'currentYear'));

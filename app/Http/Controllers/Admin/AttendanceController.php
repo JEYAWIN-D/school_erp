@@ -28,21 +28,21 @@ class AttendanceController extends Controller
         $currentYear = AcademicYear::current();
         $classes     = Classes::with(['sections' => fn($q) => $q->where('is_active', true)->orderBy('name', 'asc')])->active()->get();
 
-        $present = AttendanceRecord::whereDate('date', today())->whereIn('status', ['present', 'late', 'half_day'])->count();
-        $absent  = AttendanceRecord::whereDate('date', today())->where('status', 'absent')->count();
-        $late    = AttendanceRecord::whereDate('date', today())->where('status', 'late')->count();
+        // Section-wise attendance & stats for today (single DB query)
+        $todayRecords = AttendanceRecord::whereDate('date', today())->get();
+
+        $present = $todayRecords->whereIn('status', ['present', 'late', 'half_day'])->count();
+        $absent  = $todayRecords->where('status', 'absent')->count();
+        $late    = $todayRecords->where('status', 'late')->count();
         $total   = $present + $absent;
         $pct     = $total > 0 ? round($present / $total * 100, 1) : 0;
 
         $todayStats = compact('present', 'absent', 'late', 'total', 'pct');
 
         // Which classes have NOT marked attendance today?
-        $markedClassIds = AttendanceRecord::whereDate('date', today())
-            ->distinct()->pluck('class_id');
+        $markedClassIds = $todayRecords->pluck('class_id')->unique();
         $unmarkedClasses = $classes->whereNotIn('id', $markedClassIds)->values();
 
-        // Section-wise attendance map for today
-        $todayRecords = AttendanceRecord::whereDate('date', today())->get();
         $todaySectionAttendance = [];
         foreach ($classes as $cls) {
             foreach ($cls->sections->sortBy('name') as $sec) {

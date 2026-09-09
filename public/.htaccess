@@ -74,11 +74,10 @@
         Header set Cache-Control "public, max-age=2592000"
     </FilesMatch>
 
-    # HTML/PHP — no cache
+    # HTML/PHP — private, revalidate (allows browser prefetch, Speculation Rules & bfcache)
     <FilesMatch "\.(html|php)$">
         ExpiresDefault "access plus 0 seconds"
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
+        Header set Cache-Control "no-cache, private, must-revalidate"
     </FilesMatch>
 </IfModule>
 
