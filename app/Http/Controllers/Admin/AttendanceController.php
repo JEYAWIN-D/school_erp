@@ -527,20 +527,21 @@ class AttendanceController extends Controller
             ->get();
 
         // Staff Attendance Statistics for selected date
-        $allToday   = StaffAttendance::where('date', $date)->get();
-        $totalStaff = Employee::where('is_active', true)->count();
-        $checkedIn  = $allToday->whereNotNull('check_in')->count();
-        $checkedOut = $allToday->whereNotNull('check_out')->count();
-        $onTime     = $allToday->where('status', 'present')->where('is_late', false)->count();
-        $late       = $allToday->where('status', 'late')->count();
-        $halfDay    = $allToday->where('status', 'half_day')->count();
-        $overtime   = $allToday->where('status', 'overtime')->count();
-        $leave      = $allToday->whereIn('status', ['leave', 'on_leave'])->count();
+        $allToday    = StaffAttendance::where('date', $date)->get();
+        $totalStaff  = Employee::where('is_active', true)->count();
+        $checkedIn   = $allToday->whereNotNull('check_in')->count();
+        $checkedOut  = $allToday->whereNotNull('check_out')->count();
+        $onTime      = $allToday->where('status', 'present')->where('is_late', false)->count();
+        $late        = $allToday->where('status', 'late')->count();
+        $halfDay     = $allToday->where('status', 'half_day')->count();
+        $permissions = $allToday->where('status', 'permission')->count();
+        $overtime    = $allToday->where('status', 'overtime')->count();
+        $leave       = $allToday->whereIn('status', ['leave', 'on_leave'])->count();
         $holidayCount = $isHoliday ? max(0, $totalStaff - ($checkedIn + $leave)) : $allToday->where('status', 'holiday')->count();
-        $absent     = $isHoliday ? 0 : max(0, $totalStaff - ($onTime + $late + $halfDay + $leave + $overtime + $holidayCount));
+        $absent      = $isHoliday ? 0 : max(0, $totalStaff - ($onTime + $late + $halfDay + $permissions + $leave + $overtime + $holidayCount));
 
-        // Day-Wise Attendance Percentage %
-        $dayEffectivePresent = $onTime + $late + ($halfDay * 0.5) + $overtime;
+        // Day-Wise Attendance Percentage % (Approved Permissions count as present for duties)
+        $dayEffectivePresent = $onTime + $late + ($halfDay * 0.5) + $permissions + $overtime;
         $dayAttendanceRate   = $totalStaff > 0 ? round(($dayEffectivePresent / $totalStaff) * 100, 1) : 0;
 
         // Month-Wise Attendance Overview
@@ -550,23 +551,25 @@ class AttendanceController extends Controller
         $period       = \Carbon\CarbonPeriod::create($monthStart, min(today(), $monthEnd));
         $monthWorkingDays = collect($period)->filter(fn($d) => !$d->isSunday())->count();
 
-        $monthPresent  = $monthRecords->whereIn('status', ['present', 'late'])->count();
-        $monthHalfDay  = $monthRecords->where('status', 'half_day')->count();
-        $monthOvertime = $monthRecords->where('status', 'overtime')->count();
-        $monthTotalCap = $totalStaff * max(1, $monthWorkingDays);
-        $monthAvgRate  = $monthTotalCap > 0
-            ? round((($monthPresent + ($monthHalfDay * 0.5) + $monthOvertime) / $monthTotalCap) * 100, 1)
+        $monthPresent     = $monthRecords->whereIn('status', ['present', 'late'])->count();
+        $monthHalfDay     = $monthRecords->where('status', 'half_day')->count();
+        $monthPermissions = $monthRecords->where('status', 'permission')->count();
+        $monthOvertime    = $monthRecords->where('status', 'overtime')->count();
+        $monthTotalCap    = $totalStaff * max(1, $monthWorkingDays);
+        $monthAvgRate     = $monthTotalCap > 0
+            ? round((($monthPresent + ($monthHalfDay * 0.5) + $monthPermissions + $monthOvertime) / $monthTotalCap) * 100, 1)
             : 0;
 
         $monthStats = [
             'monthName'        => $carbonDate->format('F Y'),
             'workingDays'      => $monthWorkingDays,
             'totalPunches'     => $monthRecords->whereNotNull('check_in')->count(),
+            'totalPermissions' => $monthPermissions,
             'totalOvertime'    => $monthRecords->where('status', 'overtime')->count(),
             'monthAvgRate'     => $monthAvgRate,
         ];
 
-        $stats = compact('totalStaff', 'checkedIn', 'checkedOut', 'onTime', 'late', 'halfDay', 'absent', 'overtime', 'leave', 'holidayCount', 'dayAttendanceRate');
+        $stats = compact('totalStaff', 'checkedIn', 'checkedOut', 'onTime', 'late', 'halfDay', 'permissions', 'absent', 'overtime', 'leave', 'holidayCount', 'dayAttendanceRate');
 
         return view('attendance.staff-attendance', compact(
             'departments', 'employees', 'attendances', 'date', 'deptId', 'category', 'categories', 'recentTaps', 'stats', 'isSunday', 'isHoliday', 'holidayName', 'monthStats'
@@ -766,18 +769,26 @@ class AttendanceController extends Controller
 
         $data = $request->input('attendance', []);
         foreach ($data as $empId => $att) {
-            $status  = $att['status'] ?? ($isHoliday ? 'holiday' : 'absent');
-            $inTime  = !empty($att['in_time']) ? $att['in_time'] : null;
-            $outTime = !empty($att['out_time']) ? $att['out_time'] : null;
+            $status     = $att['status'] ?? ($isHoliday ? 'holiday' : 'absent');
+            $inTime     = !empty($att['in_time']) ? $att['in_time'] : null;
+            $outTime    = !empty($att['out_time']) ? $att['out_time'] : null;
+            $isPerm     = ($status === 'permission') || !empty($att['is_permission']);
+            $permHours  = !empty($att['permission_hours']) ? (float)$att['permission_hours'] : ($isPerm ? 1.5 : null);
+            $permTime   = !empty($att['permission_time']) ? $att['permission_time'] : ($isPerm ? '09:00 - 10:30 AM' : null);
+            $permReason = !empty($att['permission_reason']) ? $att['permission_reason'] : ($isPerm ? 'Principal Approved' : null);
 
             $record = StaffAttendance::firstOrNew([
                 'employee_id' => $empId,
                 'date'        => $date,
             ]);
 
-            $record->status    = $status;
-            $record->check_in  = $inTime;
-            $record->check_out = $outTime;
+            $record->status            = $status;
+            $record->check_in          = $inTime;
+            $record->check_out         = $outTime;
+            $record->is_permission     = $isPerm;
+            $record->permission_hours  = $isPerm ? $permHours : null;
+            $record->permission_time   = $isPerm ? $permTime : null;
+            $record->permission_reason = $isPerm ? $permReason : null;
 
             if ($inTime && $outTime) {
                 $mins = abs(\Carbon\Carbon::parse($outTime)->diffInMinutes(\Carbon\Carbon::parse($inTime)));
@@ -789,9 +800,17 @@ class AttendanceController extends Controller
                 if ($isHoliday || $status === 'overtime') {
                     $record->status = 'overtime';
                     $record->remarks = "Special Duty ({$dur}) — Extra Pay";
+                } elseif ($status === 'permission') {
+                    $record->status = 'permission';
+                    $record->remarks = "Permission: {$permHours}h" . ($permReason ? " ({$permReason})" : "");
                 } elseif ($outTime < $shiftEndTime && $workedHours < 7.0) {
                     $record->status = 'half_day';
                     $record->remarks = "Early departure before {$shiftEndTime}";
+                }
+            } elseif ($isPerm) {
+                $record->status = 'permission';
+                if (empty($record->remarks)) {
+                    $record->remarks = "Permission: {$permHours}h" . ($permReason ? " ({$permReason})" : "");
                 }
             }
 
@@ -813,6 +832,59 @@ class AttendanceController extends Controller
             'category'      => $request->category,
             'department_id' => $request->department_id
         ])->with('success', 'Staff attendance updated successfully.');
+    }
+
+    /**
+     * Staff Attendance Register (Monthly Matrix)
+     */
+    public function staffRegister(Request $request)
+    {
+        $month       = $request->month ?? now()->format('Y-m');
+        $deptId      = $request->department_id;
+        $category    = $request->category ?? 'all';
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+
+        [$yr, $mo] = explode('-', $month);
+        $start = \Carbon\Carbon::create((int)$yr, (int)$mo, 1)->startOfDay();
+        $end   = $start->copy()->endOfMonth()->endOfDay();
+
+        $days = collect(CarbonPeriod::create($start, $end))->map(fn($d) => $d);
+        $holidays = \App\Models\Holiday::whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get()->keyBy(fn($h) => \Carbon\Carbon::parse($h->date)->toDateString());
+
+        $empQuery = Employee::with('department')->where('is_active', true);
+        if ($deptId) {
+            $empQuery->where('department_id', $deptId);
+        }
+        if ($category && $category !== 'all') {
+            $empQuery->where('employee_type', $category);
+        }
+        $employees = $empQuery->orderBy('first_name')->get();
+
+        $allRecords = StaffAttendance::whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get();
+
+        $attendanceMap = [];
+        foreach ($allRecords as $r) {
+            $dateStr = \Carbon\Carbon::parse($r->date)->toDateString();
+            $attendanceMap[$r->employee_id][$dateStr] = $r;
+        }
+
+        $workingDaysCount = $days->filter(fn($d) => !$d->isSunday() && !isset($holidays[$d->toDateString()]))->count();
+
+        $categories = [
+            ['key' => 'all',          'label' => 'All Staff'],
+            ['key' => 'teaching',     'label' => 'Teaching Staff'],
+            ['key' => 'non_teaching', 'label' => 'Non-Teaching'],
+            ['key' => 'driver',       'label' => 'Drivers'],
+            ['key' => 'nanny',        'label' => 'Nannies / Support'],
+        ];
+
+        return view('attendance.staff-register', compact(
+            'departments', 'employees', 'month', 'days', 'holidays',
+            'attendanceMap', 'workingDaysCount', 'deptId', 'category', 'categories'
+        ));
     }
 
     public function register(Request $request)
@@ -1233,6 +1305,10 @@ class AttendanceController extends Controller
                 $duration = 'In Progress';
             }
 
+            $permissionInfo = ($att?->is_permission || $att?->status === 'permission')
+                ? ($att->permission_hours ? "{$att->permission_hours}h" : "Yes") . ($att->permission_reason ? " ({$att->permission_reason})" : "")
+                : '—';
+
             $rows[] = [
                 'Sl No'             => $idx + 1,
                 'Employee Code'     => $emp->employee_code ?? 'EMP-' . $emp->id,
@@ -1242,6 +1318,7 @@ class AttendanceController extends Controller
                 'Designation'       => $emp->designation_name ?? '—',
                 'Date'              => \Carbon\Carbon::parse($date)->format('d M Y (D)'),
                 'Attendance Status' => $status,
+                'Permission'        => $permissionInfo,
                 'In-Time'           => $inTime,
                 'Out-Time'          => $outTime,
                 'Duration'          => $duration,
@@ -1297,11 +1374,12 @@ class AttendanceController extends Controller
                 ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
                 ->get();
 
-            $presentCount  = $records->where('status', 'present')->count();
-            $lateCount     = $records->where('status', 'late')->count();
-            $halfDayCount  = $records->where('status', 'half_day')->count();
-            $overtimeCount = $records->where('status', 'overtime')->count();
-            $leaveCount    = $records->where('status', 'leave')->count();
+            $presentCount    = $records->where('status', 'present')->count();
+            $lateCount       = $records->where('status', 'late')->count();
+            $halfDayCount    = $records->where('status', 'half_day')->count();
+            $permissionCount = $records->where('status', 'permission')->count();
+            $overtimeCount   = $records->where('status', 'overtime')->count();
+            $leaveCount      = $records->where('status', 'leave')->count();
 
             // Total Overtime duration
             $totalOvertimeMins = 0;
@@ -1314,9 +1392,9 @@ class AttendanceController extends Controller
             $otMins = $totalOvertimeMins % 60;
             $overtimeDuration = $overtimeCount > 0 ? ($otHrs > 0 ? "{$otHrs}h {$otMins}m" : "{$otMins}m") : '0m';
 
-            $totalAttended = $presentCount + $lateCount + ($halfDayCount * 0.5) + $overtimeCount;
+            $totalAttended = $presentCount + $lateCount + ($halfDayCount * 0.5) + $permissionCount + $overtimeCount;
             $effectiveWorking = max(1, $standardWorkingDays);
-            $absentCount = max(0, $standardWorkingDays - ($presentCount + $lateCount + $halfDayCount + $leaveCount));
+            $absentCount = max(0, $standardWorkingDays - ($presentCount + $lateCount + $halfDayCount + $permissionCount + $leaveCount));
             $pct = round(($totalAttended / $effectiveWorking) * 100, 1);
 
             $rows[] = [
@@ -1331,6 +1409,7 @@ class AttendanceController extends Controller
                 'Present Days'          => $presentCount,
                 'Late Arrivals'         => $lateCount,
                 'Half Days'             => $halfDayCount,
+                'Approved Permissions'  => $permissionCount,
                 'Overtime Days'         => $overtimeCount,
                 'Overtime Duration'     => $overtimeDuration,
                 'Approved Leaves'       => $leaveCount,

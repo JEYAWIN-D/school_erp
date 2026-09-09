@@ -17,6 +17,14 @@
     </div>
 
     <div class="flex items-center gap-2 flex-wrap">
+      {{-- Staff Attendance Register --}}
+      <a href="{{ route('attendance.staff.register', ['month' => \Carbon\Carbon::parse($date)->format('Y-m'), 'category' => $category, 'department_id' => $deptId]) }}"
+         class="btn bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 btn-sm flex items-center gap-1.5 text-xs font-bold shadow-2xs transition-all hover:border-purple-300"
+         title="Open Monthly Staff Attendance Register with Permission Matrix">
+        <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Staff Attendance Register
+      </a>
+
       {{-- Download Day-Wise Report --}}
       <a href="{{ route('attendance.staff.export.day', ['date' => $date, 'category' => $category, 'department_id' => $deptId]) }}"
          class="btn bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 btn-sm flex items-center gap-1.5 text-xs font-bold shadow-2xs transition-all hover:border-slate-300"
@@ -213,52 +221,57 @@
   @endif
 
   {{-- ── Sleek KPI Summary Bar (Day/Month % + Counts) ────────────── --}}
-  <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-    <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs text-center">
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2.5">
+    <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs text-center">
       <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Staff</span>
       <p class="text-2xl font-black font-mono text-slate-900 mt-1">{{ $stats['totalStaff'] }}</p>
     </div>
 
-    <div class="bg-white p-3.5 rounded-2xl border border-emerald-200 shadow-2xs text-center">
+    <div class="bg-white p-3 rounded-2xl border border-emerald-200 shadow-2xs text-center">
       <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">Checked In</span>
       <p class="text-2xl font-black font-mono text-emerald-600 mt-1">{{ $stats['checkedIn'] }}</p>
     </div>
 
-    <div class="bg-white p-3.5 rounded-2xl border border-amber-200 shadow-2xs text-center">
+    <div class="bg-white p-3 rounded-2xl border border-amber-200 shadow-2xs text-center">
       <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-700">Late</span>
       <p class="text-2xl font-black font-mono text-amber-600 mt-1">{{ $stats['late'] }}</p>
     </div>
 
-    <div class="bg-white p-3.5 rounded-2xl border border-orange-200 shadow-2xs text-center">
+    <div class="bg-white p-3 rounded-2xl border border-orange-200 shadow-2xs text-center">
       <span class="text-[10px] font-extrabold uppercase tracking-wider text-orange-700">Half-Day</span>
       <p class="text-2xl font-black font-mono text-orange-600 mt-1">{{ $stats['halfDay'] }}</p>
     </div>
 
-    <div class="bg-white p-3.5 rounded-2xl border border-yellow-200 bg-amber-50/30 shadow-2xs text-center">
+    <div class="bg-white p-3 rounded-2xl border border-purple-200 bg-purple-50/25 shadow-2xs text-center">
+      <span class="text-[10px] font-extrabold uppercase tracking-wider text-purple-700">Permission</span>
+      <p class="text-2xl font-black font-mono text-purple-600 mt-1">{{ $stats['permissions'] ?? 0 }}</p>
+    </div>
+
+    <div class="bg-white p-3 rounded-2xl border border-yellow-200 bg-amber-50/30 shadow-2xs text-center">
       <span class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">Overtime</span>
       <p class="text-2xl font-black font-mono text-amber-700 mt-1">{{ $stats['overtime'] }}</p>
     </div>
 
     @if($isHoliday)
-      <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs text-center">
+      <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs text-center">
         <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Holiday Off</span>
         <p class="text-2xl font-black font-mono text-slate-600 mt-1">{{ $stats['holidayCount'] }}</p>
       </div>
     @else
-      <div class="bg-white p-3.5 rounded-2xl border border-rose-200 shadow-2xs text-center">
+      <div class="bg-white p-3 rounded-2xl border border-rose-200 shadow-2xs text-center">
         <span class="text-[10px] font-extrabold uppercase tracking-wider text-rose-700">Absent</span>
         <p class="text-2xl font-black font-mono text-rose-600 mt-1">{{ $stats['absent'] }}</p>
       </div>
     @endif
 
-    <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs text-center">
+    <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs text-center">
       <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Day Rate</span>
       <p class="text-2xl font-black font-mono {{ $stats['dayAttendanceRate'] >= 90 ? 'text-emerald-600' : ($stats['dayAttendanceRate'] >= 75 ? 'text-blue-600' : 'text-amber-600') }} mt-1">
         {{ $stats['dayAttendanceRate'] }}%
       </p>
     </div>
 
-    <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs text-center">
+    <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs text-center">
       <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Month Rate</span>
       <p class="text-2xl font-black font-mono {{ $monthStats['monthAvgRate'] >= 90 ? 'text-indigo-600' : ($monthStats['monthAvgRate'] >= 75 ? 'text-blue-600' : 'text-amber-600') }} mt-1">
         {{ $monthStats['monthAvgRate'] }}%
@@ -334,13 +347,14 @@
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="border-b border-slate-100 bg-slate-50/75 text-[11px] font-black uppercase tracking-wider text-slate-400">
-              <th class="py-3 px-4 w-[28%]">Staff Member & Role</th>
-              <th class="py-3 px-4 w-[12%]">Department</th>
-              <th class="py-3 px-4 text-center w-[16%]">Status</th>
-              <th class="py-3 px-4 w-[12%]">In-Time</th>
-              <th class="py-3 px-4 w-[12%]">Out-Time</th>
-              <th class="py-3 px-4 text-center w-[8%]">Duration</th>
-              <th class="py-3 px-4 w-[12%]">Action</th>
+              <th class="py-3 px-4 w-[24%]">Staff Member & Role</th>
+              <th class="py-3 px-3 w-[10%]">Department</th>
+              <th class="py-3 px-3 text-center w-[14%]">Status</th>
+              <th class="py-3 px-3 w-[17%]">Permission</th>
+              <th class="py-3 px-3 w-[11%]">In-Time</th>
+              <th class="py-3 px-3 w-[11%]">Out-Time</th>
+              <th class="py-3 px-3 text-center w-[7%]">Duration</th>
+              <th class="py-3 px-3 w-[6%]">Action</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 text-xs">
@@ -388,12 +402,12 @@
                 </td>
 
                 {{-- Department --}}
-                <td class="py-3 px-4 font-semibold text-slate-600 text-xs">
+                <td class="py-3 px-3 font-semibold text-slate-600 text-xs">
                   {{ $emp->department?->name ?? 'General' }}
                 </td>
 
                 {{-- Status Selector --}}
-                <td class="py-3 px-4 text-center" id="status-cell-{{ $emp->id }}">
+                <td class="py-3 px-3 text-center" id="status-cell-{{ $emp->id }}">
                   @if($isHoliday && empty($existing?->check_in))
                     <input type="hidden" name="attendance[{{ $emp->id }}][status]" value="holiday">
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200/90 shadow-2xs whitespace-nowrap">
@@ -409,10 +423,11 @@
                   @else
                     <select name="attendance[{{ $emp->id }}][status]"
                             class="select select-xs text-xs font-bold rounded-lg border-slate-200 py-1 px-2 w-full
-                            {{ $status === 'present' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ($status === 'late' ? 'bg-amber-50 text-amber-800 border-amber-300' : ($status === 'half_day' ? 'bg-orange-50 text-orange-800 border-orange-300' : ($status === 'overtime' ? 'bg-yellow-100 text-amber-900 border-amber-400' : ($status === 'holiday' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-rose-50 text-rose-800 border-rose-300')))) }}">
+                            {{ $status === 'present' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : ($status === 'late' ? 'bg-amber-50 text-amber-800 border-amber-300' : ($status === 'half_day' ? 'bg-orange-50 text-orange-800 border-orange-300' : ($status === 'permission' ? 'bg-purple-50 text-purple-900 border-purple-300 font-black' : ($status === 'overtime' ? 'bg-yellow-100 text-amber-900 border-amber-400' : ($status === 'holiday' ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-rose-50 text-rose-800 border-rose-300'))))) }}">
                       <option value="present" @selected($status === 'present')>Present</option>
                       <option value="late" @selected($status === 'late')>Late</option>
                       <option value="half_day" @selected($status === 'half_day')>Half-Day</option>
+                      <option value="permission" @selected($status === 'permission')>Permission (1-2 hrs)</option>
                       <option value="overtime" @selected($status === 'overtime')>Overtime / Extra Pay</option>
                       <option value="absent" @selected($status === 'absent')>Absent</option>
                       <option value="leave" @selected($status === 'leave')>On Leave</option>
@@ -421,37 +436,68 @@
                   @endif
                 </td>
 
+                {{-- Permission Details Column --}}
+                <td class="py-3 px-3" id="permission-cell-{{ $emp->id }}">
+                  <div x-data="{ hasPerm: {{ ($status === 'permission' || ($existing?->is_permission)) ? 'true' : 'false' }} }" class="space-y-1">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                      <input type="checkbox" name="attendance[{{ $emp->id }}][is_permission]" value="1"
+                             x-model="hasPerm"
+                             @change="if(hasPerm) { 
+                               let sel = document.querySelector('#staff-row-{{ $emp->id }} select[name*=\'[status]\']');
+                               if(sel && (sel.value === 'present' || sel.value === 'absent')) sel.value = 'permission';
+                             }"
+                             class="checkbox checkbox-xs rounded border-slate-300 text-purple-600 focus:ring-purple-500">
+                      <span class="text-[11px] font-bold" :class="hasPerm ? 'text-purple-700 font-extrabold' : 'text-slate-500'">Permission</span>
+                      @if($existing?->is_permission || $status === 'permission')
+                        <span class="px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 text-[9px] font-extrabold uppercase tracking-wider">Approved</span>
+                      @endif
+                    </label>
+                    <div x-show="hasPerm" x-cloak class="flex items-center gap-1.5 mt-1">
+                      <select name="attendance[{{ $emp->id }}][permission_hours]"
+                              class="select select-xs text-[11px] font-bold rounded-lg border-purple-200 bg-purple-50/50 text-purple-900 py-0.5 px-1.5 w-18">
+                        <option value="1.0" @selected((float)($existing?->permission_hours ?? 0) === 1.0)>1 hr</option>
+                        <option value="1.5" @selected((float)($existing?->permission_hours ?? 1.5) === 1.5)>1.5 hrs</option>
+                        <option value="2.0" @selected((float)($existing?->permission_hours ?? 0) === 2.0)>2 hrs</option>
+                      </select>
+                      <input type="text" name="attendance[{{ $emp->id }}][permission_reason]"
+                             value="{{ $existing?->permission_reason ?? '' }}"
+                             placeholder="Reason (Doctor, Bank...)"
+                             class="input input-xs text-[11px] py-0.5 px-2 bg-white border-purple-200 text-slate-800 rounded-lg w-32 placeholder:text-slate-400 focus:border-purple-400 focus:ring-1 focus:ring-purple-200">
+                    </div>
+                  </div>
+                </td>
+
                 {{-- In Time --}}
-                <td class="py-3 px-4" id="intime-cell-{{ $emp->id }}">
+                <td class="py-3 px-3" id="intime-cell-{{ $emp->id }}">
                   @if($isHoliday && empty($existing?->check_in))
                     <span class="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 block text-center cursor-not-allowed">—</span>
                   @else
                     <input type="time" name="attendance[{{ $emp->id }}][in_time]"
                            value="{{ $existing?->check_in ? substr($existing->check_in, 0, 5) : '' }}"
-                           class="input text-xs py-1 px-2 w-28 bg-white border-slate-200 rounded-lg font-mono">
+                           class="input text-xs py-1 px-2 w-24 bg-white border-slate-200 rounded-lg font-mono">
                   @endif
                 </td>
 
                 {{-- Out Time --}}
-                <td class="py-3 px-4" id="outtime-cell-{{ $emp->id }}">
+                <td class="py-3 px-3" id="outtime-cell-{{ $emp->id }}">
                   @if($isHoliday && empty($existing?->check_in))
                     <span class="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200 block text-center cursor-not-allowed">—</span>
                   @else
                     <input type="time" name="attendance[{{ $emp->id }}][out_time]"
                            value="{{ $existing?->check_out ? substr($existing->check_out, 0, 5) : '' }}"
-                           class="input text-xs py-1 px-2 w-28 bg-white border-slate-200 rounded-lg font-mono">
+                           class="input text-xs py-1 px-2 w-24 bg-white border-slate-200 rounded-lg font-mono">
                   @endif
                 </td>
 
                 {{-- Working Duration --}}
-                <td class="py-3 px-4 text-center font-mono font-bold text-slate-700">
+                <td class="py-3 px-3 text-center font-mono font-bold text-slate-700">
                   <span class="staff-duration-badge px-2 py-0.5 rounded-md text-[11px] {{ ($inTime && $outTime) ? 'bg-slate-100 text-slate-800' : 'text-slate-400' }}">
                     {{ $duration }}
                   </span>
                 </td>
 
                 {{-- Instant Card Tap Button --}}
-                <td class="py-3 px-4">
+                <td class="py-3 px-3">
                   <div class="flex items-center gap-2">
                     <button type="button" @click="submitTap('{{ $emp->id }}')"
                             class="staff-tap-btn btn btn-xs {{ empty($existing?->check_in) ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : (empty($existing?->check_out) ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'btn-secondary text-slate-700') }} font-bold text-[11px] px-2 py-0.5 rounded-md shadow-2xs cursor-pointer flex items-center gap-1">
@@ -468,7 +514,7 @@
               </tr>
             @empty
               <tr>
-                <td colspan="7" class="py-12 text-center text-slate-400">
+                <td colspan="8" class="py-12 text-center text-slate-400">
                   No staff members found for the selected department.
                 </td>
               </tr>
