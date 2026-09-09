@@ -160,6 +160,7 @@
   </style>
 </head>
 <body>
+@include('partials.mobile-nav-speed')
 
   {{-- ── Brand panel (desktop) ── --}}
   <div class="brand-panel">
