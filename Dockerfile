@@ -36,14 +36,26 @@ RUN apt-get update && apt-get install -y \
         intl \
         mbstring \
         exif \
+    && docker-php-ext-install opcache \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# OPcache tuning for production
+RUN { \
+    echo 'opcache.enable=1'; \
+    echo 'opcache.memory_consumption=256'; \
+    echo 'opcache.interned_strings_buffer=16'; \
+    echo 'opcache.max_accelerated_files=20000'; \
+    echo 'opcache.validate_timestamps=0'; \
+    echo 'opcache.save_comments=1'; \
+    echo 'opcache.fast_shutdown=1'; \
+} > /usr/local/etc/php/conf.d/opcache.ini
 
 
 # ------------------------------------------------------------
 # 2. Enable Apache modules required by Laravel
 # ------------------------------------------------------------
-RUN a2enmod rewrite headers
+RUN a2enmod rewrite headers deflate expires
 
 
 # ------------------------------------------------------------
@@ -200,7 +212,14 @@ php artisan storage:link || true
 php artisan optimize:clear || true
 
 # ----------------------------------------------------------
-# Cache Laravel configuration
+# Run database migrations (creates new tables on each deploy)
+# ----------------------------------------------------------
+
+echo "Running database migrations..."
+php artisan migrate --force --no-interaction || echo "Migrations failed (non-fatal, continuing)"
+
+# ----------------------------------------------------------
+# Cache Laravel configuration for speed
 # ----------------------------------------------------------
 
 php artisan config:cache --no-interaction || true
