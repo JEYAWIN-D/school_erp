@@ -34,7 +34,7 @@
   selectedActivities: [],
   additionalItems: {},
 
-  // Live Student Photo Preview
+  // Live Student & Parent Photo Previews
   photoPreview: null,
   handlePhotoChange(event) {
     const file = event.target.files[0];
@@ -42,6 +42,28 @@
       this.photoPreview = URL.createObjectURL(file);
     }
   },
+  fatherPhotoPreview: null,
+  handleFatherPhotoChange(event) {
+    const file = event.target.files[0];
+    if (file) {
+      this.fatherPhotoPreview = URL.createObjectURL(file);
+    }
+  },
+  motherPhotoPreview: null,
+  handleMotherPhotoChange(event) {
+    const file = event.target.files[0];
+    if (file) {
+      this.motherPhotoPreview = URL.createObjectURL(file);
+    }
+  },
+  guardianPhotoPreview: null,
+  handleGuardianPhotoChange(event) {
+    const file = event.target.files[0];
+    if (file) {
+      this.guardianPhotoPreview = URL.createObjectURL(file);
+    }
+  },
+  docUploadMode: 'desk',
 
   // Payment Terms State
   paymentTerms: 'single',
@@ -493,7 +515,29 @@
 
       {{-- Father Details --}}
       <div class="space-y-4">
-        <h3 class="text-xs font-extrabold text-indigo-600 uppercase tracking-wider">Father Details</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-extrabold text-indigo-600 uppercase tracking-wider">Father Details</h3>
+          <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Campus Visitor Pass Escort #1</span>
+        </div>
+
+        {{-- Father Photo Upload for Visitor Pass --}}
+        <div class="flex items-center gap-4 p-3 rounded-2xl bg-indigo-50/50 border border-indigo-100">
+          <div class="w-14 h-14 rounded-xl bg-white border border-indigo-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+            <template x-if="fatherPhotoPreview">
+              <img :src="fatherPhotoPreview" class="w-full h-full object-cover" alt="Father Preview">
+            </template>
+            <template x-if="!fatherPhotoPreview">
+              <span class="text-2xl text-indigo-400">👨</span>
+            </template>
+          </div>
+          <div class="flex-1 min-w-0">
+            <label class="block text-xs font-bold text-slate-800">Father Photograph (For Campus Visitor Pass)</label>
+            <p class="text-[11px] text-slate-500">Will appear on the physical &amp; digital Parent Visitor Pass</p>
+            <input type="file" name="father_photo" accept="image/*" @change="handleFatherPhotoChange($event)"
+                   class="text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Father / Primary Parent Name <span class="text-rose-500">*</span></label>
@@ -507,12 +551,12 @@
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Mobile Number <span class="text-rose-500">*</span></label>
             <input type="text" name="parent_mobile" required value="{{ old('parent_mobile') }}"
                    placeholder="10-digit mobile"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
             @error('parent_mobile') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Email Address</label>
             <input type="email" name="parent_email" value="{{ old('parent_email') }}"
@@ -523,15 +567,44 @@
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Occupation</label>
             <input type="text" name="father_occupation" value="{{ old('father_occupation') }}"
-                   placeholder="e.g. Engineer / Business / Govt. Service"
+                   placeholder="e.g. Engineer / Business"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Aadhaar Number</label>
+            <input type="text" name="father_aadhaar" value="{{ old('father_aadhaar') }}"
+                   placeholder="12-digit Aadhaar" maxlength="14"
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono text-slate-900">
           </div>
         </div>
       </div>
 
       {{-- Mother Details --}}
       <div class="space-y-4 pt-4 border-t border-slate-100">
-        <h3 class="text-xs font-extrabold text-rose-600 uppercase tracking-wider">Mother Details</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-extrabold text-rose-600 uppercase tracking-wider">Mother Details</h3>
+          <span class="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">Campus Visitor Pass Escort #2</span>
+        </div>
+
+        {{-- Mother Photo Upload for Visitor Pass --}}
+        <div class="flex items-center gap-4 p-3 rounded-2xl bg-rose-50/50 border border-rose-100">
+          <div class="w-14 h-14 rounded-xl bg-white border border-rose-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+            <template x-if="motherPhotoPreview">
+              <img :src="motherPhotoPreview" class="w-full h-full object-cover" alt="Mother Preview">
+            </template>
+            <template x-if="!motherPhotoPreview">
+              <span class="text-2xl text-rose-400">👩</span>
+            </template>
+          </div>
+          <div class="flex-1 min-w-0">
+            <label class="block text-xs font-bold text-slate-800">Mother Photograph (For Campus Visitor Pass)</label>
+            <p class="text-[11px] text-slate-500">Will appear on the physical &amp; digital Parent Visitor Pass</p>
+            <input type="file" name="mother_photo" accept="image/*" @change="handleMotherPhotoChange($event)"
+                   class="text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-rose-600 file:text-white hover:file:bg-rose-700 cursor-pointer">
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Mother Name</label>
@@ -544,7 +617,7 @@
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Mother Mobile Number</label>
             <input type="text" name="mother_mobile" value="{{ old('mother_mobile') }}"
                    placeholder="10-digit mobile"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
           </div>
         </div>
 
@@ -567,7 +640,29 @@
 
       {{-- Guardian Details --}}
       <div class="space-y-4 pt-4 border-t border-slate-100">
-        <h3 class="text-xs font-extrabold text-amber-600 uppercase tracking-wider">Guardian Details (If Applicable)</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-extrabold text-amber-600 uppercase tracking-wider">Guardian Details (If Applicable)</h3>
+          <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">Optional Escort #3</span>
+        </div>
+
+        {{-- Guardian Photo Upload for Visitor Pass --}}
+        <div class="flex items-center gap-4 p-3 rounded-2xl bg-amber-50/50 border border-amber-100">
+          <div class="w-14 h-14 rounded-xl bg-white border border-amber-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+            <template x-if="guardianPhotoPreview">
+              <img :src="guardianPhotoPreview" class="w-full h-full object-cover" alt="Guardian Preview">
+            </template>
+            <template x-if="!guardianPhotoPreview">
+              <span class="text-2xl text-amber-400">👤</span>
+            </template>
+          </div>
+          <div class="flex-1 min-w-0">
+            <label class="block text-xs font-bold text-slate-800">Guardian Photograph (For Campus Visitor Pass)</label>
+            <p class="text-[11px] text-slate-500">Will appear on the Parent &amp; Guardian Visitor Pass</p>
+            <input type="file" name="guardian_photo" accept="image/*" @change="handleGuardianPhotoChange($event)"
+                   class="text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Guardian Name</label>
@@ -788,24 +883,130 @@
       </div>
     </div>
 
-    {{-- ── Official Document Submission Checklist ───────────────── --}}
-    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 print-card">
-      <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+    {{-- ── Official Document Submission & Home QR Upload ────────── --}}
+    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-5 print-card">
+      <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 class="text-base font-bold text-slate-900">Official Document Submission Checklist</h2>
-          <p class="text-xs text-slate-500 font-medium">Physical certificates and documents received during admission desk verification</p>
+          <h2 class="text-base font-bold text-slate-900">Student Documents &amp; Certificates</h2>
+          <p class="text-xs text-slate-500 font-medium">Upload certificates now at the desk, OR generate a QR code for parent to scan &amp; upload from home</p>
         </div>
-        <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">Verification Checklist</span>
+        
+        {{-- Mode Selector Tabs --}}
+        <div class="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl shrink-0">
+          <button type="button" @click="docUploadMode = 'desk'"
+                  :class="docUploadMode === 'desk' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+            <span>📁 Upload Now</span>
+          </button>
+          <button type="button" @click="docUploadMode = 'qr_home'"
+                  :class="docUploadMode === 'qr_home' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'"
+                  class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+            <span>📱 Scan QR from Home</span>
+          </button>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-        @foreach($officialDocChecklist as $docKey => $docTitle)
-          <label class="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 flex items-center gap-3 cursor-pointer transition select-none">
-            <input type="checkbox" name="documents_submitted[]" value="{{ $docKey }}"
-                   class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
-            <span class="text-xs font-bold text-slate-800 leading-snug">{{ $docTitle }}</span>
-          </label>
-        @endforeach
+      {{-- Mode A: Direct Document Uploads Now --}}
+      <div x-show="docUploadMode === 'desk'" x-transition class="space-y-4">
+        <div class="p-3 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-center gap-2.5 text-xs text-blue-800">
+          <svg class="w-4 h-4 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span>Attach digital scans or photos directly (PDF, JPG, PNG &bull; max 5MB each). Documents will be verified automatically.</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {{-- Birth Certificate --}}
+          <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">Birth Certificate</span>
+              <span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">Mandatory</span>
+            </div>
+            <input type="file" name="doc_birth_certificate" accept=".pdf,image/*"
+                   class="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+          </div>
+
+          {{-- Student / Parent Aadhaar --}}
+          <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">Student Aadhaar Card</span>
+              <span class="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">Mandatory</span>
+            </div>
+            <input type="file" name="doc_aadhaar" accept=".pdf,image/*"
+                   class="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+          </div>
+
+          {{-- Community / Caste Certificate --}}
+          <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">Community Certificate</span>
+              <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">If Applicable</span>
+            </div>
+            <input type="file" name="doc_caste" accept=".pdf,image/*"
+                   class="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+          </div>
+
+          {{-- Transfer Certificate (TC) --}}
+          <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">Transfer Certificate (TC)</span>
+              <span class="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Std 1 &amp; Above</span>
+            </div>
+            <input type="file" name="doc_tc" accept=".pdf,image/*"
+                   class="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+          </div>
+
+          {{-- Previous Marksheet --}}
+          <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">Previous Marksheet / Progress Card</span>
+              <span class="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Academic</span>
+            </div>
+            <input type="file" name="doc_marksheet" accept=".pdf,image/*"
+                   class="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+          </div>
+
+          {{-- Parent ID Proof --}}
+          <div class="p-3.5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">Parent PAN / ID Proof</span>
+              <span class="text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">Finance / 80G</span>
+            </div>
+            <input type="file" name="doc_pan_id" accept=".pdf,image/*"
+                   class="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+      {{-- Mode B: Scan QR Code from Home (Upload Later) --}}
+      <div x-show="docUploadMode === 'qr_home'" x-transition class="p-5 rounded-3xl bg-gradient-to-br from-indigo-900 via-blue-900 to-slate-900 text-white space-y-4 shadow-inner">
+        <div class="flex flex-col sm:flex-row items-center gap-5">
+          <div class="w-24 h-24 bg-white p-2 rounded-2xl shrink-0 flex flex-col items-center justify-center text-slate-800 shadow-md">
+            <svg class="w-16 h-16 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+            <span class="text-[8px] font-mono font-black text-indigo-900">INSTANT QR SLIP</span>
+          </div>
+          <div class="space-y-1.5 min-w-0 text-center sm:text-left">
+            <span class="text-[10px] font-black uppercase tracking-widest bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md">
+              PARENT HOME SELF-SERVICE
+            </span>
+            <h3 class="text-base font-black text-white">Scan QR Code &amp; Upload from Home</h3>
+            <p class="text-xs text-blue-200 leading-relaxed">
+              If the parent does not have physical certificates today, finish this admission form now. The system will automatically generate an official QR Code slip and WhatsApp upload link. The parent can scan the QR code using their phone camera at home anytime and upload their documents directly!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {{-- Physical Verification Checklist --}}
+      <div class="space-y-2 pt-2 border-t border-slate-100">
+        <span class="text-xs font-extrabold text-slate-600 uppercase tracking-wider block">Physical Documents Received at Desk</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+          @foreach($officialDocChecklist as $docKey => $docTitle)
+            <label class="p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 flex items-center gap-3 cursor-pointer transition select-none">
+              <input type="checkbox" name="documents_submitted[]" value="{{ $docKey }}"
+                     class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
+              <span class="text-xs font-bold text-slate-800 leading-snug">{{ $docTitle }}</span>
+            </label>
+          @endforeach
+        </div>
       </div>
     </div>
 
@@ -1066,14 +1267,40 @@
       </div>
     </div>
 
-    {{-- ── Form Action Buttons Footer ──────────────────────────── --}}
-    <div class="flex items-center justify-end gap-3 pt-4 print:hidden">
-      <a href="{{ route('admissions.index') }}" class="w-32 h-11 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-300 text-sm transition shadow-xs flex items-center justify-center">
-        Cancel
-      </a>
-      <button type="submit" class="w-32 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold border border-blue-600 text-sm transition shadow-xs cursor-pointer flex items-center justify-center">
-        Finish
-      </button>
+    {{-- ── Form Action Buttons & Approval Notice Footer ──────────────────────────── --}}
+    <div class="bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-slate-50 p-6 rounded-3xl border border-blue-100/80 shadow-xs space-y-4 print:hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-blue-600/10 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+            <i class="fas fa-shield-alt text-base"></i>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <span>2-Tier Institutional Admission Workflow</span>
+              <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-blue-100 text-blue-700">Governance Enabled</span>
+            </h4>
+            <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              Upon submission, this application will be sent to the <strong>Principal's Desk</strong> for initial verification. Once approved by the Principal, <strong>Admin final confirmation</strong> will enroll the student, activate their register entry, and unlock official ID Cards &amp; Transfer Certificates.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-blue-100/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-xs text-slate-500">
+          <i class="fas fa-info-circle text-blue-500"></i>
+          <span>Home upload QR &amp; Parents Visitor Card link will be generated immediately upon submission.</span>
+        </div>
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <a href="{{ route('admissions.index') }}" class="px-5 h-11 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-300 text-sm transition shadow-xs flex items-center justify-center">
+            Cancel
+          </a>
+          <button type="submit" class="px-6 h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+            <i class="fas fa-paper-plane text-xs"></i>
+            <span>Submit &amp; Request Principal Approval</span>
+          </button>
+        </div>
+      </div>
     </div>
 
   </form>

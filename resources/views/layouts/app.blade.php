@@ -118,7 +118,8 @@
       @canany(['view admissions','view students','view academics','view attendance','view examinations'])
       <p class="nav-group-label">ACADEMICS</p>
       @can('view admissions')
-      <x-nav-item route="admissions.index"  icon="clipboard-document-list" label="Admissions"  :active="str_starts_with($currentRoute, 'admissions')"  :open="$sidebarOpen ?? true" />
+      <x-nav-item route="admissions.index"     icon="clipboard-document-list" label="Admissions"     :active="str_starts_with($currentRoute, 'admissions.') && !str_starts_with($currentRoute, 'admissions.approvals')" :open="$sidebarOpen ?? true" />
+      <x-nav-item route="admissions.approvals" icon="shield-check"             label="Approvals Desk" :active="str_starts_with($currentRoute, 'admissions.approvals')" :open="$sidebarOpen ?? true" />
       @endcan
       @can('view students')
       <x-nav-item route="students.index"    icon="users"                   label="Students"    :active="str_starts_with($currentRoute, 'students')"    :open="$sidebarOpen ?? true" />

@@ -43,7 +43,11 @@
       </p>
     </div>
 
-    <div class="flex items-center gap-3 flex-shrink-0">
+    <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
+      <a href="{{ route('admissions.approvals') }}" class="inline-flex items-center gap-2 bg-blue-700/70 hover:bg-blue-700 text-white border border-blue-400/40 font-bold px-4 py-3 rounded-2xl text-sm shadow-sm transition">
+        <i class="fas fa-check-double text-xs"></i>
+        <span>Approvals Desk</span>
+      </a>
       <a href="{{ route('admissions.create') }}" class="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 font-bold px-5 py-3 rounded-2xl text-sm shadow-sm transition">
         <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
@@ -54,20 +58,29 @@
   </div>
 
   {{-- ── Module View Navigation Tabs ────────────────────────────── --}}
-  <div class="flex items-center gap-2 border-b border-slate-200 pb-3 print:hidden">
-    <button type="button"
-            @click="activeTab = 'fee-structure'"
-            class="px-4 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer"
-            :class="activeTab === 'fee-structure' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'">
-      <span>Fees Structure</span>
-    </button>
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3 print:hidden">
+    <div class="flex items-center gap-2">
+      <button type="button"
+              @click="activeTab = 'fee-structure'"
+              class="px-4 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer"
+              :class="activeTab === 'fee-structure' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'">
+        <span>Fees Structure</span>
+      </button>
 
-    <button type="button"
-            @click="activeTab = 'enquiries'"
-            class="px-4 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer"
-            :class="activeTab === 'enquiries' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'">
-      <span>Enquiry List</span>
-    </button>
+      <button type="button"
+              @click="activeTab = 'enquiries'"
+              class="px-4 py-2.5 rounded-2xl text-xs font-extrabold transition flex items-center gap-2 cursor-pointer"
+              :class="activeTab === 'enquiries' ? 'bg-blue-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'">
+        <span>Enquiry List</span>
+      </button>
+    </div>
+
+    <div>
+      <a href="{{ route('admissions.approvals') }}" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 transition shadow-2xs">
+        <i class="fas fa-stamp text-amber-600"></i>
+        <span>2-Tier Approval Desk (Principal &amp; Admin)</span>
+      </a>
+    </div>
   </div>
 
   {{-- ── TAB 1: FEES STRUCTURE VIEW ────────────────────────────── --}}

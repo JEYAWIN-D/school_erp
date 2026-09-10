@@ -19,9 +19,9 @@ class Student extends Model
         'residential_address', 'permanent_address', 'pincode',
         'is_disabled', 'disability_description',
         'annual_family_income',
-        'father_name', 'father_mobile', 'father_occupation', 'father_email', 'father_aadhaar',
-        'mother_name', 'mother_mobile', 'mother_occupation', 'mother_email',
-        'guardian_name', 'guardian_mobile', 'guardian_relation',
+        'father_name', 'father_mobile', 'father_occupation', 'father_email', 'father_aadhaar', 'father_photo',
+        'mother_name', 'mother_mobile', 'mother_occupation', 'mother_email', 'mother_photo',
+        'guardian_name', 'guardian_mobile', 'guardian_relation', 'guardian_photo',
         'emergency_contact_name', 'emergency_contact_mobile',
         'status', 'student_type', 'sibling_group_id', 'parent_employee_id',
         'leaving_date', 'leaving_reason',
@@ -31,6 +31,10 @@ class Student extends Model
         'tc_document', 'marksheet_document', 'migration_document',
         'scholarship_name', 'scholarship_amount', 'scholarship_sanction_letter',
         'portal_blocked', 'portal_block_reason', 'portal_blocked_at',
+        'principal_approved_at', 'principal_approved_by', 'principal_notes',
+        'admin_approved_at', 'admin_approved_by', 'admin_notes',
+        'rejection_reason', 'rejected_by', 'rejected_at',
+        'parent_visitor_pass_token',
         'payment_terms', 'total_admission_fee', 'admission_paid_amount',
         'admission_pending_amount', 'payment_mode', 'payment_date', 'payment_status', 'admission_fee_terms',
         'document_token',
@@ -48,6 +52,9 @@ class Student extends Model
             if (empty($student->document_token)) {
                 $student->document_token = \Illuminate\Support\Str::random(32);
             }
+            if (empty($student->parent_visitor_pass_token)) {
+                $student->parent_visitor_pass_token = \Illuminate\Support\Str::random(40);
+            }
         });
     }
 
@@ -60,6 +67,9 @@ class Student extends Model
         'is_disabled'       => 'boolean',
         'portal_blocked'    => 'boolean',
         'portal_blocked_at' => 'datetime',
+        'principal_approved_at' => 'datetime',
+        'admin_approved_at'     => 'datetime',
+        'rejected_at'           => 'datetime',
         'annual_family_income'          => 'decimal:2',
         'migration_certificate_date'    => 'date',
         'passport_expiry'               => 'date',
@@ -188,5 +198,71 @@ class Student extends Model
             ->count();
 
         return round(($present / $total) * 100, 1);
+    }
+
+    public function principalApprover(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'principal_approved_by');
+    }
+
+    public function adminApprover(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_approved_by');
+    }
+
+    public function rejectedByUser(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public function isPendingPrincipalApproval(): bool
+    {
+        return $this->status === 'pending_principal';
+    }
+
+    public function isPrincipalApproved(): bool
+    {
+        return $this->status === 'principal_approved';
+    }
+
+    public function isFullyApproved(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
+
+    public function getParentVisitorPassTokenAttribute($value): string
+    {
+        if (empty($value)) {
+            $token = \Illuminate\Support\Str::random(40);
+            $this->attributes['parent_visitor_pass_token'] = $token;
+            \Illuminate\Support\Facades\DB::table('students')->where('id', $this->id)->update(['parent_visitor_pass_token' => $token]);
+            return $token;
+        }
+        return $value;
+    }
+
+    public function getVisitorPassUrlAttribute(): string
+    {
+        return route('public.visitor-card.view', ['token' => $this->parent_visitor_pass_token]);
+    }
+
+    public function getFatherPhotoUrlAttribute(): ?string
+    {
+        return $this->father_photo ? asset('storage/' . $this->father_photo) : null;
+    }
+
+    public function getMotherPhotoUrlAttribute(): ?string
+    {
+        return $this->mother_photo ? asset('storage/' . $this->mother_photo) : null;
+    }
+
+    public function getGuardianPhotoUrlAttribute(): ?string
+    {
+        return $this->guardian_photo ? asset('storage/' . $this->guardian_photo) : null;
     }
 }

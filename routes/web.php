@@ -44,6 +44,10 @@ Route::get('/students/upload-docs/{token}/print-card',  [\App\Http\Controllers\P
 Route::get('/pay/fee/{classId}',  [PublicFeePaymentController::class, 'show'])->name('public.fee.pay');
 Route::post('/pay/fee/{classId}', [PublicFeePaymentController::class, 'processPayment'])->name('public.fee.process');
 
+// ── Public Student Parent & Guardian Visitor Pass via QR Code (no auth) ────
+Route::get('/visitor-card/view/{token}',   [\App\Http\Controllers\Public\VisitorCardController::class, 'viewPass'])->name('public.visitor-card.view');
+Route::get('/visitor-card/verify/{token}', [\App\Http\Controllers\Public\VisitorCardController::class, 'verifyPass'])->name('public.visitor-card.verify');
+
 
 // ── Authenticated routes ──────────────────────────────────
 Route::middleware(['auth'])->group(function () {
@@ -101,7 +105,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/entrance-test-hallticket', [AdmissionController::class, 'entranceTestHallTicket'])->name('entrance-test.hallticket');
         Route::post('/{id}/interview',         [AdmissionController::class, 'saveInterview'])->name('interview.save');
         Route::post('/{id}/doc-checklist',     [AdmissionController::class, 'saveDocChecklist'])->name('doc-checklist.save');
-        Route::post('/{id}/flag-missing-docs', [AdmissionController::class, 'flagMissingDocs'])->name('flag-missing-docs');
+        // Admissions 2-Tier Approvals & Submission Summary
+        Route::get('/approvals',                [AdmissionController::class, 'approvals'])->name('approvals');
+        Route::get('/{id}/submission-summary',  [AdmissionController::class, 'submissionSummary'])->name('submission-summary')->where('id', '[0-9]+');
+        Route::post('/{id}/principal-approve',  [AdmissionController::class, 'principalApprove'])->name('principal-approve')->where('id', '[0-9]+');
+        Route::post('/{id}/admin-confirm',      [AdmissionController::class, 'adminConfirm'])->name('admin-confirm')->where('id', '[0-9]+');
+        Route::post('/{id}/reject-application', [AdmissionController::class, 'rejectApplication'])->name('reject-application')->where('id', '[0-9]+');
+
         // Single record routes — keep AFTER all named static routes to avoid catch-all collisions
         Route::get('/{id}',        [AdmissionController::class, 'show'])->name('show');
         Route::get('/{id}/edit',   [AdmissionController::class, 'edit'])->name('edit');
@@ -151,6 +161,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/tc',     [StudentController::class, 'showTCForm'])->name('tc.form')->where('id', '[0-9]+');
         Route::post('/{id}/tc',    [StudentController::class, 'generateTC'])->name('tc')->where('id', '[0-9]+');
         Route::get('/{id}/id-card',[StudentController::class, 'singleIdCard'])->name('id-card.single')->where('id', '[0-9]+');
+        Route::get('/{id}/visitor-card',[StudentController::class, 'visitorCard'])->name('visitor-card')->where('id', '[0-9]+');
         // Documents
         Route::get('/{id}/documents',     [StudentController::class, 'documents'])->name('documents')->where('id', '[0-9]+');
         Route::post('/{id}/documents',    [StudentController::class, 'uploadDocument'])->name('documents.upload')->where('id', '[0-9]+');

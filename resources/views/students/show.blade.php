@@ -22,24 +22,46 @@
         <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
         QR Slip
       </a>
+      <a href="{{ route('students.visitor-card', $student->id) }}" target="_blank" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs text-purple-700 bg-purple-50/80 border-purple-200 hover:bg-purple-100" title="Official Parent & Guardian Campus Visitor Escort Card">
+        <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+        Visitor Pass
+      </a>
       @if($student->sibling_group_id)
         <a href="{{ route('students.siblings', $student->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
           <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
           Siblings
         </a>
       @endif
-      <a href="{{ route('students.id-card.single', $student->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
-        <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
-        ID Card
-      </a>
+
+      @if($student->status === 'active')
+        <a href="{{ route('students.id-card.single', $student->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/></svg>
+          ID Card
+        </a>
+      @else
+        <button type="button" disabled class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs opacity-60 cursor-not-allowed bg-slate-100 text-slate-400" title="ID Card is locked until admission is fully approved and confirmed">
+          <i class="fas fa-lock text-xs text-amber-500"></i>
+          ID Card (Locked)
+        </button>
+      @endif
+
       <a href="{{ route('fees.collect', ['student_id' => $student->id]) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs text-slate-700 hover:text-indigo-600">
         <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
         FeePayment
       </a>
-      <a href="{{ route('students.tc.form', $student->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
-        <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        TC
-      </a>
+
+      @if($student->status === 'active')
+        <a href="{{ route('students.tc.form', $student->id) }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
+          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          TC
+        </a>
+      @else
+        <button type="button" disabled class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs opacity-60 cursor-not-allowed bg-slate-100 text-slate-400" title="TC is locked until student admission is fully approved and confirmed">
+          <i class="fas fa-lock text-xs text-amber-500"></i>
+          TC (Locked)
+        </button>
+      @endif
+
       @if($student->status === 'active')
         <button x-data @click="$dispatch('open-modal','mark-left-{{ $student->id }}')" class="btn btn-secondary btn-sm text-amber-600 hover:text-amber-700 shadow-xs">
           Mark as Left
@@ -53,6 +75,99 @@
       </a>
     </div>
   </div>
+
+  {{-- ── 2-Tier Admission Approval Status Banner ──────────────────────── --}}
+  @if($student->status === 'pending_principal')
+    <div class="bg-gradient-to-r from-amber-500/10 via-amber-50 to-amber-100/40 border-2 border-amber-300 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-start gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+          <i class="fas fa-user-clock text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-base font-extrabold text-amber-950">Awaiting Principal Approval</h3>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-900 border border-amber-300">Tier 1 Verification Pending</span>
+          </div>
+          <p class="text-xs text-amber-800/90 mt-1 max-w-2xl leading-relaxed">
+            This student's admission has been submitted and is waiting for institutional review by the <strong>Principal</strong> (<code>principal@schoolerp.in</code>). ID Cards and Transfer Certificates remain locked until final admin confirmation.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+        @if(auth()->user()->hasAnyRole(['principal', 'super_admin', 'admin']) || auth()->user()->can('approve admissions'))
+          <form action="{{ route('admissions.principal-approve', $student->id) }}" method="POST" onsubmit="return confirm('Approve this admission application as Principal?');">
+            @csrf
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-sm hover:shadow transition flex items-center gap-2">
+              <i class="fas fa-check-double"></i>
+              Approve as Principal
+            </button>
+          </form>
+        @endif
+        <a href="{{ route('admissions.approvals') }}" class="px-3.5 py-2.5 rounded-xl bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-bold text-xs transition flex items-center gap-1.5">
+          <i class="fas fa-tasks text-amber-600"></i>
+          Approvals Desk
+        </a>
+      </div>
+    </div>
+  @elseif($student->status === 'principal_approved')
+    <div class="bg-gradient-to-r from-blue-500/10 via-blue-50 to-indigo-100/40 border-2 border-blue-300 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-start gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+          <i class="fas fa-stamp text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-base font-extrabold text-blue-950">Principal Approved — Final Admin Confirmation Pending</h3>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-200 text-blue-900 border border-blue-300">Tier 2 Confirmation</span>
+          </div>
+          <p class="text-xs text-blue-800/90 mt-1 max-w-2xl leading-relaxed">
+            Approved by <strong>{{ $student->principalApprover?->name ?? 'Principal' }}</strong> on {{ $student->principal_approved_at?->format('d M Y, h:i A') ?? 'Recent' }}.
+            Admin confirmation will permanently activate the student register, enroll class records, and unlock ID card generation.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+        @if(auth()->user()->hasAnyRole(['admin', 'super_admin']) || auth()->user()->can('approve admissions'))
+          <form action="{{ route('admissions.admin-confirm', $student->id) }}" method="POST" onsubmit="return confirm('Confirm and finalize this student admission onto the active school register?');">
+            @csrf
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-sm hover:shadow transition flex items-center gap-2">
+              <i class="fas fa-user-check"></i>
+              Confirm &amp; Finalize Admission
+            </button>
+          </form>
+        @endif
+        <a href="{{ route('admissions.approvals', ['tab' => 'admin']) }}" class="px-3.5 py-2.5 rounded-xl bg-white hover:bg-blue-50 text-blue-900 border border-blue-300 font-bold text-xs transition flex items-center gap-1.5">
+          <i class="fas fa-tasks text-blue-600"></i>
+          Approvals Desk
+        </a>
+      </div>
+    </div>
+  @elseif($student->status === 'rejected')
+    <div class="bg-gradient-to-r from-rose-500/10 via-rose-50 to-rose-100/40 border-2 border-rose-300 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-start gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+          <i class="fas fa-times-circle text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-base font-extrabold text-rose-950">Application Rejected</h3>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-200 text-rose-900 border border-rose-300">Admission Declined</span>
+          </div>
+          <p class="text-xs text-rose-800/90 mt-1 max-w-2xl leading-relaxed">
+            Reason: <strong>{{ $student->rejection_reason ?? 'Not specified' }}</strong>
+            @if($student->rejectedByUser)
+              &bull; Rejected by {{ $student->rejectedByUser->name }} on {{ $student->rejected_at?->format('d M Y') }}
+            @endif
+          </p>
+        </div>
+      </div>
+      <a href="{{ route('admissions.approvals', ['tab' => 'rejected']) }}" class="px-3.5 py-2.5 rounded-xl bg-white hover:bg-rose-50 text-rose-900 border border-rose-300 font-bold text-xs transition flex items-center gap-1.5">
+        View All Declined
+      </a>
+    </div>
+  @endif
 
   {{-- Clean White Header Profile Card --}}
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
@@ -73,9 +188,32 @@
           <div>
             <div class="flex items-center justify-center md:justify-start gap-3 flex-wrap">
               <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{{ $student->full_name }}</h1>
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider {{ $student->status === 'active' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200' }}">
-                <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $student->status === 'active' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
-                {{ ucfirst($student->status) }}
+              @php
+                $statusBadgeClass = match($student->status) {
+                  'active' => 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                  'pending_principal' => 'bg-amber-100 text-amber-800 border-amber-300',
+                  'principal_approved' => 'bg-blue-100 text-blue-800 border-blue-300',
+                  'rejected' => 'bg-rose-100 text-rose-800 border-rose-300',
+                  default => 'bg-slate-100 text-slate-700 border-slate-300'
+                };
+                $statusDotClass = match($student->status) {
+                  'active' => 'bg-emerald-500',
+                  'pending_principal' => 'bg-amber-500 animate-ping',
+                  'principal_approved' => 'bg-blue-500',
+                  'rejected' => 'bg-rose-500',
+                  default => 'bg-slate-500'
+                };
+                $statusLabel = match($student->status) {
+                  'pending_principal' => 'Pending Principal Approval',
+                  'principal_approved' => 'Principal Approved (Awaiting Admin)',
+                  'active' => 'Active',
+                  'rejected' => 'Rejected',
+                  default => ucfirst($student->status)
+                };
+              @endphp
+              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border {{ $statusBadgeClass }}">
+                <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $statusDotClass }}"></span>
+                {{ $statusLabel }}
               </span>
             </div>
             <p class="text-sm font-semibold font-mono text-indigo-600 mt-1">Admission No: <span class="bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 text-indigo-800 font-bold">{{ $student->admission_number }}</span></p>
@@ -373,11 +511,20 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-sm">
           {{-- Father Details Card --}}
           <div class="bg-slate-50/90 p-5 rounded-2xl border border-slate-200/80 space-y-4">
-            <div class="flex items-center gap-2.5 border-b border-slate-200 pb-3">
-              <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0 overflow-hidden shadow-2xs">
+                  @if($student->father_photo)
+                    <img src="{{ asset('storage/'.$student->father_photo) }}" class="w-full h-full object-cover" alt="Father">
+                  @else
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                  @endif
+                </div>
+                <span class="text-xs font-bold text-indigo-700 uppercase tracking-wider">Father Details</span>
               </div>
-              <span class="text-xs font-bold text-indigo-700 uppercase tracking-wider">Father Details</span>
+              @if($student->father_photo)
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">Photo Verified</span>
+              @endif
             </div>
             <div class="space-y-2.5 text-xs">
               <div class="bg-white p-3 rounded-xl border border-slate-200/70 shadow-2xs space-y-0.5">
@@ -401,11 +548,20 @@
 
           {{-- Mother Details Card --}}
           <div class="bg-slate-50/90 p-5 rounded-2xl border border-slate-200/80 space-y-4">
-            <div class="flex items-center gap-2.5 border-b border-slate-200 pb-3">
-              <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center font-bold shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold shrink-0 overflow-hidden shadow-2xs">
+                  @if($student->mother_photo)
+                    <img src="{{ asset('storage/'.$student->mother_photo) }}" class="w-full h-full object-cover" alt="Mother">
+                  @else
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                  @endif
+                </div>
+                <span class="text-xs font-bold text-rose-700 uppercase tracking-wider">Mother Details</span>
               </div>
-              <span class="text-xs font-bold text-rose-700 uppercase tracking-wider">Mother Details</span>
+              @if($student->mother_photo)
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">Photo Verified</span>
+              @endif
             </div>
             <div class="space-y-2.5 text-xs">
               <div class="bg-white p-3 rounded-xl border border-slate-200/70 shadow-2xs space-y-0.5">
@@ -429,11 +585,20 @@
 
           {{-- Guardian Details Card --}}
           <div class="bg-slate-50/90 p-5 rounded-2xl border border-slate-200/80 space-y-4">
-            <div class="flex items-center gap-2.5 border-b border-slate-200 pb-3">
-              <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0 overflow-hidden shadow-2xs">
+                  @if($student->guardian_photo)
+                    <img src="{{ asset('storage/'.$student->guardian_photo) }}" class="w-full h-full object-cover" alt="Guardian">
+                  @else
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                  @endif
+                </div>
+                <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Guardian Details</span>
               </div>
-              <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Guardian Details</span>
+              @if($student->guardian_photo)
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Photo Verified</span>
+              @endif
             </div>
             @if($student->guardian_name)
               <div class="space-y-2.5 text-xs">

@@ -481,6 +481,10 @@ class StudentController extends Controller
     public function showTCForm(int $id)
     {
         $student    = Student::with(['currentEnrollment.class', 'currentEnrollment.section'])->findOrFail($id);
+        if ($student->status !== 'active') {
+            return redirect()->route('students.show', $student->id)
+                ->with('error', 'Transfer Certificate (TC) generation is locked. Student admission must be fully approved by Principal and confirmed by Admin before a TC can be issued.');
+        }
         $enrollment = $student->currentEnrollment;
 
         return view('students.tc-form', compact('student', 'enrollment'));
@@ -489,6 +493,10 @@ class StudentController extends Controller
     public function generateTC(Request $request, int $id)
     {
         $student      = Student::with(['currentEnrollment.class', 'currentEnrollment.section', 'enrollments.academicYear'])->findOrFail($id);
+        if ($student->status !== 'active') {
+            return redirect()->route('students.show', $student->id)
+                ->with('error', 'Transfer Certificate (TC) generation is locked. Student admission must be fully approved by Principal and confirmed by Admin before a TC can be issued.');
+        }
         $school       = \App\Models\SchoolSetting::first();
         $enrollment   = $student->currentEnrollment;
         $academicYear = \App\Models\AcademicYear::current();
@@ -941,6 +949,7 @@ class StudentController extends Controller
 
         $q = StudentEnrollment::with(['student', 'class', 'section'])
             ->where('status', 'active')
+            ->whereHas('student', fn($sq) => $sq->where('status', 'active'))
             ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id));
 
         if ($classFilter) {
@@ -985,6 +994,13 @@ class StudentController extends Controller
     {
         $this->assertStudentInScope($request, $id);
         $student = Student::with(['currentEnrollment.class', 'currentEnrollment.section'])->findOrFail($id);
+        
+        // Strict locking: ID card can only be generated after Principal approval and Admin final confirmation
+        if ($student->status !== 'active') {
+            return redirect()->route('students.show', $student->id)
+                ->with('error', 'ID Card generation is locked. Student admission must be fully approved by the Principal and confirmed by Admin before an official ID card can be generated.');
+        }
+
         $enrollment = $student->currentEnrollment;
         $classModel = $enrollment?->class;
         $wingMeta = $this->getWingMetadata($classModel);
@@ -1008,11 +1024,31 @@ class StudentController extends Controller
         return view('students.single-id-card', compact('student', 'enrollment', 'classModel', 'wingMeta', 'school', 'currentYear', 'qrCode'));
     }
 
+    public function visitorCard(Request $request, int $id)
+    {
+        $this->assertStudentInScope($request, $id);
+        $student = Student::with(['currentEnrollment.class', 'currentEnrollment.section'])->findOrFail($id);
+        $school = \App\Models\SchoolSetting::first();
+        $currentYear = AcademicYear::current();
+
+        $verifyUrl = route('public.visitor-card.verify', ['token' => $student->parent_visitor_pass_token]);
+        $qrCodeSvg = '';
+        try {
+            $qrCodeSvg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(160)->margin(1)->generate($verifyUrl);
+        } catch (\Throwable $e) {
+            $qrCodeSvg = '';
+        }
+
+        return view('students.visitor-card', compact('student', 'school', 'currentYear', 'verifyUrl', 'qrCodeSvg'));
+    }
+
     public function downloadIdCards(Request $request)
     {
         $currentYear = AcademicYear::current();
         $wingFilter  = $request->get('wing', 'all');
-        $q = StudentEnrollment::with(['student', 'class', 'section'])->where('status', 'active');
+        $q = StudentEnrollment::with(['student', 'class', 'section'])
+            ->where('status', 'active')
+            ->whereHas('student', fn($sq) => $sq->where('status', 'active'));
         if ($request->class_id) $q->where('class_id', $request->class_id);
         if ($request->section_id) $q->where('section_id', $request->section_id);
         if ($currentYear) $q->where('academic_year_id', $currentYear->id);

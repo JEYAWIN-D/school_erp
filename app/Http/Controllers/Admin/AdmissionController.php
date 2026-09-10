@@ -345,6 +345,16 @@ class AdmissionController extends Controller
             'mother_tongue'          => 'nullable|string|max:50',
             'aadhaar_no'             => 'nullable|string|max:20',
             'pincode'                => 'nullable|string|max:10',
+            'father_photo'           => 'nullable|image|max:3072',
+            'father_aadhaar'         => 'nullable|string|max:20',
+            'mother_photo'           => 'nullable|image|max:3072',
+            'guardian_photo'         => 'nullable|image|max:3072',
+            'doc_birth_certificate'  => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_aadhaar'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_caste'              => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_tc'                 => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_marksheet'          => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'doc_pan_id'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'additional_items'       => 'nullable|array',
             'additional_items.*'     => 'nullable|integer|min:0',
         ]);
@@ -574,7 +584,22 @@ class AdmissionController extends Controller
             $photoPath = $request->file('photo')->store('students/photos', 'public');
         }
 
-        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, $photoPath, $isAsp, $aspFee, $transportFee, $concessionAmount, &$student) {
+        $fatherPhotoPath = null;
+        if ($request->hasFile('father_photo')) {
+            $fatherPhotoPath = $request->file('father_photo')->store('parents/photos', 'public');
+        }
+
+        $motherPhotoPath = null;
+        if ($request->hasFile('mother_photo')) {
+            $motherPhotoPath = $request->file('mother_photo')->store('parents/photos', 'public');
+        }
+
+        $guardianPhotoPath = null;
+        if ($request->hasFile('guardian_photo')) {
+            $guardianPhotoPath = $request->file('guardian_photo')->store('parents/photos', 'public');
+        }
+
+        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, $photoPath, $fatherPhotoPath, $motherPhotoPath, $guardianPhotoPath, $isAsp, $aspFee, $transportFee, $concessionAmount, &$student) {
             $studentFullName = trim($request->first_name . ' ' . ($request->last_name ?? ''));
 
             // Save Enquiry
@@ -636,7 +661,7 @@ class AdmissionController extends Controller
             $totalEnrolledCount = \App\Models\StudentEnrollment::count();
             $autoHouse = $houses[$totalEnrolledCount % count($houses)];
 
-            // Save Student with school-requirement fields
+            // Save Student with 2-Tier Approval Status ('pending_principal') and Parent Photos
             $student = \App\Models\Student::create([
                 'admission_no'             => $admNo,
                 'admission_date'           => $paymentDate,
@@ -658,19 +683,24 @@ class AdmissionController extends Controller
                 'father_mobile'            => $request->parent_mobile ? substr($request->parent_mobile, 0, 15) : null,
                 'father_email'             => $request->parent_email,
                 'father_occupation'        => $request->father_occupation,
+                'father_photo'             => $fatherPhotoPath,
+                'father_aadhaar'           => $request->father_aadhaar ? substr(preg_replace('/[^0-9]/', '', $request->father_aadhaar), 0, 12) : null,
                 'mother_name'              => $request->mother_name,
                 'mother_occupation'        => $request->mother_occupation,
                 'mother_mobile'            => $request->mother_mobile ? substr($request->mother_mobile, 0, 15) : null,
                 'mother_email'             => $request->mother_email,
+                'mother_photo'             => $motherPhotoPath,
                 'guardian_name'            => $request->guardian_name,
                 'guardian_mobile'          => $request->guardian_mobile ? substr($request->guardian_mobile, 0, 15) : null,
                 'guardian_relation'        => $request->guardian_relation,
+                'guardian_photo'           => $guardianPhotoPath,
+                'parent_visitor_pass_token'=> \Illuminate\Support\Str::random(40),
                 'annual_family_income'     => $request->annual_family_income,
                 'residential_address'      => $request->address,
                 'permanent_address'        => $request->address,
                 'previous_school_name'     => $request->previous_school,
                 'previous_percentage'      => $request->previous_percentage,
-                'status'                   => 'active',
+                'status'                   => 'pending_principal',
                 'student_type'             => $request->filled('transport_route_id') ? 'transport' : ($isAsp ? 'asp' : 'day_scholar'),
                 'emis_no'                  => $request->emis_no,
                 'identification_mark_1'    => $request->identification_mark_1,
@@ -699,7 +729,7 @@ class AdmissionController extends Controller
                 'admission_fee_terms'      => $terms,
             ]);
 
-            // Save Student Enrollment
+            // Save Student Enrollment (pending until final approval)
             \App\Models\StudentEnrollment::create([
                 'student_id'       => $student->id,
                 'class_id'         => $request->class_id,
@@ -707,9 +737,35 @@ class AdmissionController extends Controller
                 'academic_year_id' => $currentYear?->id,
                 'roll_number'      => $autoRollNo,
                 'house'            => $autoHouse,
-                'status'           => 'active',
+                'status'           => 'pending',
                 'enrollment_date'  => $paymentDate,
             ]);
+
+            // Direct document file uploads processing
+            $docInputs = [
+                'doc_birth_certificate' => 'birth_certificate',
+                'doc_aadhaar'           => 'aadhaar',
+                'doc_caste'             => 'caste',
+                'doc_tc'                => 'tc',
+                'doc_marksheet'         => 'marksheet',
+                'doc_pan_id'            => 'pan',
+            ];
+            foreach ($docInputs as $inputKey => $docType) {
+                if ($request->hasFile($inputKey)) {
+                    $docFile = $request->file($inputKey);
+                    $docStored = $docFile->storeAs("students/{$student->id}/documents", $docType . '_' . time() . '.' . $docFile->getClientOriginalExtension(), 'public');
+                    \App\Models\StudentDocument::create([
+                        'student_id'    => $student->id,
+                        'document_type' => $docType,
+                        'file_path'     => $docStored,
+                        'original_name' => $docFile->getClientOriginalName(),
+                        'status'        => 'verified',
+                        'verified_by'   => Auth::id(),
+                        'verified_at'   => now(),
+                        'remarks'       => 'Desk verified during admission entry',
+                    ]);
+                }
+            }
 
             // Save Student Fee Charge so Fee Status displays Total Billed accurately
             DB::table('student_fee_charges')->insert([
@@ -795,13 +851,160 @@ class AdmissionController extends Controller
                 ]);
             }
 
-            // Flag Enquiry as issued to prevent double deduction
-            $enquiry->update(['is_inventory_issued' => true]);
+            // Flag Enquiry as issued
+            $enquiry->update([
+                'is_inventory_issued' => true,
+                'status'              => 'pending_principal_approval',
+            ]);
         });
 
-        return redirect()->route('students.show', $student->id)
-            ->with('success', 'New Admission completed successfully! Student registered with Admission No: ' . $student->admission_no . '. Academic Inventory stock has been automatically issued.')
-            ->with('admission_success_qr', true);
+        return redirect()->route('admissions.submission-summary', $student->id)
+            ->with('success', 'Admission application submitted successfully! It has been forwarded to the Principal for formal review and approval.');
+    }
+
+    /**
+     * Post-submission summary with home QR document upload slip
+     */
+    public function submissionSummary(int $id)
+    {
+        $student = \App\Models\Student::with([
+            'currentEnrollment.class',
+            'currentEnrollment.section',
+            'documents',
+            'feePayments'
+        ])->findOrFail($id);
+
+        $docUploadUrl = route('public.student.documents', ['token' => $student->document_token]);
+        $docUploadQrSvg = '';
+        try {
+            $docUploadQrSvg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(160)->margin(1)->generate($docUploadUrl);
+        } catch (\Throwable $e) {
+            $docUploadQrSvg = '';
+        }
+
+        return view('admissions.submission-summary', compact('student', 'docUploadQrSvg', 'docUploadUrl'));
+    }
+
+    /**
+     * 2-Tier Admission Approvals Dashboard (Principal & Admin)
+     */
+    public function approvals(Request $request)
+    {
+        $tab = $request->get('tab');
+        if (!$tab) {
+            $tab = (Auth::user() && Auth::user()->hasRole('principal')) ? 'principal' : 'principal';
+        }
+
+        $pendingPrincipalCount = \App\Models\Student::where('status', 'pending_principal')->count();
+        $pendingAdminCount     = \App\Models\Student::where('status', 'principal_approved')->count();
+        $activeCount           = \App\Models\Student::where('status', 'active')->count();
+        $rejectedCount         = \App\Models\Student::where('status', 'rejected')->count();
+
+        $query = \App\Models\Student::with([
+            'currentEnrollment.class',
+            'currentEnrollment.section',
+            'documents',
+            'principalApprover',
+            'adminApprover',
+            'feePayments',
+        ]);
+
+        switch ($tab) {
+            case 'admin':
+                $query->where('status', 'principal_approved');
+                break;
+            case 'active':
+                $query->where('status', 'active');
+                break;
+            case 'rejected':
+                $query->where('status', 'rejected');
+                break;
+            case 'principal':
+            default:
+                $query->where('status', 'pending_principal');
+                $tab = 'principal';
+                break;
+        }
+
+        $students = $query->latest()->paginate(20);
+
+        return view('admissions.approvals', compact(
+            'students', 'tab', 'pendingPrincipalCount', 'pendingAdminCount', 'activeCount', 'rejectedCount'
+        ));
+    }
+
+    /**
+     * Principal endorses and approves admission application
+     */
+    public function principalApprove(Request $request, int $id)
+    {
+        if (!Auth::user()->hasRole('principal') && !Auth::user()->hasRole('super_admin') && !Auth::user()->can('approve admissions')) {
+            abort(403, 'Unauthorized. Principal permission is required to approve admissions.');
+        }
+
+        $student = \App\Models\Student::findOrFail($id);
+        $student->update([
+            'status'                => 'principal_approved',
+            'principal_approved_at' => now(),
+            'principal_approved_by' => Auth::id(),
+            'principal_notes'       => $request->notes ?? 'Approved by Principal for final enrollment',
+        ]);
+
+        \App\Models\Enquiry::where('student_name', $student->full_name)
+            ->orWhere('enquiry_number', $student->admission_no)
+            ->update(['status' => 'principal_approved']);
+
+        return back()->with('success', "Admission application for {$student->full_name} has been APPROVED by the Principal. It is now awaiting final Admin confirmation.");
+    }
+
+    /**
+     * Admin grants final confirmation: activates student, ID Card, and register
+     */
+    public function adminConfirm(Request $request, int $id)
+    {
+        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('super_admin') && !Auth::user()->can('approve admissions')) {
+            abort(403, 'Unauthorized. Admin permission is required to finalize admissions.');
+        }
+
+        $student = \App\Models\Student::findOrFail($id);
+        $student->update([
+            'status'            => 'active',
+            'admin_approved_at' => now(),
+            'admin_approved_by' => Auth::id(),
+            'admin_notes'       => $request->notes ?? 'Final admission confirmed by Admin',
+        ]);
+
+        // Activate Student Enrollment
+        \App\Models\StudentEnrollment::where('student_id', $student->id)
+            ->update(['status' => 'active']);
+
+        // Finalize Enquiry status
+        \App\Models\Enquiry::where('student_name', $student->full_name)
+            ->orWhere('enquiry_number', $student->admission_no)
+            ->update(['status' => 'converted']);
+
+        return back()->with('success', "Admission for {$student->full_name} is officially CONFIRMED! Student is now active on the general register with unlocked ID Card & TC certificate.");
+    }
+
+    /**
+     * Reject admission application with reason
+     */
+    public function rejectApplication(Request $request, int $id)
+    {
+        $request->validate(['rejection_reason' => 'required|string|max:1000']);
+        $student = \App\Models\Student::findOrFail($id);
+
+        $student->update([
+            'status'           => 'rejected',
+            'rejection_reason' => $request->rejection_reason,
+            'rejected_by'      => Auth::id(),
+            'rejected_at'      => now(),
+        ]);
+
+        \App\Models\StudentEnrollment::where('student_id', $student->id)
+            ->update(['status' => 'rejected']);
+
+        return back()->with('success', "Admission application for {$student->full_name} has been marked as rejected.");
     }
 
     public function show(int $id)
