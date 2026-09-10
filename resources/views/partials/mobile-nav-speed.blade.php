@@ -169,12 +169,13 @@
   // 5. Idle prefetch of top primary modules
   function idlePrefetchModules() {
     var primaryRoutes = [
-      @can('view admissions') "{{ route('admissions.index') }}", @endcan
+      @can('view admissions') "{{ route('admissions.index') }}", "{{ route('admissions.approvals') }}", @endcan
       @can('view students') "{{ route('students.index') }}", @endcan
       @can('view attendance') "{{ route('attendance.index') }}", @endcan
       @can('view examinations') "{{ route('examinations.index') }}", @endcan
       @can('view fees') "{{ route('fees.index') }}", @endcan
       @can('view expenses') "{{ route('expenses.index') }}", @endcan
+      @can('view employees') "{{ route('hr.index') }}", "{{ route('hr.employees') }}", "{{ route('hr.payroll') }}", @endcan
       "{{ route('dashboard') }}"
     ];
 

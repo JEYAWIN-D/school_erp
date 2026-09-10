@@ -27,62 +27,121 @@ class HrController extends Controller
 {
     public function index()
     {
-        $stats = [
-            'total'        => Employee::count(),
-            'active'       => Employee::where('is_active', true)->count(),
-            'teaching'     => Employee::where('employee_type', 'teaching')->where('is_active', true)->count(),
-            'non_teaching' => Employee::where('employee_type', 'non_teaching')->where('is_active', true)->count(),
-            'driver'       => Employee::where('employee_type', 'driver')->where('is_active', true)->count(),
-            'cleaner'      => Employee::where('employee_type', 'cleaner')->where('is_active', true)->count(),
-            'nanny'        => Employee::whereIn('employee_type', ['nanny', 'naani'])->where('is_active', true)->count(),
-        ];
+        $cached = \Illuminate\Support\Facades\Cache::remember('hr_dashboard_overview_' . today()->toDateString(), 45, function() {
+            // Consolidated single-query aggregation for all employee statistics
+            $empRow = DB::table('employees')
+                ->selectRaw("
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN is_active = true THEN 1 END) as active,
+                    COUNT(CASE WHEN employee_type = 'teaching' AND is_active = true THEN 1 END) as teaching,
+                    COUNT(CASE WHEN employee_type = 'non_teaching' AND is_active = true THEN 1 END) as non_teaching,
+                    COUNT(CASE WHEN employee_type = 'driver' AND is_active = true THEN 1 END) as driver,
+                    COUNT(CASE WHEN employee_type = 'cleaner' AND is_active = true THEN 1 END) as cleaner,
+                    COUNT(CASE WHEN employee_type IN ('nanny', 'naani') AND is_active = true THEN 1 END) as nanny
+                ")
+                ->first();
 
-        // Pending leave requests
-        $pendingLeaves = DB::table('leave_requests')
-            ->where('status', 'pending')->count();
+            $stats = [
+                'total'        => (int) ($empRow->total ?? 0),
+                'active'       => (int) ($empRow->active ?? 0),
+                'teaching'     => (int) ($empRow->teaching ?? 0),
+                'non_teaching' => (int) ($empRow->non_teaching ?? 0),
+                'driver'       => (int) ($empRow->driver ?? 0),
+                'cleaner'      => (int) ($empRow->cleaner ?? 0),
+                'nanny'        => (int) ($empRow->nanny ?? 0),
+            ];
 
-        // Today's staff attendance (table may not be migrated yet)
-        try {
-            $todayPresent = DB::table('staff_attendances')
-                ->whereDate('date', today())->whereIn('status', ['present', 'late'])->count();
-            $todayAbsent = DB::table('staff_attendances')
-                ->whereDate('date', today())->where('status', 'absent')->count();
-        } catch (\Exception $e) {
-            $todayPresent = 0;
-            $todayAbsent  = 0;
-        }
+            // Pending leave requests (fail-safe)
+            try {
+                $pendingLeaves = DB::table('leave_requests')
+                    ->where('status', 'pending')
+                    ->count();
+            } catch (\Throwable $e) {
+                $pendingLeaves = 0;
+            }
 
-        // Current month payroll status
-        $currentMonth = now()->format('Y-m');
-        $payrollProcessed = PayrollRecord::where('month', $currentMonth)->count();
-        $payrollTotal = Employee::where('is_active', true)->count();
+            // Today's staff attendance (fail-safe single query)
+            try {
+                $attRow = DB::table('staff_attendances')
+                    ->whereDate('date', today())
+                    ->selectRaw("
+                        COUNT(CASE WHEN status IN ('present', 'late') THEN 1 END) as present_count,
+                        COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent_count
+                    ")
+                    ->first();
+                $todayPresent = (int) ($attRow->present_count ?? 0);
+                $todayAbsent  = (int) ($attRow->absent_count ?? 0);
+            } catch (\Throwable $e) {
+                $todayPresent = 0;
+                $todayAbsent  = 0;
+            }
 
-        // Recent hires (last 30 days)
-        $recentHires = Employee::where('joining_date', '>=', now()->subDays(30)->toDateString())
-            ->orderByDesc('joining_date')->limit(5)->get();
+            // Current month payroll status
+            $currentMonth = now()->format('Y-m');
+            try {
+                $payrollProcessed = DB::table('payroll_records')
+                    ->where('month', $currentMonth)
+                    ->count();
+            } catch (\Throwable $e) {
+                $payrollProcessed = 0;
+            }
+            $payrollTotal = $stats['active'];
 
-        return view('hr.index', compact(
-            'stats', 'pendingLeaves',
-            'todayPresent', 'todayAbsent',
-            'payrollProcessed', 'payrollTotal', 'currentMonth',
-            'recentHires'
-        ));
+            // Recent hires (last 30 days) - select only necessary lightweight columns
+            try {
+                $recentHires = DB::table('employees')
+                    ->where('joining_date', '>=', now()->subDays(30)->toDateString())
+                    ->select('id', 'first_name', 'last_name', 'designation', 'employee_type', 'joining_date')
+                    ->orderByDesc('joining_date')
+                    ->limit(5)
+                    ->get();
+            } catch (\Throwable $e) {
+                $recentHires = collect();
+            }
+
+            return compact(
+                'stats', 'pendingLeaves',
+                'todayPresent', 'todayAbsent',
+                'payrollProcessed', 'payrollTotal', 'currentMonth',
+                'recentHires'
+            );
+        });
+
+        return view('hr.index', $cached);
     }
 
     public function employees(Request $request)
     {
-        $categoryCounts = [
-            'total'        => Employee::count(),
-            'teaching'     => Employee::where('employee_type', 'teaching')->count(),
-            'non_teaching' => Employee::where('employee_type', 'non_teaching')->count(),
-            'driver'       => Employee::where('employee_type', 'driver')->count(),
-            'cleaner'      => Employee::where('employee_type', 'cleaner')->count(),
-            'nanny'        => Employee::whereIn('employee_type', ['nanny', 'naani'])->count(),
-        ];
+        $categoryCounts = \Illuminate\Support\Facades\Cache::remember('hr_employee_category_counts', 30, function() {
+            $catRow = DB::table('employees')
+                ->selectRaw("
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN employee_type = 'teaching' THEN 1 END) as teaching,
+                    COUNT(CASE WHEN employee_type = 'non_teaching' THEN 1 END) as non_teaching,
+                    COUNT(CASE WHEN employee_type = 'driver' THEN 1 END) as driver,
+                    COUNT(CASE WHEN employee_type = 'cleaner' THEN 1 END) as cleaner,
+                    COUNT(CASE WHEN employee_type IN ('nanny', 'naani') THEN 1 END) as nanny
+                ")
+                ->first();
+
+            return [
+                'total'        => (int) ($catRow->total ?? 0),
+                'teaching'     => (int) ($catRow->teaching ?? 0),
+                'non_teaching' => (int) ($catRow->non_teaching ?? 0),
+                'driver'       => (int) ($catRow->driver ?? 0),
+                'cleaner'      => (int) ($catRow->cleaner ?? 0),
+                'nanny'        => (int) ($catRow->nanny ?? 0),
+            ];
+        });
 
         $typeFilter = $request->get('type');
 
-        $employees = Employee::when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
+        $employees = Employee::select([
+                'id', 'employee_code', 'first_name', 'last_name', 'designation',
+                'department', 'employee_type', 'mobile', 'official_email', 'photo',
+                'is_active', 'joining_date'
+            ])
+            ->when($request->search, fn($q, $v) => $q->where(function ($q) use ($v) {
                 $q->where('first_name', 'like', "%$v%")
                   ->orWhere('last_name', 'like', "%$v%")
                   ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%$v%"])
@@ -102,7 +161,9 @@ class HrController extends Controller
             ->when(!$request->show_all, fn($q) => $q->where('is_active', true))
             ->orderBy('id')->paginate(36)->withQueryString();
 
-        $departments = Employee::select('department')->distinct()->pluck('department')->filter();
+        $departments = \Illuminate\Support\Facades\Cache::remember('hr_departments_list', 120, function() {
+            return Employee::select('department')->distinct()->pluck('department')->filter()->values();
+        });
 
         return view('hr.employees', compact('employees', 'departments', 'categoryCounts', 'typeFilter'));
     }
@@ -2394,4 +2455,9 @@ class HrController extends Controller
         $managerName = $request->manager_id ? Employee::find($request->manager_id)?->full_name : 'none';
         return back()->with('success', "{$employee->full_name}'s reporting manager set to {$managerName}.");
     }
+}
+
+// Backward-compatibility alias for case-sensitive environments
+if (!class_exists(\App\Http\Controllers\Admin\HRController::class, false)) {
+    class_alias(\App\Http\Controllers\Admin\HrController::class, 'App\Http\Controllers\Admin\HRController');
 }
