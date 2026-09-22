@@ -266,8 +266,8 @@ class AdmissionController extends Controller
             $book    = $materialFee > 0 ? $materialFee : $admissionFee;
             $exam    = $term2Fee;
             $lab     = $term3Fee;
-            $hostel  = 30000;
-            $combined = $totalBasic + $hostel;
+            $hostel  = 0;
+            $combined = $totalBasic;
 
             $standardFees[$cls->id] = [
                 'class_id'             => $cls->id,
@@ -293,9 +293,9 @@ class AdmissionController extends Controller
                 'book_fee'             => $book,
                 'exam_fee'             => $exam,
                 'lab_fee'              => $lab,
-                'hostel_annual'        => $hostel,
-                'hostel_monthly'       => 2500,
-                'combined_total'       => $combined,
+                'hostel_annual'        => 0,
+                'hostel_monthly'       => 0,
+                'combined_total'       => $totalBasic,
                 'has_integrated'       => isset($fee['integrated']),
                 'integrated_fee'       => $fee['integrated']['total_basic'] ?? null,
                 'integrated_term1'     => $fee['integrated']['term1_fee'] ?? null,
@@ -479,11 +479,12 @@ class AdmissionController extends Controller
         $standardFees = $feeData['standardFees'];
         $activities   = $feeData['activities'];
         $school       = \App\Models\SchoolSetting::first() ?? (object)[
-            'school_name' => 'DASA EDUGROUP',
-            'phone'       => '+91 98765 43210',
-            'email'       => 'info@dasaedugroup.com',
-            'website'     => 'www.dasaedugroup.com',
-            'address'     => '123, Education City Campus, India'
+            'school_name' => 'ERODE PUBLIC SCHOOL',
+            'tagline'     => 'Affiliated to CBSE, New Delhi (Affiliation No: 1930965)',
+            'phone'       => '+91 98427 88888',
+            'email'       => 'info@erodepublicschool.edu.in',
+            'website'     => 'www.erodepublicschool.edu.in',
+            'address'     => 'Chennimalai Road, Erode, Tamil Nadu'
         ];
 
         $selectedClass = $classId ? $classes->firstWhere('id', $classId) : $classes->first();
@@ -494,15 +495,16 @@ class AdmissionController extends Controller
         $currentFee = $selectedClass ? ($standardFees[$selectedClass->id] ?? null) : null;
         if (!$currentFee) {
             $currentFee = [
-                'tuition_fee' => 18000,
-                'book_fee'    => 2500,
-                'exam_fee'    => 1500,
-                'lab_fee'     => 0,
-                'total_basic' => 22000,
-                'hostel_annual' => 30000,
-                'hostel_monthly' => 2500,
-                'combined_total' => 52000,
-                'tier'        => 'Basic Form'
+                'term1_fee'     => 21000,
+                'term2_fee'     => 10000,
+                'term3_fee'     => 10000,
+                'material_fee'  => 0,
+                'admission_fee' => 2500,
+                'total_basic'   => 41000,
+                'tier'          => 'Pre-KG',
+                'term1_date'    => '01.04.2026',
+                'term2_date'    => '05.08.2026',
+                'term3_date'    => '05.12.2026',
             ];
         }
 
