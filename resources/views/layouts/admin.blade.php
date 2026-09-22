@@ -140,7 +140,8 @@
       @canany(['view fees','view employees'])
       <p class="nav-group-label">FINANCE</p>
       @can('view fees')
-      <x-nav-item route="fees.index"    icon="banknotes"    label="Fee Management" :active="str_starts_with($currentRoute, 'fees')"    :open="$sidebarOpen ?? true" />
+      <x-nav-item route="accounts.index" icon="calculator"   label="Account Management" :active="str_starts_with($currentRoute, 'accounts')" :open="$sidebarOpen ?? true" />
+      <x-nav-item route="fees.index"     icon="banknotes"    label="Fee Management"     :active="str_starts_with($currentRoute, 'fees')"     :open="$sidebarOpen ?? true" />
       @endcan
       @can('view employees')
       <x-nav-item route="hr.index"      icon="identification" label="HR & Payroll" :active="str_starts_with($currentRoute, 'hr')"      :open="$sidebarOpen ?? true" />

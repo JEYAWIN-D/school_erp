@@ -33,7 +33,11 @@
             <input type="text" name="parent_name" class="input" required value="{{ old('parent_name') }}">
           </div>
           <div><label class="label">Mobile Number <span class="text-red-500">*</span></label>
-            <input type="tel" name="parent_mobile" class="input" required value="{{ old('parent_mobile') }}" placeholder="10-digit mobile">
+            <input type="tel" name="parent_mobile" class="input" required value="{{ old('parent_mobile') }}"
+                   inputmode="numeric" maxlength="10" minlength="10" pattern="[6-9][0-9]{9}"
+                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)"
+                   placeholder="10-digit mobile (e.g. 9876543210)">
+            @error('parent_mobile') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
           </div>
         </div>
         <div><label class="label">Email Address</label>

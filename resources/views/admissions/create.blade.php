@@ -3,7 +3,7 @@
 @section('title', 'New Student Admission Form — DASA EDUGROUP (' . ($academicYear?->name ?? '2025-2026') . ')')
 
 @section('content')
-<div class="max-w-4xl mx-auto space-y-6" x-data="{
+<div class="max-w-5xl mx-auto space-y-6" x-data="{
   classList: {{ json_encode($classes->map(fn($c) => ['id' => $c->id, 'name' => $c->name])) }},
   sectionsList: {{ json_encode($sections->map(fn($s) => ['id' => $s->id, 'class_id' => $s->class_id, 'name' => $s->name])) }},
   standardFees: {{ json_encode($standardFees) }},
@@ -65,9 +65,15 @@
   },
   docUploadMode: 'desk',
 
-  // Payment Terms State
+  // Payment Terms & Account Destination State
   paymentTerms: 'single',
   paymentMode: 'UPI',
+  paymentAccount: 'upi',
+  upiRefNo: '',
+  setAccount(account, mode) {
+    this.paymentAccount = account;
+    this.paymentMode = mode;
+  },
   paymentDate: '{{ date("Y-m-d") }}',
   term2DueDate: '{{ date("Y-m-d", strtotime("+90 days")) }}',
   term3DueDate: '{{ date("Y-m-d", strtotime("+180 days")) }}',
@@ -246,11 +252,68 @@
     <p class="text-xs text-slate-500 font-medium mt-0.5">Academic Year: {{ $academicYear?->name ?? '2025-2026' }} &bull; Date: {{ date('d-m-Y') }}</p>
   </div>
 
-  <form method="POST" action="{{ route('admissions.store') }}" enctype="multipart/form-data" class="space-y-6">
+  {{-- Clean Section Navigator --}}
+  <div class="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between gap-2 overflow-x-auto print:hidden sticky top-3 z-30 backdrop-blur-md bg-white/95">
+    <a href="#section-student" class="flex-1 min-w-[150px] flex items-center gap-2.5 px-4 py-2 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group">
+      <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">1</span>
+      <div>
+        <span class="font-extrabold text-slate-800 text-xs block">Student Info</span>
+        <span class="text-[10px] text-slate-400 font-medium">Class, Identity, Kit</span>
+      </div>
+    </a>
+    <div class="text-slate-300 text-xs font-bold">&rarr;</div>
+    <a href="#section-parents" class="flex-1 min-w-[150px] flex items-center gap-2.5 px-4 py-2 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group">
+      <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-black text-xs flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition">2</span>
+      <div>
+        <span class="font-extrabold text-slate-800 text-xs block">Parents &amp; Facilities</span>
+        <span class="text-[10px] text-slate-400 font-medium">Family, ASP, Bus</span>
+      </div>
+    </a>
+    <div class="text-slate-300 text-xs font-bold">&rarr;</div>
+    <a href="#section-billing" class="flex-1 min-w-[150px] flex items-center gap-2.5 px-4 py-2 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-200 group">
+      <span class="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-black text-xs flex items-center justify-center shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition">3</span>
+      <div>
+        <span class="font-extrabold text-slate-800 text-xs block">Fees &amp; Payment</span>
+        <span class="text-[10px] text-slate-400 font-medium">UPI / Cash Box 1 &amp; 2</span>
+      </div>
+    </a>
+  </div>
+
+  <form id="admissionCreateForm" method="POST" action="{{ route('admissions.store') }}" enctype="multipart/form-data" class="space-y-6" novalidate>
     @csrf
 
+    {{-- Server Validation Error Banner --}}
+    @if ($errors->any())
+      <div id="serverValidationAlert" class="p-5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 shadow-md flex items-start gap-4">
+        <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h4 class="font-extrabold text-sm text-rose-900">Please review and fix the following ({{ $errors->count() }}) errors:</h4>
+          <ul class="list-disc list-inside text-xs mt-1.5 space-y-1 font-medium text-rose-800">
+            @foreach ($errors->all() as $error)
+              <li>{{ $error }}</li>
+            @endforeach
+          </ul>
+        </div>
+        <button type="button" onclick="this.parentElement.remove()" class="text-rose-400 hover:text-rose-700 font-bold text-sm p-1">✕</button>
+      </div>
+    @endif
+
+    {{-- Client Validation Error Banner --}}
+    <div id="clientValidationAlert" class="hidden p-5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 shadow-md flex items-start gap-4">
+      <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <div class="flex-1 min-w-0">
+        <h4 class="font-extrabold text-sm text-rose-900" id="clientValidationTitle">Please correct the highlighted fields before submitting:</h4>
+        <ul id="clientValidationList" class="list-disc list-inside text-xs mt-1.5 space-y-1 font-medium text-rose-800"></ul>
+      </div>
+      <button type="button" onclick="document.getElementById('clientValidationAlert').classList.add('hidden')" class="text-rose-400 hover:text-rose-700 font-bold text-sm p-1">✕</button>
+    </div>
+
     {{-- ── Step 1: Student Information ──────────────────────────── --}}
-    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-5 print-card">
+    <div id="section-student" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-5 print-card scroll-mt-20">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h2 class="text-base font-bold text-slate-900">Student Information</h2>
         <span class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">Step 1 of 3</span>
@@ -282,44 +345,50 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">First Name <span class="text-rose-500">*</span></label>
-            <input type="text" name="first_name" required value="{{ old('first_name') }}"
+            <input type="text" id="first_name" name="first_name" required maxlength="50" value="{{ old('first_name') }}"
                    placeholder="e.g. Akash"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
             @error('first_name') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="first_name_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Last Name</label>
-            <input type="text" name="last_name" value="{{ old('last_name') }}"
+            <input type="text" id="last_name" name="last_name" maxlength="50" value="{{ old('last_name') }}"
                    placeholder="e.g. A R"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
             @error('last_name') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="last_name_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Student Email Address</label>
-            <input type="email" name="email" value="{{ old('email') }}"
+            <input type="email" id="email" name="email" maxlength="100" value="{{ old('email') }}"
                    placeholder="student@example.com"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
             @error('email') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="email_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Date of Birth</label>
-            <input type="date" name="dob" value="{{ old('dob') }}"
+            <input type="date" id="dob" name="dob" max="{{ date('Y-m-d') }}" value="{{ old('dob') }}"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700">
+            @error('dob') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="dob_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Gender</label>
-            <select name="gender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700">
+            <select id="gender" name="gender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700">
               <option value="">Select gender</option>
               <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>Male</option>
               <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>Female</option>
               <option value="other" {{ old('gender') === 'other' ? 'selected' : '' }}>Other</option>
             </select>
+            @error('gender') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
           </div>
         </div>
 
@@ -327,18 +396,20 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="sm:col-span-2">
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Applying for Standard / Class <span class="text-rose-500">*</span></label>
-            <select name="class_id" required x-model="selectedClassId" @change="selectedSectionId = ''"
+            <select id="class_id" name="class_id" required x-model="selectedClassId" @change="selectedSectionId = ''"
                     class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700">
               <option value="">-- Select Standard (Pre-KG to Class 12) --</option>
               @foreach($classes as $c)
                 <option value="{{ $c->id }}">Class {{ $c->name }}</option>
               @endforeach
             </select>
+            @error('class_id') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="class_id_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Section</label>
-            <select name="section_id" x-model="selectedSectionId"
+            <select id="section_id" name="section_id" x-model="selectedSectionId"
                     class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700">
               <option value="">Select Section (Default Section A)</option>
               <template x-for="sec in availableSections" :key="sec.id">
@@ -350,6 +421,7 @@
                 </template>
               </template>
             </select>
+            @error('section_id') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
           </div>
         </div>
 
@@ -492,22 +564,38 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Aadhaar Number</label>
-            <input type="text" name="aadhaar_no" value="{{ old('aadhaar_no') }}" placeholder="12-digit Aadhaar"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700">Aadhaar Number</label>
+              <span id="aadhaar_no_badge" class="text-[10px] font-mono font-bold text-slate-400">12 digits (Optional)</span>
+            </div>
+            <input type="text" id="aadhaar_no" name="aadhaar_no" value="{{ old('aadhaar_no') }}"
+                   inputmode="numeric" maxlength="12" pattern="[0-9]{12}"
+                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,12); updateAadhaarBadge(this, 'aadhaar_no_badge')"
+                   placeholder="12-digit Aadhaar"
+                   class="w-full px-4 py-3 rounded-xl border @error('aadhaar_no') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
+            @error('aadhaar_no') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="aadhaar_no_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Pincode</label>
-            <input type="text" name="pincode" value="{{ old('pincode') }}" placeholder="6-digit PIN"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700">Pincode</label>
+              <span id="pincode_badge" class="text-[10px] font-mono font-bold text-slate-400">6 digits (Optional)</span>
+            </div>
+            <input type="text" id="pincode" name="pincode" value="{{ old('pincode') }}"
+                   inputmode="numeric" maxlength="6" pattern="[1-9][0-9]{5}"
+                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,6); updatePincodeBadge(this, 'pincode_badge')"
+                   placeholder="6-digit PIN"
+                   class="w-full px-4 py-3 rounded-xl border @error('pincode') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
+            @error('pincode') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="pincode_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
         </div>
       </div>
     </div>
 
     {{-- ── Step 2: Parent & Guardian Information ───────────────── --}}
-    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6 print-card">
+    <div id="section-parents" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6 print-card scroll-mt-20">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h2 class="text-base font-bold text-slate-900">Parent &amp; Guardian Details</h2>
         <span class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">Step 2 of 3</span>
@@ -541,41 +629,61 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Father / Primary Parent Name <span class="text-rose-500">*</span></label>
-            <input type="text" name="parent_name" required value="{{ old('parent_name') }}"
+            <input type="text" id="parent_name" name="parent_name" required maxlength="100" value="{{ old('parent_name') }}"
                    placeholder="Father Name"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
             @error('parent_name') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="parent_name_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Mobile Number <span class="text-rose-500">*</span></label>
-            <input type="text" name="parent_mobile" required value="{{ old('parent_mobile') }}"
-                   placeholder="10-digit mobile"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700">Father Mobile Number <span class="text-rose-500">*</span></label>
+              <span id="parent_mobile_badge" class="text-[10px] font-mono font-bold text-slate-400">10 digits required</span>
+            </div>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-xs font-bold text-slate-400 select-none font-mono">+91</span>
+              <input type="tel" id="parent_mobile" name="parent_mobile" required
+                     inputmode="numeric" maxlength="10" minlength="10" pattern="[6-9][0-9]{9}"
+                     value="{{ old('parent_mobile') }}"
+                     oninput="this.value=this.value.replace(/\D/g,'').slice(0,10); updatePhoneBadge(this, 'parent_mobile_badge', true)"
+                     placeholder="9876543210"
+                     class="w-full pl-12 pr-4 py-3 rounded-xl border @error('parent_mobile') border-rose-400 ring-2 ring-rose-100 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-bold font-mono transition text-slate-900 tracking-wider">
+            </div>
             @error('parent_mobile') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="parent_mobile_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Email Address</label>
-            <input type="email" name="parent_email" value="{{ old('parent_email') }}"
+            <input type="email" id="parent_email" name="parent_email" maxlength="100" value="{{ old('parent_email') }}"
                    placeholder="father@example.com"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                   class="w-full px-4 py-3 rounded-xl border @error('parent_email') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
+            @error('parent_email') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="parent_email_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Occupation</label>
-            <input type="text" name="father_occupation" value="{{ old('father_occupation') }}"
+            <input type="text" id="father_occupation" name="father_occupation" maxlength="100" value="{{ old('father_occupation') }}"
                    placeholder="e.g. Engineer / Business"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Father Aadhaar Number</label>
-            <input type="text" name="father_aadhaar" value="{{ old('father_aadhaar') }}"
-                   placeholder="12-digit Aadhaar" maxlength="14"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono text-slate-900">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700">Father Aadhaar Number</label>
+              <span id="father_aadhaar_badge" class="text-[10px] font-mono font-bold text-slate-400">12 digits (Optional)</span>
+            </div>
+            <input type="text" id="father_aadhaar" name="father_aadhaar" value="{{ old('father_aadhaar') }}"
+                   inputmode="numeric" maxlength="12" pattern="[0-9]{12}"
+                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,12); updateAadhaarBadge(this, 'father_aadhaar_badge')"
+                   placeholder="12-digit Aadhaar"
+                   class="w-full px-4 py-3 rounded-xl border @error('father_aadhaar') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono text-slate-900">
+            @error('father_aadhaar') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="father_aadhaar_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
         </div>
       </div>
@@ -608,32 +716,47 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Mother Name</label>
-            <input type="text" name="mother_name" value="{{ old('mother_name') }}"
+            <input type="text" id="mother_name" name="mother_name" maxlength="100" value="{{ old('mother_name') }}"
                    placeholder="Mother Name"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                   class="w-full px-4 py-3 rounded-xl border @error('mother_name') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
+            @error('mother_name') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="mother_name_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Mother Mobile Number</label>
-            <input type="text" name="mother_mobile" value="{{ old('mother_mobile') }}"
-                   placeholder="10-digit mobile"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition font-mono">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700">Mother Mobile Number</label>
+              <span id="mother_mobile_badge" class="text-[10px] font-mono font-bold text-slate-400">10 digits (Optional)</span>
+            </div>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-xs font-bold text-slate-400 select-none font-mono">+91</span>
+              <input type="tel" id="mother_mobile" name="mother_mobile"
+                     inputmode="numeric" maxlength="10" pattern="[6-9][0-9]{9}"
+                     value="{{ old('mother_mobile') }}"
+                     oninput="this.value=this.value.replace(/\D/g,'').slice(0,10); updatePhoneBadge(this, 'mother_mobile_badge', false)"
+                     placeholder="10-digit mobile"
+                     class="w-full pl-12 pr-4 py-3 rounded-xl border @error('mother_mobile') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-bold font-mono transition text-slate-900 tracking-wider">
+            </div>
+            @error('mother_mobile') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="mother_mobile_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Mother Occupation</label>
-            <input type="text" name="mother_occupation" value="{{ old('mother_occupation') }}"
+            <input type="text" id="mother_occupation" name="mother_occupation" maxlength="100" value="{{ old('mother_occupation') }}"
                    placeholder="e.g. Teacher / Homemaker / Engineer"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Mother Email Address</label>
-            <input type="email" name="mother_email" value="{{ old('mother_email') }}"
+            <input type="email" id="mother_email" name="mother_email" maxlength="100" value="{{ old('mother_email') }}"
                    placeholder="mother@example.com"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                   class="w-full px-4 py-3 rounded-xl border @error('mother_email') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
+            @error('mother_email') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="mother_email_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
         </div>
       </div>
@@ -666,21 +789,32 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Guardian Name</label>
-            <input type="text" name="guardian_name" value="{{ old('guardian_name') }}"
+            <input type="text" id="guardian_name" name="guardian_name" maxlength="100" value="{{ old('guardian_name') }}"
                    placeholder="e.g. Grandparent / Local Guardian"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1.5">Guardian Mobile Number</label>
-            <input type="text" name="guardian_mobile" value="{{ old('guardian_mobile') }}"
-                   placeholder="10-digit mobile"
-                   class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900 font-mono">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-bold text-slate-700">Guardian Mobile Number</label>
+              <span id="guardian_mobile_badge" class="text-[10px] font-mono font-bold text-slate-400">10 digits (Optional)</span>
+            </div>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-xs font-bold text-slate-400 select-none font-mono">+91</span>
+              <input type="tel" id="guardian_mobile" name="guardian_mobile"
+                     inputmode="numeric" maxlength="10" pattern="[6-9][0-9]{9}"
+                     value="{{ old('guardian_mobile') }}"
+                     oninput="this.value=this.value.replace(/\D/g,'').slice(0,10); updatePhoneBadge(this, 'guardian_mobile_badge', false)"
+                     placeholder="10-digit mobile"
+                     class="w-full pl-12 pr-4 py-3 rounded-xl border @error('guardian_mobile') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-bold font-mono transition text-slate-900 tracking-wider">
+            </div>
+            @error('guardian_mobile') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="guardian_mobile_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
           </div>
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">Relationship to Student</label>
-            <input type="text" name="guardian_relation" value="{{ old('guardian_relation') }}"
+            <input type="text" id="guardian_relation" name="guardian_relation" maxlength="50" value="{{ old('guardian_relation') }}"
                    placeholder="e.g. Uncle / Aunt / Grandfather"
                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
           </div>
@@ -1038,7 +1172,7 @@
     </div>
 
     {{-- ── Step 3: Payment Terms & Fee Collection Card ─────────── --}}
-    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6 print-card">
+    <div id="section-billing" class="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6 print-card scroll-mt-20">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <div class="flex items-center gap-2">
           <span class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">💳</span>
@@ -1173,29 +1307,100 @@
         </div>
       </div>
 
-      {{-- Payment Collection Controls --}}
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+      {{-- Payment Destination Account & Mode Selector --}}
+      <div class="space-y-4 pt-2">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1.5">Payment Mode <span class="text-rose-500">*</span></label>
-          <select name="payment_mode" required x-model="paymentMode" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700">
-            <option value="UPI">UPI</option>
-            <option value="Net Banking">Net Banking</option>
-            <option value="Cash">Cash</option>
-          </select>
+          <label class="block text-xs font-black text-slate-900 uppercase tracking-wider mb-1">
+            Payment Destination Account &amp; Mode <span class="text-rose-500">*</span>
+          </label>
+          <p class="text-xs text-slate-500 font-medium">Select whether the fee was paid via UPI QR or physical cash (automatically added to the respective box in Account Management):</p>
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1.5">Payment Date</label>
-          <input type="date" name="payment_date" x-model="paymentDate" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700">
+        {{-- Hidden fields for form submission --}}
+        <input type="hidden" name="payment_mode" :value="paymentMode">
+        <input type="hidden" name="payment_account" :value="paymentAccount">
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {{-- Option 1: UPI Account --}}
+          <div @click="setAccount('upi', 'UPI')"
+               class="p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative select-none"
+               :class="paymentAccount === 'upi' ? 'border-purple-500 bg-purple-50/70 ring-2 ring-purple-100 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'">
+            <div class="flex items-start justify-between">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center transition"
+                   :class="paymentAccount === 'upi' ? 'bg-purple-600 text-white shadow-xs' : 'bg-purple-50 text-purple-600'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+              </div>
+              <span x-show="paymentAccount === 'upi'" class="text-[10px] font-extrabold uppercase tracking-wide text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">Selected</span>
+            </div>
+            <div class="mt-3">
+              <h4 class="text-xs font-bold text-slate-900">UPI Digital Account</h4>
+              <p class="text-[11px] text-slate-500 mt-0.5 font-medium">PhonePe, GPay, Paytm &amp; QR</p>
+              <span class="text-[10px] text-purple-700 font-bold block mt-2">&rarr; Deposited to UPI Ledger</span>
+            </div>
+          </div>
+
+          {{-- Option 2: Cash Box 1 (Front Office) --}}
+          <div @click="setAccount('cash_box_1', 'Cash')"
+               class="p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative select-none"
+               :class="paymentAccount === 'cash_box_1' ? 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-100 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'">
+            <div class="flex items-start justify-between">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center transition"
+                   :class="paymentAccount === 'cash_box_1' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-50 text-emerald-600'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              </div>
+              <span x-show="paymentAccount === 'cash_box_1'" class="text-[10px] font-extrabold uppercase tracking-wide text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">Selected</span>
+            </div>
+            <div class="mt-3">
+              <h4 class="text-xs font-bold text-slate-900">Front Office Cash (Box 1)</h4>
+              <p class="text-[11px] text-slate-500 mt-0.5 font-medium">Front Desk &amp; Admission Counter</p>
+              <span class="text-[10px] text-emerald-700 font-bold block mt-2">&rarr; Deposited to Cash Box 1</span>
+            </div>
+          </div>
+
+          {{-- Option 3: Cash Box 2 (Accounts Dept) --}}
+          <div @click="setAccount('cash_box_2', 'Cash')"
+               class="p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative select-none"
+               :class="paymentAccount === 'cash_box_2' ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-100 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'">
+            <div class="flex items-start justify-between">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center transition"
+                   :class="paymentAccount === 'cash_box_2' ? 'bg-blue-600 text-white shadow-xs' : 'bg-blue-50 text-blue-600'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              </div>
+              <span x-show="paymentAccount === 'cash_box_2'" class="text-[10px] font-extrabold uppercase tracking-wide text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200">Selected</span>
+            </div>
+            <div class="mt-3">
+              <h4 class="text-xs font-bold text-slate-900">Accounts Vault (Box 2)</h4>
+              <p class="text-[11px] text-slate-500 mt-0.5 font-medium">Accounts Department Vault</p>
+              <span class="text-[10px] text-blue-700 font-bold block mt-2">&rarr; Deposited to Cash Box 2</span>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1.5">Amount Collected Today (₹) <span class="text-rose-500">*</span></label>
-          <input type="number" step="0.01" name="amount_collected" required
-                 :value="userAmountCollected !== null ? userAmountCollected : term1Amount"
-                 @input="userAmountCollected = $event.target.value"
-                 placeholder="0.00"
-                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-bold font-mono transition text-slate-900">
+        {{-- UPI UTR / Reference ID Field (Visible when UPI is active) --}}
+        <div x-show="paymentAccount === 'upi'" x-transition class="p-4 bg-purple-50/70 rounded-2xl border border-purple-200/80 space-y-1.5">
+          <label class="block text-xs font-bold text-slate-800">UPI Transaction ID / UTR Number <span class="text-slate-400 font-normal">(Optional)</span></label>
+          <input type="text" id="transaction_id" name="transaction_id" x-model="upiRefNo" placeholder="e.g. 202612345678 or UPI UTR No."
+                 class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-mono font-medium text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition outline-none">
+          <p class="text-[11px] text-slate-500 font-medium">This transaction ID will be stored with the student fee receipt and matched in Account Management.</p>
+        </div>
+
+        {{-- Payment Date & Amount Row --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Payment Date <span class="text-rose-500">*</span></label>
+            <input type="date" id="payment_date" name="payment_date" x-model="paymentDate" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-700 font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">Amount Collected Today (₹) <span class="text-rose-500">*</span></label>
+            <input type="number" step="0.01" min="0" id="amount_collected" name="amount_collected" required
+                   :value="userAmountCollected !== null ? userAmountCollected : term1Amount"
+                   @input="userAmountCollected = $event.target.value"
+                   placeholder="0.00"
+                   class="w-full px-4 py-3 rounded-xl border @error('amount_collected') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-bold font-mono transition text-slate-900">
+            @error('amount_collected') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+            <p id="amount_collected_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
+          </div>
         </div>
       </div>
 
@@ -1226,23 +1431,25 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1.5">Previous School</label>
-          <input type="text" name="previous_school" value="{{ old('previous_school') }}"
+          <input type="text" id="previous_school" name="previous_school" value="{{ old('previous_school') }}"
                  placeholder="School name"
-                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1.5">Previous Class</label>
-          <input type="text" name="previous_class" value="{{ old('previous_class') }}"
+          <input type="text" id="previous_class" name="previous_class" value="{{ old('previous_class') }}"
                  placeholder="e.g. Class 5"
-                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1.5">Percentage / CGPA</label>
-          <input type="number" step="0.1" name="previous_percentage" value="{{ old('previous_percentage') }}"
+          <input type="number" step="0.1" min="0" max="100" id="previous_percentage" name="previous_percentage" value="{{ old('previous_percentage') }}"
                  placeholder="0–100"
-                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition">
+                 class="w-full px-4 py-3 rounded-xl border @error('previous_percentage') border-rose-400 @else border-slate-200 @enderror focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm font-medium transition text-slate-900 font-mono">
+          @error('previous_percentage') <p class="text-xs text-rose-500 mt-1 font-semibold">{{ $message }}</p> @enderror
+          <p id="previous_percentage_client_err" class="text-xs text-rose-500 mt-1 font-semibold hidden"></p>
         </div>
       </div>
     </div>
@@ -1348,4 +1555,286 @@
     }
   }
 </style>
+
+<script>
+  // Real-time phone badge updater
+  function updatePhoneBadge(input, badgeId, isRequired = false) {
+    const badge = document.getElementById(badgeId);
+    if (!badge) return;
+    const val = input.value.trim();
+    const len = val.length;
+
+    if (len === 0) {
+      if (isRequired) {
+        badge.innerHTML = '<span class="text-amber-600 font-bold">10 digits required</span>';
+      } else {
+        badge.innerHTML = '<span class="text-slate-400">10 digits (Optional)</span>';
+      }
+      input.classList.remove('border-rose-400', 'border-emerald-500', 'ring-2', 'ring-rose-100', 'ring-emerald-100');
+      return;
+    }
+
+    if (len < 10) {
+      badge.innerHTML = `<span class="text-blue-600 font-bold">${len}/10 digits</span>`;
+      input.classList.remove('border-emerald-500', 'ring-emerald-100');
+    } else if (len === 10) {
+      if (/^[6-9]\d{9}$/.test(val)) {
+        badge.innerHTML = '<span class="text-emerald-600 font-bold flex items-center gap-1"><i class="fas fa-check-circle"></i> Valid 10-digit number</span>';
+        input.classList.remove('border-rose-400', 'ring-rose-100');
+        input.classList.add('border-emerald-500', 'ring-2', 'ring-emerald-100');
+      } else {
+        badge.innerHTML = '<span class="text-rose-600 font-bold flex items-center gap-1"><i class="fas fa-exclamation-circle"></i> Must start with 6, 7, 8, or 9</span>';
+        input.classList.remove('border-emerald-500', 'ring-emerald-100');
+        input.classList.add('border-rose-400', 'ring-2', 'ring-rose-100');
+      }
+    }
+  }
+
+  // Real-time Aadhaar badge updater
+  function updateAadhaarBadge(input, badgeId) {
+    const badge = document.getElementById(badgeId);
+    if (!badge) return;
+    const val = input.value.trim();
+    const len = val.length;
+
+    if (len === 0) {
+      badge.innerHTML = '<span class="text-slate-400">12 digits (Optional)</span>';
+      input.classList.remove('border-rose-400', 'border-emerald-500', 'ring-2', 'ring-rose-100', 'ring-emerald-100');
+      return;
+    }
+
+    if (len < 12) {
+      badge.innerHTML = `<span class="text-blue-600 font-bold">${len}/12 digits</span>`;
+      input.classList.remove('border-emerald-500', 'ring-emerald-100');
+    } else if (len === 12) {
+      badge.innerHTML = '<span class="text-emerald-600 font-bold flex items-center gap-1"><i class="fas fa-check-circle"></i> Valid 12-digit Aadhaar</span>';
+      input.classList.remove('border-rose-400', 'ring-rose-100');
+      input.classList.add('border-emerald-500', 'ring-2', 'ring-emerald-100');
+    }
+  }
+
+  // Real-time Pincode badge updater
+  function updatePincodeBadge(input, badgeId) {
+    const badge = document.getElementById(badgeId);
+    if (!badge) return;
+    const val = input.value.trim();
+    const len = val.length;
+
+    if (len === 0) {
+      badge.innerHTML = '<span class="text-slate-400">6 digits (Optional)</span>';
+      input.classList.remove('border-rose-400', 'border-emerald-500', 'ring-2', 'ring-rose-100', 'ring-emerald-100');
+      return;
+    }
+
+    if (len < 6) {
+      badge.innerHTML = `<span class="text-blue-600 font-bold">${len}/6 digits</span>`;
+      input.classList.remove('border-emerald-500', 'ring-emerald-100');
+    } else if (len === 6) {
+      badge.innerHTML = '<span class="text-emerald-600 font-bold flex items-center gap-1"><i class="fas fa-check-circle"></i> Valid 6-digit PIN</span>';
+      input.classList.remove('border-rose-400', 'ring-rose-100');
+      input.classList.add('border-emerald-500', 'ring-2', 'ring-emerald-100');
+    }
+  }
+
+  // Initialize badges on page load if old inputs exist
+  document.addEventListener('DOMContentLoaded', function() {
+    const parentMobile = document.getElementById('parent_mobile');
+    if (parentMobile && parentMobile.value) updatePhoneBadge(parentMobile, 'parent_mobile_badge', true);
+
+    const motherMobile = document.getElementById('mother_mobile');
+    if (motherMobile && motherMobile.value) updatePhoneBadge(motherMobile, 'mother_mobile_badge', false);
+
+    const guardianMobile = document.getElementById('guardian_mobile');
+    if (guardianMobile && guardianMobile.value) updatePhoneBadge(guardianMobile, 'guardian_mobile_badge', false);
+
+    const aadhaarNo = document.getElementById('aadhaar_no');
+    if (aadhaarNo && aadhaarNo.value) updateAadhaarBadge(aadhaarNo, 'aadhaar_no_badge');
+
+    const fatherAadhaar = document.getElementById('father_aadhaar');
+    if (fatherAadhaar && fatherAadhaar.value) updateAadhaarBadge(fatherAadhaar, 'father_aadhaar_badge');
+
+    const pincode = document.getElementById('pincode');
+    if (pincode && pincode.value) updatePincodeBadge(pincode, 'pincode_badge');
+
+    // Comprehensive client-side form validation interceptor
+    const form = document.getElementById('admissionCreateForm');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        let errors = [];
+        let firstInvalidElement = null;
+
+        // Reset previous client error highlights
+        document.querySelectorAll('[id$="_client_err"]').forEach(el => {
+          el.innerText = '';
+          el.classList.add('hidden');
+        });
+        document.querySelectorAll('.border-rose-400').forEach(el => {
+          el.classList.remove('border-rose-400', 'ring-2', 'ring-rose-100');
+        });
+
+        function markInvalid(inputEl, errElId, message) {
+          errors.push(message);
+          if (inputEl) {
+            inputEl.classList.add('border-rose-400', 'ring-2', 'ring-rose-100');
+            if (!firstInvalidElement) firstInvalidElement = inputEl;
+          }
+          const errEl = document.getElementById(errElId);
+          if (errEl) {
+            errEl.innerText = message;
+            errEl.classList.remove('hidden');
+          }
+        }
+
+        // 1. Student First Name
+        const firstName = document.getElementById('first_name');
+        if (!firstName || !firstName.value.trim()) {
+          markInvalid(firstName, 'first_name_client_err', 'Student First Name is required.');
+        }
+
+        // 2. Class
+        const classId = document.getElementById('class_id');
+        if (!classId || !classId.value.trim()) {
+          markInvalid(classId, 'class_id_client_err', 'Please select the Standard / Class applying for.');
+        }
+
+        // 3. Date of Birth (cannot be in the future)
+        const dob = document.getElementById('dob');
+        if (dob && dob.value) {
+          const selectedDate = new Date(dob.value);
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+          if (selectedDate > today) {
+            markInvalid(dob, 'dob_client_err', 'Date of Birth cannot be in the future.');
+          }
+        }
+
+        // 4. Student Email (if filled)
+        const email = document.getElementById('email');
+        if (email && email.value.trim()) {
+          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailPattern.test(email.value.trim())) {
+            markInvalid(email, 'email_client_err', 'Please enter a valid student email address.');
+          }
+        }
+
+        // 5. Student Aadhaar (if filled, must be 12 digits)
+        const aadhaarNo = document.getElementById('aadhaar_no');
+        if (aadhaarNo && aadhaarNo.value.trim()) {
+          if (!/^\d{12}$/.test(aadhaarNo.value.trim())) {
+            markInvalid(aadhaarNo, 'aadhaar_no_client_err', 'Student Aadhaar number must be exactly 12 numeric digits.');
+          }
+        }
+
+        // 6. Pincode (if filled, must be 6 digits)
+        const pincode = document.getElementById('pincode');
+        if (pincode && pincode.value.trim()) {
+          if (!/^[1-9]\d{5}$/.test(pincode.value.trim())) {
+            markInvalid(pincode, 'pincode_client_err', 'Pincode must be a valid 6-digit postal code (e.g. 600001).');
+          }
+        }
+
+        // 7. Father / Primary Parent Name
+        const parentName = document.getElementById('parent_name');
+        if (!parentName || !parentName.value.trim()) {
+          markInvalid(parentName, 'parent_name_client_err', 'Father / Primary Parent Name is required.');
+        }
+
+        // 8. Father Mobile (REQUIRED: exactly 10 digits starting with 6-9)
+        const parentMobile = document.getElementById('parent_mobile');
+        if (!parentMobile || !parentMobile.value.trim()) {
+          markInvalid(parentMobile, 'parent_mobile_client_err', 'Father Mobile Number is required (10 digits).');
+        } else {
+          const cleanMobile = parentMobile.value.replace(/\D/g, '');
+          if (!/^[6-9]\d{9}$/.test(cleanMobile)) {
+            markInvalid(parentMobile, 'parent_mobile_client_err', 'Father Mobile number must be a valid 10-digit Indian mobile starting with 6, 7, 8, or 9.');
+          }
+        }
+
+        // 9. Father Email (if filled)
+        const parentEmail = document.getElementById('parent_email');
+        if (parentEmail && parentEmail.value.trim()) {
+          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailPattern.test(parentEmail.value.trim())) {
+            markInvalid(parentEmail, 'parent_email_client_err', 'Please enter a valid Father email address.');
+          }
+        }
+
+        // 10. Father Aadhaar (if filled, must be 12 digits)
+        const fatherAadhaar = document.getElementById('father_aadhaar');
+        if (fatherAadhaar && fatherAadhaar.value.trim()) {
+          if (!/^\d{12}$/.test(fatherAadhaar.value.trim())) {
+            markInvalid(fatherAadhaar, 'father_aadhaar_client_err', 'Father Aadhaar number must be exactly 12 numeric digits.');
+          }
+        }
+
+        // 11. Mother Mobile (if filled, must be 10 digits starting with 6-9)
+        const motherMobile = document.getElementById('mother_mobile');
+        if (motherMobile && motherMobile.value.trim()) {
+          const cleanMother = motherMobile.value.replace(/\D/g, '');
+          if (!/^[6-9]\d{9}$/.test(cleanMother)) {
+            markInvalid(motherMobile, 'mother_mobile_client_err', 'Mother Mobile number must be a valid 10-digit mobile starting with 6, 7, 8, or 9.');
+          }
+        }
+
+        // 12. Mother Email (if filled)
+        const motherEmail = document.getElementById('mother_email');
+        if (motherEmail && motherEmail.value.trim()) {
+          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailPattern.test(motherEmail.value.trim())) {
+            markInvalid(motherEmail, 'mother_email_client_err', 'Please enter a valid Mother email address.');
+          }
+        }
+
+        // 13. Guardian Mobile (if filled, must be 10 digits starting with 6-9)
+        const guardianMobile = document.getElementById('guardian_mobile');
+        if (guardianMobile && guardianMobile.value.trim()) {
+          const cleanGuardian = guardianMobile.value.replace(/\D/g, '');
+          if (!/^[6-9]\d{9}$/.test(cleanGuardian)) {
+            markInvalid(guardianMobile, 'guardian_mobile_client_err', 'Guardian Mobile number must be a valid 10-digit mobile starting with 6, 7, 8, or 9.');
+          }
+        }
+
+        // 14. Amount Collected (must be non-negative)
+        const amountCollected = document.getElementById('amount_collected');
+        if (!amountCollected || amountCollected.value === '' || Number(amountCollected.value) < 0) {
+          markInvalid(amountCollected, 'amount_collected_client_err', 'Amount Collected Today is required and cannot be negative (enter 0 if paying later).');
+        }
+
+        // 15. Previous Percentage (if filled, 0 to 100)
+        const prevPct = document.getElementById('previous_percentage');
+        if (prevPct && prevPct.value.trim() !== '') {
+          const val = Number(prevPct.value);
+          if (isNaN(val) || val < 0 || val > 100) {
+            markInvalid(prevPct, 'previous_percentage_client_err', 'Previous Percentage / CGPA must be between 0 and 100.');
+          }
+        }
+
+        // If any error exists:
+        if (errors.length > 0) {
+          e.preventDefault();
+
+          // Render client error banner at top of form
+          const clientAlert = document.getElementById('clientValidationAlert');
+          const clientList = document.getElementById('clientValidationList');
+          const clientTitle = document.getElementById('clientValidationTitle');
+          if (clientAlert && clientList) {
+            clientTitle.innerText = `Please correct the following (${errors.length}) issues before submitting:`;
+            clientList.innerHTML = errors.map(msg => `<li>${msg}</li>`).join('');
+            clientAlert.classList.remove('hidden');
+          }
+
+          // Smoothly scroll to the first invalid field
+          if (firstInvalidElement) {
+            firstInvalidElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => {
+              firstInvalidElement.focus();
+            }, 300);
+          } else if (clientAlert) {
+            clientAlert.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+      });
+    }
+  });
+</script>
 @endsection

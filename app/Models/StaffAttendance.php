@@ -6,12 +6,14 @@ class StaffAttendance extends Model {
     protected $fillable = [
         'employee_id', 'date', 'status', 'check_in', 'check_out', 'remarks',
         'is_late', 'late_minutes',
-        'is_permission', 'permission_hours', 'permission_time', 'permission_reason'
+        'is_permission', 'permission_hours', 'permission_time', 'permission_reason',
+        'in_time_auto_filled'
     ];
     protected $casts = [
         'date' => 'date',
         'is_late' => 'boolean',
         'is_permission' => 'boolean',
+        'in_time_auto_filled' => 'boolean',
         'permission_hours' => 'float',
     ];
     public function employee() { return $this->belongsTo(Employee::class); }

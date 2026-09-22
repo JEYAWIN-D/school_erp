@@ -24,10 +24,6 @@
             </td>
             <td class="td">
               <div class="flex gap-1 flex-wrap items-center">
-                @if($l->status === 'pending')
-                  <form method="POST" action="{{ route('hr.leaves.approve', $l->id) }}">@csrf<button class="btn btn-secondary btn-sm">Approve</button></form>
-                  <form method="POST" action="{{ route('hr.leaves.reject', $l->id) }}">@csrf<button class="btn btn-danger btn-sm">Reject</button></form>
-                @endif
                 @if(in_array($l->status, ['pending','approved']))
                   <form method="POST" action="{{ route('hr.leaves.cancel', $l->id) }}">@csrf<button class="btn btn-secondary btn-sm text-red-600" onclick="return confirm('Cancel this leave?')">Cancel</button></form>
                 @endif

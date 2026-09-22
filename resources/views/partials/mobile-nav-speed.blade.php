@@ -173,7 +173,7 @@
       @can('view students') "{{ route('students.index') }}", @endcan
       @can('view attendance') "{{ route('attendance.index') }}", @endcan
       @can('view examinations') "{{ route('examinations.index') }}", @endcan
-      @can('view fees') "{{ route('fees.index') }}", @endcan
+      @can('view fees') "{{ route('fees.index') }}", "{{ route('accounts.index') }}", @endcan
       @can('view expenses') "{{ route('expenses.index') }}", @endcan
       @can('view employees') "{{ route('hr.index') }}", "{{ route('hr.employees') }}", "{{ route('hr.payroll') }}", @endcan
       "{{ route('dashboard') }}"

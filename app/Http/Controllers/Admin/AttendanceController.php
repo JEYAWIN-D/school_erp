@@ -239,11 +239,9 @@ class AttendanceController extends Controller
             $msg .= " SMS/WhatsApp alerts dispatched to {$counts['absent']} parents.";
         }
 
-        return redirect()->route('attendance.mark', [
-            'class_id'   => $request->class_id,
-            'section_id' => $request->section_id,
-            'date'       => $date,
-        ])->with('success', $msg);
+        DashboardController::clearCache();
+
+        return redirect()->route('dashboard')->with('success', $msg);
     }
 
     public function report(Request $request)
@@ -348,6 +346,7 @@ class AttendanceController extends Controller
                 );
             }
         });
+        DashboardController::clearCache();
         return back()->with('success', 'Period-wise attendance saved.');
     }
 
@@ -759,6 +758,8 @@ class AttendanceController extends Controller
      */
     public function saveStaffAttendance(Request $request)
     {
+        @set_time_limit(120);
+
         $date = $request->date ?? today()->toDateString();
         $carbonDate = \Carbon\Carbon::parse($date);
         $isSunday = $carbonDate->isSunday();
@@ -768,6 +769,14 @@ class AttendanceController extends Controller
         $shiftEndTime = $isHoliday ? '15:00' : '16:30';
 
         $data = $request->input('attendance', []);
+        $existingRecords = StaffAttendance::where('date', $date)
+            ->whereIn('employee_id', array_keys($data))
+            ->get()
+            ->keyBy('employee_id');
+
+        $now = now();
+        $recordsToUpsert = [];
+
         foreach ($data as $empId => $att) {
             $status     = $att['status'] ?? ($isHoliday ? 'holiday' : 'absent');
             $inTime     = !empty($att['in_time']) ? $att['in_time'] : null;
@@ -777,18 +786,7 @@ class AttendanceController extends Controller
             $permTime   = !empty($att['permission_time']) ? $att['permission_time'] : ($isPerm ? '09:00 - 10:30 AM' : null);
             $permReason = !empty($att['permission_reason']) ? $att['permission_reason'] : ($isPerm ? 'Principal Approved' : null);
 
-            $record = StaffAttendance::firstOrNew([
-                'employee_id' => $empId,
-                'date'        => $date,
-            ]);
-
-            $record->status            = $status;
-            $record->check_in          = $inTime;
-            $record->check_out         = $outTime;
-            $record->is_permission     = $isPerm;
-            $record->permission_hours  = $isPerm ? $permHours : null;
-            $record->permission_time   = $isPerm ? $permTime : null;
-            $record->permission_reason = $isPerm ? $permReason : null;
+            $remarks    = $existingRecords->get($empId)?->remarks;
 
             if ($inTime && $outTime) {
                 $mins = abs(\Carbon\Carbon::parse($outTime)->diffInMinutes(\Carbon\Carbon::parse($inTime)));
@@ -798,40 +796,61 @@ class AttendanceController extends Controller
                 $workedHours = round($mins / 60, 2);
 
                 if ($isHoliday || $status === 'overtime') {
-                    $record->status = 'overtime';
-                    $record->remarks = "Special Duty ({$dur}) — Extra Pay";
+                    $status = 'overtime';
+                    $remarks = "Special Duty ({$dur}) — Extra Pay";
                 } elseif ($status === 'permission') {
-                    $record->status = 'permission';
-                    $record->remarks = "Permission: {$permHours}h" . ($permReason ? " ({$permReason})" : "");
+                    $status = 'permission';
+                    $remarks = "Permission: {$permHours}h" . ($permReason ? " ({$permReason})" : "");
                 } elseif ($outTime < $shiftEndTime && $workedHours < 7.0) {
-                    $record->status = 'half_day';
-                    $record->remarks = "Early departure before {$shiftEndTime}";
+                    $status = 'half_day';
+                    $remarks = "Early departure before {$shiftEndTime}";
                 }
             } elseif ($isPerm) {
-                $record->status = 'permission';
-                if (empty($record->remarks)) {
-                    $record->remarks = "Permission: {$permHours}h" . ($permReason ? " ({$permReason})" : "");
+                $status = 'permission';
+                if (empty($remarks)) {
+                    $remarks = "Permission: {$permHours}h" . ($permReason ? " ({$permReason})" : "");
                 }
             }
 
             if ($isHoliday && empty($inTime)) {
-                $record->status  = 'holiday';
-                $record->remarks = null;
+                $status  = 'holiday';
+                $remarks = null;
             } elseif ($inTime) {
                 if ($isHoliday || $status === 'overtime') {
-                    $record->status  = 'overtime';
-                    $record->remarks = ($holiday?->name ?? 'Holiday') . ' Special Duty';
+                    $status  = 'overtime';
+                    $remarks = ($holiday?->name ?? 'Holiday') . ' Special Duty';
                 }
             }
 
-            $record->save();
+            $recordsToUpsert[] = [
+                'employee_id'       => (int) $empId,
+                'date'              => $date,
+                'status'            => $status,
+                'check_in'          => $inTime,
+                'check_out'         => $outTime,
+                'remarks'           => $remarks,
+                'is_permission'     => $isPerm,
+                'permission_hours'  => $isPerm ? $permHours : null,
+                'permission_time'   => $isPerm ? $permTime : null,
+                'permission_reason' => $isPerm ? $permReason : null,
+                'created_at'        => $now,
+                'updated_at'        => $now,
+            ];
         }
 
-        return redirect()->route('attendance.staff', [
-            'date'          => $date,
-            'category'      => $request->category,
-            'department_id' => $request->department_id
-        ])->with('success', 'Staff attendance updated successfully.');
+        if (!empty($recordsToUpsert)) {
+            foreach (array_chunk($recordsToUpsert, 200) as $chunk) {
+                StaffAttendance::upsert(
+                    $chunk,
+                    ['employee_id', 'date'],
+                    ['status', 'check_in', 'check_out', 'remarks', 'is_permission', 'permission_hours', 'permission_time', 'permission_reason', 'updated_at']
+                );
+            }
+        }
+
+        DashboardController::clearCache();
+
+        return redirect()->route('dashboard')->with('success', 'Staff attendance updated successfully.');
     }
 
     /**

@@ -16,98 +16,1301 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\EmployeeQualification;
 use App\Models\EmployeeExperience;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\StaffAttendance;
+use App\Models\LeaveRequest;
+use App\Models\LeaveType;
+use App\Models\StaffEvent;
+use App\Models\AcademicYear;
+use App\Models\AcademicTerm;
+use App\Models\Holiday;
+use App\Models\SchoolSetting;
 
 class HrController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $cached = \Illuminate\Support\Facades\Cache::remember('hr_dashboard_overview_' . today()->toDateString(), 45, function() {
-            // Consolidated single-query aggregation for all employee statistics
-            $empRow = DB::table('employees')
-                ->selectRaw("
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN is_active = true THEN 1 END) as active,
-                    COUNT(CASE WHEN employee_type = 'teaching' AND is_active = true THEN 1 END) as teaching,
-                    COUNT(CASE WHEN employee_type = 'non_teaching' AND is_active = true THEN 1 END) as non_teaching,
-                    COUNT(CASE WHEN employee_type = 'driver' AND is_active = true THEN 1 END) as driver,
-                    COUNT(CASE WHEN employee_type = 'cleaner' AND is_active = true THEN 1 END) as cleaner,
-                    COUNT(CASE WHEN employee_type IN ('nanny', 'naani') AND is_active = true THEN 1 END) as nanny
-                ")
-                ->first();
+        $today = $request->get('date', today()->toDateString());
 
-            $stats = [
-                'total'        => (int) ($empRow->total ?? 0),
-                'active'       => (int) ($empRow->active ?? 0),
-                'teaching'     => (int) ($empRow->teaching ?? 0),
-                'non_teaching' => (int) ($empRow->non_teaching ?? 0),
-                'driver'       => (int) ($empRow->driver ?? 0),
-                'cleaner'      => (int) ($empRow->cleaner ?? 0),
-                'nanny'        => (int) ($empRow->nanny ?? 0),
+        // 1. Total active staff
+        $activeEmployees = Employee::with(['department', 'designation'])->where('is_active', true)->get();
+        $totalStaff = $activeEmployees->count();
+
+        // 2. Today's attendance records from staff_attendance table
+        $todayAttendances = DB::table('staff_attendance')
+            ->whereDate('date', $today)
+            ->get()
+            ->keyBy('employee_id');
+
+        // Approved leaves for today
+        $approvedLeavesToday = DB::table('leave_requests')
+            ->where('status', 'approved')
+            ->whereDate('from_date', '<=', $today)
+            ->whereDate('to_date', '>=', $today)
+            ->pluck('employee_id')
+            ->flip();
+
+        $presentToday    = 0;
+        $absentToday     = 0;
+        $onLeaveToday    = 0;
+        $onDutyToday     = 0;
+        $paidOffToday    = 0;
+        $permissionToday = 0;
+        $notMarkedToday  = 0;
+
+        foreach ($activeEmployees as $emp) {
+            $att = $todayAttendances->get($emp->id);
+            if ($att) {
+                if ($att->status === 'on_duty') {
+                    $onDutyToday++;
+                } elseif ($att->status === 'paid_off') {
+                    $paidOffToday++;
+                } elseif ($att->status === 'permission') {
+                    $permissionToday++;
+                } elseif (in_array($att->status, ['present', 'late', 'half_day', 'overtime']) || (!empty($att->check_in) && !in_array($att->status, ['on_duty', 'paid_off', 'permission', 'absent']))) {
+                    $presentToday++;
+                } elseif ($att->status === 'absent') {
+                    $absentToday++;
+                } elseif (in_array($att->status, ['leave', 'on_leave']) || $approvedLeavesToday->has($emp->id)) {
+                    $onLeaveToday++;
+                } else {
+                    $notMarkedToday++;
+                }
+            } else {
+                if ($approvedLeavesToday->has($emp->id)) {
+                    $onLeaveToday++;
+                } else {
+                    $notMarkedToday++;
+                }
+            }
+        }
+
+        // Pending approvals
+        $pendingStaffApprovals = Employee::where(function($q) {
+            $q->where('approval_status', 'pending')
+              ->orWhere('status', 'pending');
+        })->count();
+
+        $pendingLeaves = DB::table('leave_requests')->where('status', 'pending')->count();
+
+        // Today's attendance grouped by staff category
+        $categoriesAttendance = [];
+        $grouped = $activeEmployees->groupBy(fn($e) => $e->category_label);
+        foreach ($grouped as $label => $emps) {
+            $cTotal = $emps->count();
+            $cPresent = 0;
+            $cAbsent = 0;
+            $cLeave = 0;
+            $cNotMarked = 0;
+
+            foreach ($emps as $emp) {
+                $att = $todayAttendances->get($emp->id);
+                if ($att) {
+                    if ($att->status === 'on_duty' || $att->status === 'paid_off' || $att->status === 'permission') {
+                        // Counted in total category staff
+                    } elseif (in_array($att->status, ['present', 'late', 'half_day', 'overtime']) || !empty($att->check_in)) {
+                        $cPresent++;
+                    } elseif ($att->status === 'absent') {
+                        $cAbsent++;
+                    } elseif (in_array($att->status, ['leave', 'on_leave']) || $approvedLeavesToday->has($emp->id)) {
+                        $cLeave++;
+                    } else {
+                        $cNotMarked++;
+                    }
+                } else {
+                    if ($approvedLeavesToday->has($emp->id)) {
+                        $cLeave++;
+                    } else {
+                        $cNotMarked++;
+                    }
+                }
+            }
+
+            $categoriesAttendance[] = [
+                'category'   => $label,
+                'total'      => $cTotal,
+                'present'    => $cPresent,
+                'absent'     => $cAbsent,
+                'on_leave'   => $cLeave,
+                'not_marked' => $cNotMarked,
+                'pct'        => $cTotal > 0 ? round(($cPresent / $cTotal) * 100) : 0,
             ];
+        }
 
-            // Pending leave requests (fail-safe)
-            try {
-                $pendingLeaves = DB::table('leave_requests')
-                    ->where('status', 'pending')
-                    ->count();
-            } catch (\Throwable $e) {
-                $pendingLeaves = 0;
+        // Upcoming staff events
+        $upcomingEvents = array_slice($this->getUpcomingStaffCelebrations(), 0, 8);
+
+        // Recent hires
+        $recentHires = Employee::where('joining_date', '>=', now()->subDays(30)->toDateString())
+            ->orderByDesc('joining_date')
+            ->limit(5)
+            ->get();
+
+        return view('hr.index', compact(
+            'today',
+            'totalStaff',
+            'presentToday',
+            'absentToday',
+            'onLeaveToday',
+            'onDutyToday',
+            'paidOffToday',
+            'permissionToday',
+            'notMarkedToday',
+            'pendingStaffApprovals',
+            'pendingLeaves',
+            'categoriesAttendance',
+            'upcomingEvents',
+            'recentHires'
+        ));
+    }
+
+    public function staffApprovals(Request $request)
+    {
+        $status = $request->get('status', 'pending');
+        $query = Employee::with(['department', 'designation']);
+
+        if ($status === 'pending') {
+            $query->where(function($q) {
+                $q->where('approval_status', 'pending')
+                  ->orWhere('status', 'pending');
+            });
+        } elseif ($status === 'approved') {
+            $query->where('approval_status', 'approved');
+        } elseif ($status === 'rejected') {
+            $query->where(function($q) {
+                $q->where('approval_status', 'rejected')
+                  ->orWhere('status', 'rejected');
+            });
+        }
+
+        if ($request->filled('category') && $request->category !== 'all') {
+            $query->where('employee_type', $request->category);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function($q) use ($search) {
+                $q->where('first_name', 'ilike', "%{$search}%")
+                  ->orWhere('last_name', 'ilike', "%{$search}%")
+                  ->orWhere('employee_code', 'ilike', "%{$search}%");
+            });
+        }
+
+        $employees = $query->latest('id')->paginate(15)->withQueryString();
+
+        $counts = [
+            'pending'  => Employee::where(fn($q) => $q->where('approval_status', 'pending')->orWhere('status', 'pending'))->count(),
+            'approved' => Employee::where('approval_status', 'approved')->count(),
+            'rejected' => Employee::where(fn($q) => $q->where('approval_status', 'rejected')->orWhere('status', 'rejected'))->count(),
+            'all'      => Employee::count(),
+        ];
+
+        return view('hr.staff-approvals', compact('employees', 'status', 'counts'));
+    }
+
+    /**
+     * Staff Approval API: List pending/filtered staff approvals (Permanent Principal API contract)
+     */
+    public function apiStaffApprovals(Request $request)
+    {
+        $status = $request->get('status', 'pending');
+        $query  = Employee::with(['department', 'designation']);
+
+        if ($status === 'pending') {
+            $query->where(function ($q) {
+                $q->where('approval_status', 'pending')
+                  ->orWhere('status', 'pending');
+            });
+        } elseif ($status === 'approved') {
+            $query->where('approval_status', 'approved');
+        } elseif ($status === 'rejected') {
+            $query->where(function ($q) {
+                $q->where('approval_status', 'rejected')
+                  ->orWhere('status', 'rejected');
+            });
+        }
+
+        if ($request->filled('category') && $request->category !== 'all') {
+            $query->where('employee_type', $request->category);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'ilike', "%{$search}%")
+                  ->orWhere('last_name', 'ilike', "%{$search}%")
+                  ->orWhere('employee_code', 'ilike', "%{$search}%");
+            });
+        }
+
+        $perPage   = min(max((int)$request->get('per_page', 15), 1), 100);
+        $employees = $query->latest('id')->paginate($perPage);
+
+        $counts = [
+            'pending'  => Employee::where(fn($q) => $q->where('approval_status', 'pending')->orWhere('status', 'pending'))->count(),
+            'approved' => Employee::where('approval_status', 'approved')->count(),
+            'rejected' => Employee::where(fn($q) => $q->where('approval_status', 'rejected')->orWhere('status', 'rejected'))->count(),
+            'all'      => Employee::count(),
+        ];
+
+        return response()->json([
+            'success'    => true,
+            'filter'     => $status,
+            'counts'     => $counts,
+            'data'       => $employees->items(),
+            'pagination' => [
+                'current_page' => $employees->currentPage(),
+                'last_page'    => $employees->lastPage(),
+                'per_page'     => $employees->perPage(),
+                'total'        => $employees->total(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Staff Approval API: Retrieve single staff approval record details (Permanent Principal API contract)
+     */
+    public function apiStaffApprovalDetail(int $id)
+    {
+        $employee = Employee::with(['department', 'designation', 'manager', 'qualifications', 'experiences'])->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $employee,
+        ], 200);
+    }
+
+    public function approveStaff(Request $request, int $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $employee->update([
+            'approval_status' => 'approved',
+            'status'          => 'active',
+            'is_active'       => true,
+            'approved_by'     => auth()->id(),
+            'approved_at'     => now(),
+            'rejection_reason'=> null,
+        ]);
+
+        AuditLog::record('employee_approved', $employee, [], [
+            'employee_code' => $employee->employee_code,
+            'name'          => $employee->full_name,
+            'approved_by'   => auth()->id(),
+        ]);
+
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'message' => "Staff member {$employee->full_name} has been approved and activated.",
+                'data'    => $employee,
+            ], 200);
+        }
+
+        return back()->with('success', "Staff member {$employee->full_name} has been approved and activated.");
+    }
+
+    public function rejectStaff(Request $request, int $id)
+    {
+        $request->validate([
+            'rejection_reason' => 'required|string|max:500',
+        ]);
+
+        $employee = Employee::findOrFail($id);
+        $employee->update([
+            'approval_status' => 'rejected',
+            'status'          => 'rejected',
+            'is_active'       => false,
+            'rejection_reason'=> $request->rejection_reason,
+            'approved_by'     => auth()->id(),
+            'approved_at'     => now(),
+        ]);
+
+        AuditLog::record('employee_rejected', $employee, [], [
+            'employee_code'    => $employee->employee_code,
+            'name'             => $employee->full_name,
+            'rejection_reason' => $request->rejection_reason,
+            'rejected_by'      => auth()->id(),
+        ]);
+
+        if ($request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'message' => "Staff member {$employee->full_name} has been rejected.",
+                'data'    => $employee,
+            ], 200);
+        }
+
+        return back()->with('success', "Staff member {$employee->full_name} has been rejected.");
+    }
+
+    public function leaveApprovals(Request $request)
+    {
+        $status = $request->get('status', 'pending');
+        $query = LeaveRequest::with(['employee.department', 'leaveType', 'appliedBy']);
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($request->filled('category') && $request->category !== 'all') {
+            $query->whereHas('employee', fn($q) => $q->where('employee_type', $request->category));
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->whereHas('employee', function($q) use ($search) {
+                $q->where('first_name', 'ilike', "%{$search}%")
+                  ->orWhere('last_name', 'ilike', "%{$search}%")
+                  ->orWhere('employee_code', 'ilike', "%{$search}%");
+            });
+        }
+
+        $leaves = $query->latest('id')->paginate(15)->withQueryString();
+
+        $counts = [
+            'pending'  => LeaveRequest::where('status', 'pending')->count(),
+            'approved' => LeaveRequest::where('status', 'approved')->count(),
+            'rejected' => LeaveRequest::where('status', 'rejected')->count(),
+            'all'      => LeaveRequest::count(),
+        ];
+
+        return view('hr.leave-approvals', compact('leaves', 'status', 'counts'));
+    }
+
+    public function markAttendance(Request $request)
+    {
+        $date = $request->get('date', today()->toDateString());
+        $category = $request->get('category', 'all');
+
+        // Auto-fill permission in-time if school dispersal reached
+        \App\Console\Commands\AutoFillPermissionInTime::executeAutoFill($date);
+
+        $empQuery = Employee::with(['department', 'designation'])->where('is_active', true);
+        if ($category && $category !== 'all') {
+            $empQuery->where('employee_type', $category);
+        }
+        $employees = $empQuery->orderBy('first_name')->get();
+
+        $attendances = StaffAttendance::whereDate('date', $date)
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get()
+            ->keyBy('employee_id');
+
+        // Check approved leaves for that date
+        $approvedLeaves = LeaveRequest::with('leaveType')
+            ->where('status', 'approved')
+            ->whereDate('from_date', '<=', $date)
+            ->whereDate('to_date', '>=', $date)
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get()
+            ->keyBy('employee_id');
+
+        $categories = [
+            ['key' => 'all',          'label' => 'All Staff',          'count' => Employee::where('is_active', true)->count()],
+            ['key' => 'teaching',     'label' => 'Teaching Staff',     'count' => Employee::where('is_active', true)->where('employee_type', 'teaching')->count()],
+            ['key' => 'non_teaching', 'label' => 'Non-Teaching',       'count' => Employee::where('is_active', true)->where('employee_type', 'non_teaching')->count()],
+            ['key' => 'driver',       'label' => 'Drivers',            'count' => Employee::where('is_active', true)->where('employee_type', 'driver')->count()],
+            ['key' => 'cleaner',      'label' => 'Cleaners / Support', 'count' => Employee::where('is_active', true)->where('employee_type', 'cleaner')->count()],
+            ['key' => 'nanny',        'label' => 'Nannies (Naani)',    'count' => Employee::where('is_active', true)->whereIn('employee_type', ['nanny', 'naani'])->count()],
+        ];
+
+        return view('hr.attendance-mark', compact('employees', 'attendances', 'approvedLeaves', 'date', 'category', 'categories'));
+    }
+
+    public function saveAttendanceMark(Request $request)
+    {
+        @set_time_limit(120);
+
+        $validated = $request->validate([
+            'date'                  => 'required|date',
+            'category'              => 'nullable|string',
+            'attendance'            => 'required|array',
+            'attendance.*.status'   => 'required|in:present,absent,half_day,on_duty,paid_off,permission',
+            'attendance.*.out_time' => 'nullable|string',
+            'attendance.*.in_time'  => 'nullable|string',
+        ]);
+
+        $date = $validated['date'];
+        $attendanceData = $validated['attendance'];
+
+        // Enforce Permission validation rules: Out Time is compulsory
+        foreach ($attendanceData as $empId => $att) {
+            $status = $att['status'] ?? '';
+            if ($status === 'permission') {
+                $rawOut = trim($att['out_time'] ?? '');
+                if ($rawOut === '') {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(['attendance' => 'Out time is required for Permission attendance.']);
+                }
+
+                $rawIn = trim($att['in_time'] ?? '');
+                if ($rawIn !== '') {
+                    try {
+                        $outTimeObj = Carbon::parse($rawOut);
+                        $inTimeObj  = Carbon::parse($rawIn);
+                        if ($inTimeObj->lt($outTimeObj)) {
+                            return redirect()->back()
+                                ->withInput()
+                                ->withErrors(['attendance' => 'In time cannot be earlier than Out time for Permission attendance.']);
+                        }
+                    } catch (\Exception $e) {
+                        return redirect()->back()
+                            ->withInput()
+                            ->withErrors(['attendance' => 'Invalid time format entered for Permission attendance.']);
+                    }
+                }
+            }
+        }
+
+        $now = now();
+        $records = [];
+        foreach ($attendanceData as $empId => $att) {
+            $status = $att['status'];
+            $isPermission = ($status === 'permission');
+
+            $outTime = null;
+            $inTime = null;
+            $isAutoFilled = false;
+
+            if ($isPermission) {
+                $rawOut = trim($att['out_time'] ?? '');
+                $rawIn  = trim($att['in_time'] ?? '');
+
+                if ($rawOut !== '') {
+                    $outTime = Carbon::parse($rawOut)->format('H:i:s');
+                }
+                if ($rawIn !== '') {
+                    $inTime = Carbon::parse($rawIn)->format('H:i:s');
+                    $isAutoFilled = false; // Explicitly entered by administrator
+                }
             }
 
-            // Today's staff attendance (fail-safe single query)
-            try {
-                $attRow = DB::table('staff_attendances')
-                    ->whereDate('date', today())
-                    ->selectRaw("
-                        COUNT(CASE WHEN status IN ('present', 'late') THEN 1 END) as present_count,
-                        COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent_count
-                    ")
-                    ->first();
-                $todayPresent = (int) ($attRow->present_count ?? 0);
-                $todayAbsent  = (int) ($attRow->absent_count ?? 0);
-            } catch (\Throwable $e) {
-                $todayPresent = 0;
-                $todayAbsent  = 0;
+            $records[] = [
+                'employee_id'         => (int) $empId,
+                'date'                => $date,
+                'status'              => $status,
+                'check_out'           => $outTime,
+                'check_in'            => $inTime,
+                'is_permission'       => $isPermission,
+                'in_time_auto_filled' => $isAutoFilled,
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ];
+        }
+
+        if (!empty($records)) {
+            foreach (array_chunk($records, 200) as $chunk) {
+                StaffAttendance::upsert(
+                    $chunk,
+                    ['employee_id', 'date'],
+                    ['status', 'check_out', 'check_in', 'is_permission', 'in_time_auto_filled', 'updated_at']
+                );
+            }
+        }
+
+        // Run auto-fill in case this record is for today after dispersal or a past date
+        \App\Console\Commands\AutoFillPermissionInTime::executeAutoFill($date);
+
+        DashboardController::clearCache();
+
+        $redirectParams = [];
+        if ($date !== today()->toDateString()) {
+            $redirectParams['date'] = $date;
+        }
+
+        return redirect()->route('hr.index', $redirectParams)
+            ->with('success', 'Staff attendance updated successfully. All records saved.');
+    }
+
+    public function viewAttendance(Request $request)
+    {
+        $category = $request->get('category', 'all');
+        $periodType = $request->get('period_type', 'monthly');
+        $date = $request->get('date', today()->toDateString());
+        $month = $request->get('month', now()->format('Y-m'));
+        $termId = $request->get('term_id');
+        $yearId = $request->get('year_id');
+        $search = $request->get('search');
+        $statusFilter = $request->get('status');
+
+        $academicYears = AcademicYear::orderByDesc('start_date')->get();
+        $currentYear = AcademicYear::current() ?? $academicYears->first();
+        $academicTerms = $currentYear ? AcademicTerm::where('academic_year_id', $currentYear->id)->orderBy('order_position')->get() : collect();
+
+        // Calculate date range based on periodType
+        $startDate = today()->startOfMonth()->toDateString();
+        $endDate = today()->endOfMonth()->toDateString();
+        $periodLabel = now()->format('F Y');
+
+        if ($periodType === 'daily') {
+            $startDate = $date;
+            $endDate = $date;
+            $periodLabel = \Carbon\Carbon::parse($date)->format('d M Y');
+        } elseif ($periodType === 'weekly') {
+            $carbonDate = \Carbon\Carbon::parse($date);
+            $startDate = $carbonDate->copy()->startOfWeek()->toDateString();
+            $endDate = $carbonDate->copy()->endOfWeek()->toDateString();
+            $periodLabel = \Carbon\Carbon::parse($startDate)->format('d M Y') . ' to ' . \Carbon\Carbon::parse($endDate)->format('d M Y');
+        } elseif ($periodType === 'monthly') {
+            [$yr, $mo] = explode('-', $month);
+            $cMonth = \Carbon\Carbon::create((int)$yr, (int)$mo, 1);
+            $startDate = $cMonth->startOfMonth()->toDateString();
+            $endDate = $cMonth->endOfMonth()->toDateString();
+            $periodLabel = $cMonth->format('F Y');
+        } elseif ($periodType === 'term') {
+            $term = AcademicTerm::find($termId) ?? $academicTerms->first();
+            if ($term) {
+                $termId = $term->id;
+                $startDate = $term->start_date->toDateString();
+                $endDate = $term->end_date->toDateString();
+                $periodLabel = $term->name . ' (' . $term->start_date->format('d M Y') . ' - ' . $term->end_date->format('d M Y') . ')';
+            }
+        } elseif ($periodType === 'yearly') {
+            $year = AcademicYear::find($yearId) ?? $currentYear;
+            if ($year) {
+                $yearId = $year->id;
+                $startDate = $year->start_date->toDateString();
+                $endDate = $year->end_date->toDateString();
+                $periodLabel = $year->name . ' (' . $year->start_date->format('d M Y') . ' - ' . $year->end_date->format('d M Y') . ')';
+            }
+        }
+
+        // Active staff matching category
+        $empQuery = Employee::with(['department', 'designation'])->where('is_active', true);
+        if ($category && $category !== 'all') {
+            $empQuery->where('employee_type', $category);
+        }
+        $employees = $empQuery->orderBy('first_name')->get();
+
+        // Calculate working days in period (excluding Sundays)
+        $periodDates = collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday());
+        $totalWorkingDays = max(1, $periodDates->count());
+
+        // Fetch attendance records for this period
+        $attendanceRecords = StaffAttendance::whereBetween('date', [$startDate, $endDate])
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get()
+            ->groupBy('employee_id');
+
+        $staffSummary = [];
+        $totalPresentAll = 0;
+        $totalAbsentAll = 0;
+        $totalLeaveAll = 0;
+
+        foreach ($employees as $emp) {
+            $records = $attendanceRecords->get($emp->id, collect());
+            $presentCount    = $records->whereIn('status', ['present', 'late'])->count();
+            $absentCount     = $records->where('status', 'absent')->count();
+            $leaveCount      = $records->whereIn('status', ['leave', 'on_leave'])->count();
+            $halfDayCount    = $records->where('status', 'half_day')->count();
+            $onDutyCount     = $records->where('status', 'on_duty')->count();
+            $paidOffCount    = $records->where('status', 'paid_off')->count();
+            $permissionCount = $records->where('status', 'permission')->count();
+
+            $effectivePresent = $presentCount + ($halfDayCount * 0.5);
+            $empWorkingDays = $totalWorkingDays;
+            $rate = $empWorkingDays > 0 ? round(($effectivePresent / $empWorkingDays) * 100) : 0;
+
+            $totalPresentAll += $presentCount;
+            $totalAbsentAll += $absentCount;
+            $totalLeaveAll += $leaveCount;
+
+            $staffSummary[] = [
+                'employee'     => $emp,
+                'present'      => $presentCount,
+                'absent'       => $absentCount,
+                'leave'        => $leaveCount,
+                'half_day'     => $halfDayCount,
+                'on_duty'      => $onDutyCount,
+                'paid_off'     => $paidOffCount,
+                'permission'   => $permissionCount,
+                'working_days' => $empWorkingDays,
+                'rate'         => $rate,
+            ];
+        }
+
+        if ($statusFilter && in_array($statusFilter, ['on_duty', 'paid_off', 'permission', 'absent', 'present'])) {
+            $staffSummary = array_values(array_filter($staffSummary, function($row) use ($statusFilter) {
+                return ($row[$statusFilter] ?? 0) > 0;
+            }));
+        }
+
+        $categories = [
+            ['key' => 'all',          'label' => 'All Staff'],
+            ['key' => 'teaching',     'label' => 'Teaching Staff'],
+            ['key' => 'non_teaching', 'label' => 'Non-Teaching Staff'],
+            ['key' => 'driver',       'label' => 'Drivers'],
+            ['key' => 'cleaner',      'label' => 'Cleaners / Support'],
+            ['key' => 'nanny',        'label' => 'Nannies (Naani)'],
+        ];
+
+        return view('hr.attendance-view', compact(
+            'staffSummary', 'category', 'categories', 'periodType',
+            'periodLabel', 'date', 'month', 'termId', 'yearId',
+            'academicYears', 'academicTerms', 'totalWorkingDays',
+            'totalPresentAll', 'totalAbsentAll', 'totalLeaveAll',
+            'search', 'statusFilter'
+        ));
+    }
+
+    public function viewAbsentAttendance(Request $request)
+    {
+        return $this->viewStatusAttendance($request, 'absent');
+    }
+
+    public function viewOnDutyAttendance(Request $request)
+    {
+        return $this->viewStatusAttendance($request, 'on_duty');
+    }
+
+    public function viewPaidOffAttendance(Request $request)
+    {
+        return $this->viewStatusAttendance($request, 'paid_off');
+    }
+
+    public function viewPermissionAttendance(Request $request)
+    {
+        return $this->viewStatusAttendance($request, 'permission');
+    }
+
+    public function viewStatusAttendance(Request $request, string $status)
+    {
+        if (!in_array($status, ['absent', 'on_duty', 'paid_off', 'permission'])) {
+            abort(404);
+        }
+
+        $date = $request->get('date', today()->toDateString());
+        $category = $request->get('category', 'all');
+        $search = trim($request->get('search', ''));
+
+        $attendanceQuery = StaffAttendance::with(['employee.department', 'employee.designation'])
+            ->whereDate('date', $date)
+            ->where('status', $status)
+            ->whereHas('employee', function($q) use ($category, $search) {
+                $q->where('is_active', true);
+                if ($category && $category !== 'all') {
+                    $q->where('employee_type', $category);
+                }
+                if (!empty($search)) {
+                    $q->where(function($sq) use ($search) {
+                        $sq->where('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%")
+                           ->orWhere('employee_code', 'like', "%{$search}%");
+                    });
+                }
+            });
+
+        $records = $attendanceQuery->get()->sortBy(function($rec) {
+            return $rec->employee->full_name ?? '';
+        })->values();
+
+        $categories = [
+            ['key' => 'all',          'label' => 'All Staff'],
+            ['key' => 'teaching',     'label' => 'Teaching Staff'],
+            ['key' => 'non_teaching', 'label' => 'Non-Teaching Staff'],
+            ['key' => 'driver',       'label' => 'Drivers'],
+            ['key' => 'cleaner',      'label' => 'Cleaners / Support'],
+            ['key' => 'nanny',        'label' => 'Nannies (Naani)'],
+        ];
+
+        $statusTitles = [
+            'absent'     => 'Absent Staff',
+            'on_duty'    => 'On Duty Staff',
+            'paid_off'   => 'Paid Off Staff',
+            'permission' => 'Permission Staff',
+        ];
+
+        $statusEmptyMessages = [
+            'absent'     => 'No staff members are marked absent today.',
+            'on_duty'    => 'No staff members are currently marked On Duty.',
+            'paid_off'   => 'No staff members are marked Paid Off today.',
+            'permission' => 'No staff members are currently on Permission.',
+        ];
+
+        $title = $statusTitles[$status] ?? ucfirst(str_replace('_', ' ', $status)) . ' Staff';
+        $emptyMessage = $statusEmptyMessages[$status] ?? 'No staff members found.';
+
+        return view('hr.attendance-status', compact(
+            'records', 'status', 'title', 'emptyMessage', 'date', 'category', 'categories', 'search'
+        ));
+    }
+
+    public function updatePermissionInTime(Request $request)
+    {
+        $validated = $request->validate([
+            'attendance_id' => 'required|integer|exists:staff_attendance,id',
+            'in_time'       => 'required|string',
+        ], [
+            'in_time.required' => 'Return In Time is required.',
+        ]);
+
+        $record = StaffAttendance::with('employee')->findOrFail($validated['attendance_id']);
+
+        if ($record->status !== 'permission') {
+            return back()->with('error', 'Only Permission attendance records can have return In Time updated.');
+        }
+
+        if (empty($record->check_out)) {
+            return back()->with('error', 'Cannot enter In Time because this permission record has no Out Time.');
+        }
+
+        $rawIn = trim($validated['in_time']);
+        if ($rawIn === '') {
+            return back()->with('error', 'In Time cannot be blank.');
+        }
+
+        try {
+            $inTimeCarbon = Carbon::parse($rawIn);
+            $outTimeCarbon = Carbon::parse($record->check_out);
+
+            // In time cannot be earlier than out time
+            if ($inTimeCarbon->lt($outTimeCarbon)) {
+                return back()->with('error', 'In time cannot be earlier than out time.');
             }
 
-            // Current month payroll status
-            $currentMonth = now()->format('Y-m');
-            try {
-                $payrollProcessed = DB::table('payroll_records')
-                    ->where('month', $currentMonth)
-                    ->count();
-            } catch (\Throwable $e) {
-                $payrollProcessed = 0;
+            $inTimeFormatted = $inTimeCarbon->format('H:i:s');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Invalid In Time format.');
+        }
+
+        // Update EXISTING record only - duplicate prevention
+        $record->update([
+            'check_in'            => $inTimeFormatted,
+            'in_time_auto_filled' => false,
+            'is_permission'       => true,
+        ]);
+
+        DashboardController::clearCache();
+
+        $empName = $record->employee?->full_name ?? 'Staff member';
+        return back()->with('success', "Return In-Time recorded successfully for {$empName}.");
+    }
+
+    public function viewStaffAttendanceDetail(Request $request, int $id)
+    {
+        $employee = Employee::with(['department', 'designation'])->findOrFail($id);
+
+        $periodType = $request->get('period_type', 'monthly');
+        $date = $request->get('date', today()->toDateString());
+        $month = $request->get('month', now()->format('Y-m'));
+        $termId = $request->get('term_id');
+        $yearId = $request->get('year_id');
+
+        $academicYears = AcademicYear::orderByDesc('start_date')->get();
+        $currentYear = AcademicYear::current() ?? $academicYears->first();
+        $academicTerms = $currentYear ? AcademicTerm::where('academic_year_id', $currentYear->id)->orderBy('order_position')->get() : collect();
+
+        $startDate = today()->startOfMonth()->toDateString();
+        $endDate = today()->endOfMonth()->toDateString();
+        $periodLabel = now()->format('F Y');
+
+        if ($periodType === 'daily') {
+            $startDate = $date;
+            $endDate = $date;
+            $periodLabel = \Carbon\Carbon::parse($date)->format('d M Y');
+        } elseif ($periodType === 'weekly') {
+            $carbonDate = \Carbon\Carbon::parse($date);
+            $startDate = $carbonDate->copy()->startOfWeek()->toDateString();
+            $endDate = $carbonDate->copy()->endOfWeek()->toDateString();
+            $periodLabel = \Carbon\Carbon::parse($startDate)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($endDate)->format('d M Y');
+        } elseif ($periodType === 'monthly') {
+            [$yr, $mo] = explode('-', $month);
+            $cMonth = \Carbon\Carbon::create((int)$yr, (int)$mo, 1);
+            $startDate = $cMonth->startOfMonth()->toDateString();
+            $endDate = $cMonth->endOfMonth()->toDateString();
+            $periodLabel = $cMonth->format('F Y');
+        } elseif ($periodType === 'term') {
+            $term = AcademicTerm::find($termId) ?? $academicTerms->first();
+            if ($term) {
+                $termId = $term->id;
+                $startDate = $term->start_date->toDateString();
+                $endDate = $term->end_date->toDateString();
+                $periodLabel = $term->name;
             }
-            $payrollTotal = $stats['active'];
+        } elseif ($periodType === 'yearly') {
+            $year = AcademicYear::find($yearId) ?? $currentYear;
+            if ($year) {
+                $yearId = $year->id;
+                $startDate = $year->start_date->toDateString();
+                $endDate = $year->end_date->toDateString();
+                $periodLabel = $year->name;
+            }
+        }
 
-            // Recent hires (last 30 days) - select only necessary lightweight columns
-            try {
-                $recentHires = DB::table('employees')
-                    ->where('joining_date', '>=', now()->subDays(30)->toDateString())
-                    ->select('id', 'first_name', 'last_name', 'designation', 'employee_type', 'joining_date')
-                    ->orderByDesc('joining_date')
-                    ->limit(5)
-                    ->get();
-            } catch (\Throwable $e) {
-                $recentHires = collect();
+        // Attendance records for this employee in period
+        $history = StaffAttendance::where('employee_id', $employee->id)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->orderBy('date', 'desc')
+            ->get();
+
+        $workingDays = collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday())->count();
+        $workingDays = max(1, $workingDays);
+
+        $presentCount    = $history->whereIn('status', ['present', 'late'])->count();
+        $absentCount     = $history->where('status', 'absent')->count();
+        $leaveCount      = $history->whereIn('status', ['leave', 'on_leave'])->count();
+        $halfDayCount    = $history->where('status', 'half_day')->count();
+        $onDutyCount     = $history->where('status', 'on_duty')->count();
+        $paidOffCount    = $history->where('status', 'paid_off')->count();
+        $permissionCount = $history->where('status', 'permission')->count();
+
+        $effectivePresent = $presentCount + ($halfDayCount * 0.5);
+        $attendancePercentage = $workingDays > 0 ? round(($effectivePresent / $workingDays) * 100) : 0;
+
+        // Leave summary from LeaveType and approved LeaveRequest
+        $totalAllowedLeave = (int) LeaveType::sum('days_allowed');
+        $approvedLeaveTaken = (float) LeaveRequest::where('employee_id', $employee->id)
+            ->where('status', 'approved')
+            ->whereYear('from_date', now()->year)
+            ->sum('total_days');
+        $leaveRemaining = max(0, $totalAllowedLeave - $approvedLeaveTaken);
+
+        return view('hr.attendance-staff-detail', compact(
+            'employee', 'history', 'periodType', 'periodLabel', 'date', 'month',
+            'termId', 'yearId', 'academicYears', 'academicTerms', 'workingDays',
+            'presentCount', 'absentCount', 'leaveCount', 'halfDayCount',
+            'onDutyCount', 'paidOffCount', 'permissionCount',
+            'attendancePercentage', 'totalAllowedLeave', 'approvedLeaveTaken', 'leaveRemaining'
+        ));
+    }
+
+    public function reports(Request $request)
+    {
+        // Auto-fill permission in-time if school dispersal reached
+        \App\Console\Commands\AutoFillPermissionInTime::executeAutoFill();
+
+        $reportMode = $request->get('mode', 'overall'); // overall | individual
+        $periodType = $request->get('period_type', 'monthly'); // daily, weekly, monthly, term, yearly
+        $category = $request->get('category', 'all');
+        $employeeId = $request->get('employee_id');
+        $date = $request->get('date', today()->toDateString());
+        $month = $request->get('month', now()->format('Y-m'));
+        $termId = $request->get('term_id');
+        $yearId = $request->get('year_id');
+
+        $academicYears = AcademicYear::orderByDesc('start_date')->get();
+        $currentYear = AcademicYear::current() ?? $academicYears->first();
+        $academicTerms = $currentYear ? AcademicTerm::where('academic_year_id', $currentYear->id)->orderBy('order_position')->get() : collect();
+
+        $startDate = today()->startOfMonth()->toDateString();
+        $endDate = today()->endOfMonth()->toDateString();
+        $periodLabel = now()->format('F Y');
+
+        if ($periodType === 'daily') {
+            $startDate = $date;
+            $endDate = $date;
+            $periodLabel = \Carbon\Carbon::parse($date)->format('d M Y');
+        } elseif ($periodType === 'weekly') {
+            $carbonDate = \Carbon\Carbon::parse($date);
+            $startDate = $carbonDate->copy()->startOfWeek()->toDateString();
+            $endDate = $carbonDate->copy()->endOfWeek()->toDateString();
+            $periodLabel = \Carbon\Carbon::parse($startDate)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($endDate)->format('d M Y');
+        } elseif ($periodType === 'monthly') {
+            [$yr, $mo] = explode('-', $month);
+            $cMonth = \Carbon\Carbon::create((int)$yr, (int)$mo, 1);
+            $startDate = $cMonth->startOfMonth()->toDateString();
+            $endDate = $cMonth->endOfMonth()->toDateString();
+            $periodLabel = $cMonth->format('F Y');
+        } elseif ($periodType === 'term') {
+            $term = AcademicTerm::find($termId) ?? $academicTerms->first();
+            if ($term) {
+                $termId = $term->id;
+                $startDate = $term->start_date->toDateString();
+                $endDate = $term->end_date->toDateString();
+                $periodLabel = $term->name;
+            }
+        } elseif ($periodType === 'yearly') {
+            $year = AcademicYear::find($yearId) ?? $currentYear;
+            if ($year) {
+                $yearId = $year->id;
+                $startDate = $year->start_date->toDateString();
+                $endDate = $year->end_date->toDateString();
+                $periodLabel = $year->name;
+            }
+        }
+
+        $allActiveStaff = Employee::where('is_active', true)->orderBy('first_name')->get();
+        $selectedStaff = $employeeId ? Employee::with(['department', 'designation'])->find($employeeId) : $allActiveStaff->first();
+
+        // Data for Overall Report
+        $empQuery = Employee::with(['department', 'designation'])->where('is_active', true);
+        if ($category && $category !== 'all') {
+            $empQuery->where('employee_type', $category);
+        }
+        $employees = $empQuery->orderBy('first_name')->get();
+
+        $workingDays = collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday())->count();
+        $workingDays = max(1, $workingDays);
+
+        $attendanceRecords = StaffAttendance::whereBetween('date', [$startDate, $endDate])
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->get()
+            ->groupBy('employee_id');
+
+        $overallRows = [];
+        $totalPresentSum = 0;
+        $totalAbsentSum = 0;
+        $totalLeaveSum = 0;
+
+        $presentStaffCount = 0;
+        $absentStaffCount  = 0;
+        $leaveStaffCount   = 0;
+
+        $empIds = $employees->pluck('id');
+        $approvedLeaveEmpIds = $empIds->isNotEmpty()
+            ? DB::table('leave_requests')
+                ->where('status', 'approved')
+                ->whereIn('employee_id', $empIds)
+                ->whereDate('from_date', '<=', $endDate)
+                ->whereDate('to_date', '>=', $startDate)
+                ->pluck('employee_id')
+                ->flip()
+            : collect();
+
+        foreach ($employees as $emp) {
+            $recs = $attendanceRecords->get($emp->id, collect());
+            $p = $recs->whereIn('status', ['present', 'late'])->count();
+            $a = $recs->where('status', 'absent')->count();
+            $l = $recs->whereIn('status', ['leave', 'on_leave'])->count();
+            $h = $recs->where('status', 'half_day')->count();
+
+            if ($p > 0) {
+                $presentStaffCount++;
+            }
+            if ($a > 0) {
+                $absentStaffCount++;
+            }
+            if ($l > 0 || $approvedLeaveEmpIds->has($emp->id)) {
+                $leaveStaffCount++;
             }
 
-            return compact(
-                'stats', 'pendingLeaves',
-                'todayPresent', 'todayAbsent',
-                'payrollProcessed', 'payrollTotal', 'currentMonth',
-                'recentHires'
-            );
-        });
+            $eff = $p + ($h * 0.5);
+            $pct = $workingDays > 0 ? round(($eff / $workingDays) * 100) : 0;
 
-        return view('hr.index', $cached);
+            $totalPresentSum += $p;
+            $totalAbsentSum += $a;
+            $totalLeaveSum += $l;
+
+            $overallRows[] = [
+                'employee'   => $emp,
+                'category'   => $emp->category_label,
+                'present'    => $p,
+                'absent'     => $a,
+                'leave'      => $l,
+                'percentage' => $pct,
+            ];
+        }
+
+        $avgPercentage = count($overallRows) > 0 ? round(collect($overallRows)->avg('percentage')) : 0;
+
+        // Data for Individual Report
+        $individualHistory = collect();
+        $individualSummary = null;
+        $leaveSummaryBreakdown = [];
+
+        if ($selectedStaff) {
+            $individualHistory = StaffAttendance::where('employee_id', $selectedStaff->id)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->orderBy('date', 'asc')
+                ->get();
+
+            $p = $individualHistory->whereIn('status', ['present', 'late'])->count();
+            $a = $individualHistory->where('status', 'absent')->count();
+            $l = $individualHistory->whereIn('status', ['leave', 'on_leave'])->count();
+            $h = $individualHistory->where('status', 'half_day')->count();
+            $eff = $p + ($h * 0.5);
+            $pct = $workingDays > 0 ? round(($eff / $workingDays) * 100, 2) : 0;
+
+            // Leave breakdown per leave type
+            $activeLeaveTypes = LeaveType::orderBy('name')->get();
+
+            $approvedLeaveRequests = LeaveRequest::where('employee_id', $selectedStaff->id)
+                ->where('status', 'approved')
+                ->whereYear('from_date', now()->year)
+                ->get();
+
+            $totalAllocatedLeave = 0;
+            $totalTakenLeave = 0;
+
+            foreach ($activeLeaveTypes as $lt) {
+                $allocated = (int) $lt->days_allowed;
+                $taken = (float) $approvedLeaveRequests->where('leave_type_id', $lt->id)->sum('total_days');
+                $remaining = max(0, $allocated - $taken);
+
+                $totalAllocatedLeave += $allocated;
+                $totalTakenLeave += $taken;
+
+                $leaveSummaryBreakdown[] = [
+                    'type'      => $lt->name,
+                    'allocated' => $allocated,
+                    'taken'     => $taken,
+                    'remaining' => $remaining,
+                ];
+            }
+
+            $individualSummary = [
+                'working_days' => $workingDays,
+                'present'      => $p,
+                'absent'       => $a,
+                'leave'        => $l,
+                'half_day'     => $h,
+                'on_duty'      => $individualHistory->where('status', 'on_duty')->count(),
+                'paid_off'     => $individualHistory->where('status', 'paid_off')->count(),
+                'permission'   => $individualHistory->where('status', 'permission')->count(),
+                'percentage'   => $pct,
+                'leave_taken'  => $totalTakenLeave,
+                'total_allowed'=> $totalAllocatedLeave,
+            ];
+        }
+
+        $categories = [
+            ['key' => 'all',          'label' => 'All Staff'],
+            ['key' => 'teaching',     'label' => 'Teaching Staff'],
+            ['key' => 'non_teaching', 'label' => 'Non-Teaching Staff'],
+            ['key' => 'driver',       'label' => 'Drivers'],
+            ['key' => 'cleaner',      'label' => 'Cleaners / Support'],
+            ['key' => 'nanny',        'label' => 'Nannies (Naani)'],
+        ];
+
+        $selectedCategoryLabel = collect($categories)->firstWhere('key', $category)['label'] ?? 'All Staff';
+        $school = SchoolSetting::first();
+        $academicYearName = $currentYear?->name ?? (AcademicYear::find($yearId)?->name ?? (now()->year . '-' . (now()->year + 1)));
+
+        return view('hr.reports', compact(
+            'reportMode', 'periodType', 'periodLabel', 'category', 'categories',
+            'selectedCategoryLabel', 'allActiveStaff', 'selectedStaff', 'overallRows', 'avgPercentage',
+            'presentStaffCount', 'absentStaffCount', 'leaveStaffCount',
+            'totalPresentSum', 'totalAbsentSum', 'totalLeaveSum', 'workingDays',
+            'individualHistory', 'individualSummary', 'leaveSummaryBreakdown',
+            'school', 'academicYearName', 'date', 'month', 'termId',
+            'yearId', 'academicYears', 'academicTerms'
+        ));
+    }
+
+    public function exportReportsExcel(Request $request)
+    {
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="staff-attendance-report-' . now()->format('Y-m-d') . '.csv"',
+        ];
+
+        $callback = function () use ($request) {
+            $handle = fopen('php://output', 'w');
+            $mode = $request->get('mode', 'overall');
+            $employeeId = $request->get('employee_id');
+
+            $empQuery = Employee::with(['department', 'designation'])->where('is_active', true);
+            if ($mode === 'individual' && $employeeId) {
+                $empQuery->where('id', $employeeId);
+            } elseif ($request->filled('category') && $request->category !== 'all') {
+                $empQuery->where('employee_type', $request->category);
+            }
+            $employees = $empQuery->orderBy('first_name')->get();
+
+            // Support period calculation in CSV if provided
+            $periodType = $request->get('period_type', 'monthly');
+            $date = $request->get('date', today()->toDateString());
+            $month = $request->get('month', now()->format('Y-m'));
+
+            $startDate = now()->startOfMonth()->toDateString();
+            $endDate = now()->endOfMonth()->toDateString();
+
+            if ($periodType === 'daily') {
+                $startDate = $date;
+                $endDate = $date;
+            } elseif ($periodType === 'weekly') {
+                $cDate = \Carbon\Carbon::parse($date);
+                $startDate = $cDate->copy()->startOfWeek()->toDateString();
+                $endDate = $cDate->copy()->endOfWeek()->toDateString();
+            } elseif ($periodType === 'monthly') {
+                [$yr, $mo] = explode('-', $month);
+                $cMonth = \Carbon\Carbon::create((int)$yr, (int)$mo, 1);
+                $startDate = $cMonth->startOfMonth()->toDateString();
+                $endDate = $cMonth->endOfMonth()->toDateString();
+            } elseif ($periodType === 'term' && $request->filled('term_id')) {
+                $term = AcademicTerm::find($request->get('term_id'));
+                if ($term) {
+                    $startDate = $term->start_date->toDateString();
+                    $endDate = $term->end_date->toDateString();
+                }
+            } elseif ($periodType === 'yearly' && $request->filled('year_id')) {
+                $year = AcademicYear::find($request->get('year_id'));
+                if ($year) {
+                    $startDate = $year->start_date->toDateString();
+                    $endDate = $year->end_date->toDateString();
+                }
+            }
+
+            fputcsv($handle, ['Staff ID', 'Staff Name', 'Category', 'Department', 'Designation', 'Present Days', 'Absent Days', 'Leave Days', 'Attendance %']);
+
+            $workingDays = max(1, collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday())->count());
+
+            $attendances = StaffAttendance::whereBetween('date', [$startDate, $endDate])
+                ->whereIn('employee_id', $employees->pluck('id'))
+                ->get()
+                ->groupBy('employee_id');
+
+            foreach ($employees as $emp) {
+                $recs = $attendances->get($emp->id, collect());
+                $p = $recs->whereIn('status', ['present', 'late'])->count();
+                $a = $recs->where('status', 'absent')->count();
+                $l = $recs->whereIn('status', ['leave', 'on_leave'])->count();
+                $h = $recs->where('status', 'half_day')->count();
+                $pct = round((($p + ($h * 0.5)) / $workingDays) * 100);
+
+                fputcsv($handle, [
+                    $emp->employee_code,
+                    $emp->full_name,
+                    $emp->category_label,
+                    $emp->department_name,
+                    $emp->designation_name,
+                    $p,
+                    $a,
+                    $l,
+                    $pct . '%',
+                ]);
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function events(Request $request)
+    {
+        $tab = $request->get('tab', 'upcoming'); // upcoming | past | all
+        $type = $request->get('type', 'all');
+
+        $query = StaffEvent::with(['employee.department']);
+        if ($tab === 'upcoming') {
+            $query->where('event_date', '>=', today()->toDateString())->orderBy('event_date', 'asc');
+        } elseif ($tab === 'past') {
+            $query->where('event_date', '<', today()->toDateString())->orderBy('event_date', 'desc');
+        } else {
+            $query->orderBy('event_date', 'desc');
+        }
+
+        if ($type !== 'all') {
+            $query->where('event_type', $type);
+        }
+
+        $events = $query->paginate(20)->withQueryString();
+        $employees = Employee::where('is_active', true)->orderBy('first_name')->get();
+
+        $staffCelebrations = $this->getUpcomingStaffCelebrations();
+
+        return view('hr.events', compact('events', 'employees', 'tab', 'type', 'staffCelebrations'));
+    }
+
+    public function storeEvent(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'event_type'  => 'required|in:birthday,wedding,wedding_anniversary,joining_anniversary,retirement,other',
+            'title'       => 'required|string|max:255',
+            'event_date'  => 'required|date',
+            'description' => 'nullable|string|max:1000',
+        ]);
+
+        StaffEvent::create($validated);
+
+        return back()->with('success', 'Staff event added successfully.');
+    }
+
+    public function deleteEvent(int $id)
+    {
+        StaffEvent::findOrFail($id)->delete();
+        return back()->with('success', 'Staff event deleted successfully.');
+    }
+
+    private function getUpcomingStaffCelebrations(): array
+    {
+        $celebrations = [];
+        $today = today();
+        $limitDate = today()->addDays(30);
+
+        $employees = Employee::where('is_active', true)
+            ->where(function($q) {
+                $q->whereNotNull('dob')->orWhereNotNull('joining_date');
+            })
+            ->get();
+
+        foreach ($employees as $emp) {
+            // Check birthday
+            if ($emp->dob) {
+                $bdayThisYear = \Carbon\Carbon::create($today->year, $emp->dob->month, $emp->dob->day);
+                if ($bdayThisYear->lt($today)) {
+                    $bdayThisYear->addYear();
+                }
+                if ($bdayThisYear->betweenIncluded($today, $limitDate)) {
+                    $celebrations[] = [
+                        'type'        => 'birthday',
+                        'label'       => 'Birthday',
+                        'badge_class' => 'bg-pink-100 text-pink-700 border-pink-200',
+                        'staff_name'  => $emp->full_name,
+                        'date'        => $bdayThisYear,
+                        'date_label'  => $bdayThisYear->format('d M'),
+                        'days_left'   => $today->diffInDays($bdayThisYear),
+                        'title'       => $emp->full_name . "'s Birthday",
+                    ];
+                }
+            }
+
+            // Check joining anniversary
+            if ($emp->joining_date && $emp->joining_date->lt($today)) {
+                $joinThisYear = \Carbon\Carbon::create($today->year, $emp->joining_date->month, $emp->joining_date->day);
+                if ($joinThisYear->lt($today)) {
+                    $joinThisYear->addYear();
+                }
+                if ($joinThisYear->betweenIncluded($today, $limitDate)) {
+                    $years = $joinThisYear->year - $emp->joining_date->year;
+                    if ($years > 0) {
+                        $celebrations[] = [
+                            'type'        => 'joining_anniversary',
+                            'label'       => 'Joining Anniversary',
+                            'badge_class' => 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                            'staff_name'  => $emp->full_name,
+                            'date'        => $joinThisYear,
+                            'date_label'  => $joinThisYear->format('d M'),
+                            'days_left'   => $today->diffInDays($joinThisYear),
+                            'title'       => $emp->full_name . " ({$years} " . ($years == 1 ? 'Year' : 'Years') . ' at School)',
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Add explicit staff_events in next 30 days
+        $manualEvents = StaffEvent::with('employee')
+            ->whereBetween('event_date', [$today->toDateString(), $limitDate->toDateString()])
+            ->get();
+
+        foreach ($manualEvents as $ev) {
+            $eventDate = \Carbon\Carbon::parse($ev->event_date);
+            $celebrations[] = [
+                'type'        => $ev->event_type,
+                'label'       => $ev->event_label,
+                'badge_class' => $ev->event_badge_color,
+                'staff_name'  => $ev->employee?->full_name ?? 'Staff Member',
+                'date'        => $eventDate,
+                'date_label'  => $eventDate->format('d M'),
+                'days_left'   => $today->diffInDays($eventDate),
+                'title'       => $ev->title,
+                'description' => $ev->description,
+            ];
+        }
+
+        // Sort by date
+        usort($celebrations, fn($a, $b) => $a['date']->timestamp <=> $b['date']->timestamp);
+
+        return $celebrations;
     }
 
     public function employees(Request $request)
@@ -258,8 +1461,10 @@ class HrController extends Controller
         }
 
         $employee = Employee::create(array_merge($data, [
-            'employee_code' => $this->generateEmployeeNumber(),
-            'is_active'     => true,
+            'employee_code'   => $this->generateEmployeeNumber(),
+            'approval_status' => 'pending',
+            'status'          => 'pending',
+            'is_active'       => false,
         ]));
         AuditLog::record('employee_created', $employee, [], ['employee_code' => $employee->employee_code, 'name' => $employee->full_name]);
 
@@ -283,8 +1488,8 @@ class HrController extends Controller
             }
         }
 
-        return redirect()->route('hr.employees', ['type' => $employee->employee_type])
-            ->with('success', 'Employee ' . $employee->full_name . ' (' . $employee->category_label . ') added successfully!');
+        return redirect()->route('hr.staff-approvals')
+            ->with('success', 'Staff member ' . $employee->full_name . ' (' . $employee->category_label . ') added successfully and is pending approval.');
     }
 
     public function showEmployee(int $id)
@@ -949,10 +2154,7 @@ class HrController extends Controller
 
     public function leaves(Request $request)
     {
-        $leaves = \App\Models\LeaveRequest::with(['employee', 'leaveType'])
-            ->when($request->status, fn($q, $v) => $q->where('status', $v))
-            ->latest()->paginate(20);
-        return view('hr.leaves', compact('leaves'));
+        return $this->leaveApprovals($request);
     }
 
     private function generateEmployeeNumber(): string
@@ -991,56 +2193,139 @@ class HrController extends Controller
         return view('hr.leave-apply', compact('employees', 'leaveTypes'));
     }
 
+    /**
+     * Web handler: Submit leave application on behalf of staff member
+     */
     public function storeLeave(Request $request)
     {
-        $request->validate([
+        return $this->processLeaveApplicationOnBehalf($request, isApi: false);
+    }
+
+    /**
+     * Permanent Backend API: Admin applies leave on behalf of staff member (for future Principal workflow)
+     */
+    public function apiApplyLeaveOnBehalf(Request $request)
+    {
+        return $this->processLeaveApplicationOnBehalf($request, isApi: true);
+    }
+
+    /**
+     * Core handler for Leave Application on Behalf
+     */
+    protected function processLeaveApplicationOnBehalf(Request $request, bool $isApi = false)
+    {
+        $validated = $request->validate([
             'employee_id'      => 'required|exists:employees,id',
             'leave_type_id'    => 'required|exists:leave_types,id',
             'from_date'        => 'required|date',
             'to_date'          => 'required|date|after_or_equal:from_date',
             'reason'           => 'required|string|max:500',
-            'is_half_day'      => 'boolean',
+            'is_half_day'      => 'nullable|boolean',
             'half_day_session' => 'nullable|in:morning,afternoon',
             'attachment'       => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ]);
 
-        $isHalfDay  = $request->boolean('is_half_day');
-        $totalDays  = $isHalfDay ? 0.5 : (
-            \Carbon\Carbon::parse($request->from_date)->diffInDays(\Carbon\Carbon::parse($request->to_date)) + 1
-        );
+        $employee = Employee::findOrFail($request->employee_id);
 
-        $attachmentPath = null;
-        if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('leave-attachments', 'public');
+        // Validation: Employee must be active
+        if (!$employee->is_active && $employee->status !== 'active') {
+            if ($isApi || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot apply leave for an inactive or unapproved staff member.',
+                ], 422);
+            }
+            return back()->withInput()->withErrors(['employee_id' => 'Cannot apply leave for an inactive or unapproved staff member.']);
         }
 
-        \App\Models\LeaveRequest::create([
-            'employee_id'       => $request->employee_id,
-            'leave_type_id'     => $request->leave_type_id,
-            'from_date'         => $request->from_date,
-            'to_date'           => $request->to_date,
-            'total_days'        => $totalDays,
-            'reason'            => $request->reason,
-            'status'            => 'pending',
-            'is_half_day'       => $isHalfDay,
-            'half_day_session'  => $request->half_day_session,
-            'attachment'        => $attachmentPath,
-        ]);
+        $isHalfDay = $request->boolean('is_half_day');
+        $fromDate  = \Carbon\Carbon::parse($request->from_date)->toDateString();
+        $toDate    = $isHalfDay ? $fromDate : \Carbon\Carbon::parse($request->to_date)->toDateString();
 
-        return redirect()->route('hr.leaves')->with('success', 'Leave application submitted.');
+        // Duplicate / Overlap protection: Avoid duplicate identical requests or conflicting date ranges
+        $hasOverlap = LeaveRequest::where('employee_id', $employee->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where(function ($q) use ($fromDate, $toDate) {
+                $q->whereBetween('from_date', [$fromDate, $toDate])
+                  ->orWhereBetween('to_date', [$fromDate, $toDate])
+                  ->orWhere(function ($sub) use ($fromDate, $toDate) {
+                      $sub->where('from_date', '<=', $fromDate)
+                          ->where('to_date', '>=', $toDate);
+                  });
+            })
+            ->exists();
+
+        if ($hasOverlap) {
+            if ($isApi || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A pending or approved leave request already exists for this staff member during the selected dates.',
+                ], 422);
+            }
+            return back()->withInput()->withErrors(['from_date' => 'A pending or approved leave request already exists for this staff member during the selected dates.']);
+        }
+
+        // Calculate days accurately (0.5 for half day, otherwise inclusive calendar range)
+        $totalDays = $isHalfDay ? 0.5 : (\Carbon\Carbon::parse($fromDate)->diffInDays(\Carbon\Carbon::parse($toDate)) + 1);
+
+        \DB::beginTransaction();
+        try {
+            $attachmentPath = null;
+            if ($request->hasFile('attachment')) {
+                $attachmentPath = $request->file('attachment')->store('leave-attachments', 'public');
+            }
+
+            // Create leave request in PENDING state. Never auto-approved, never marks attendance as Leave.
+            $leave = LeaveRequest::create([
+                'employee_id'       => $employee->id,
+                'leave_type_id'     => $request->leave_type_id,
+                'from_date'         => $fromDate,
+                'to_date'           => $toDate,
+                'total_days'        => $totalDays,
+                'reason'            => $request->reason,
+                'status'            => 'pending', // Strictly Pending awaiting future Principal review
+                'is_half_day'       => $isHalfDay,
+                'half_day_session'  => $request->half_day_session,
+                'attachment'        => $attachmentPath,
+                'applied_by'        => auth()->id(),
+                'applied_on_behalf' => true,
+            ]);
+
+            AuditLog::record('leave_applied_on_behalf', $leave, [], [
+                'employee_id'       => $employee->id,
+                'employee_name'     => $employee->full_name,
+                'applied_by'        => auth()->id(),
+                'total_days'        => $totalDays,
+                'from_date'         => $fromDate,
+                'to_date'           => $toDate,
+                'applied_on_behalf' => true,
+            ]);
+
+            \DB::commit();
+        } catch (\Throwable $e) {
+            \DB::rollBack();
+            if ($isApi || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to apply leave: ' . $e->getMessage(),
+                ], 500);
+            }
+            return back()->withInput()->withErrors(['general' => 'Failed to apply leave: ' . $e->getMessage()]);
+        }
+
+        if ($isApi || $request->expectsJson() || $request->is('api/*')) {
+            return response()->json([
+                'success' => true,
+                'message' => "Leave application submitted successfully on behalf of {$employee->full_name}.",
+                'data'    => $leave->load(['employee', 'leaveType', 'appliedBy']),
+            ], 201);
+        }
+
+        return redirect()->route('hr.leaves')->with('success', "Leave application submitted on behalf of {$employee->full_name}. Awaiting Principal approval.");
     }
 
-    public function approveLeave(int $id)
-    {
-        \App\Models\LeaveRequest::findOrFail($id)->update(['status' => 'approved', 'approved_by' => auth()->id()]);
-        return back()->with('success', 'Leave approved.');
-    }
-
-    public function rejectLeave(int $id)
-    {
-        \App\Models\LeaveRequest::findOrFail($id)->update(['status' => 'rejected', 'approved_by' => auth()->id()]);
-        return back()->with('success', 'Leave rejected.');
-    }
+    // NOTE: Leave Approval API (approveLeave, rejectLeave) is STRICTLY DEFERRED AND NOT CREATED NOW per design scope.
+    // Leave approval workflow and role-based permissions will be implemented in a future Principal workflow phase.
 
     public function downloadPayslip(int $id)
     {

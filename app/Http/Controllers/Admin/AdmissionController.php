@@ -286,25 +286,44 @@ class AdmissionController extends Controller
             }
         }
 
+        // Sanitize & normalize digits-only fields (mobile numbers, aadhaar, pincode)
+        $digitsOnlyFields = ['parent_mobile', 'mother_mobile', 'guardian_mobile', 'aadhaar_no', 'father_aadhaar', 'pincode'];
+        $sanitizedDigits = [];
+        foreach ($digitsOnlyFields as $f) {
+            if ($request->filled($f)) {
+                $cleaned = preg_replace('/[^\d]/', '', (string)$request->input($f));
+                // If user entered +91 or 91 prefix with 12 digits for phone numbers, normalize to 10 digits
+                if (in_array($f, ['parent_mobile', 'mother_mobile', 'guardian_mobile']) && strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                    $cleaned = substr($cleaned, 2);
+                }
+                $sanitizedDigits[$f] = $cleaned !== '' ? $cleaned : null;
+            } elseif ($request->has($f)) {
+                $sanitizedDigits[$f] = null;
+            }
+        }
+        if (!empty($sanitizedDigits)) {
+            $request->merge($sanitizedDigits);
+        }
+
         $validated = $request->validate([
             'first_name'             => 'required|string|max:50',
             'last_name'              => 'nullable|string|max:50',
             'email'                  => 'nullable|email|max:100',
-            'dob'                    => 'nullable|date',
+            'dob'                    => 'nullable|date|before_or_equal:today',
             'gender'                 => 'nullable|in:male,female,other',
             'photo'                  => 'nullable|image|max:3072',
             'class_id'               => 'required|exists:classes,id',
             'section_id'             => 'nullable|exists:sections,id',
             'parent_name'            => 'required|string|max:100',
-            'parent_mobile'          => 'required|string|max:15',
+            'parent_mobile'          => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'parent_email'           => 'nullable|email|max:100',
             'father_occupation'      => 'nullable|string|max:100',
             'mother_name'            => 'nullable|string|max:100',
             'mother_occupation'      => 'nullable|string|max:100',
-            'mother_mobile'          => 'nullable|string|max:15',
+            'mother_mobile'          => ['nullable', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'mother_email'           => 'nullable|email|max:100',
             'guardian_name'          => 'nullable|string|max:100',
-            'guardian_mobile'        => 'nullable|string|max:15',
+            'guardian_mobile'        => ['nullable', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'guardian_relation'      => 'nullable|string|max:50',
             'annual_family_income'   => 'nullable|numeric|min:0',
             'address'                => 'nullable|string|max:255',
@@ -334,7 +353,9 @@ class AdmissionController extends Controller
             'documents_submitted'    => 'nullable|array',
             'activities'             => 'nullable|array',
             'payment_terms'          => 'required|in:single,2_terms,3_terms',
-            'payment_mode'           => 'required|in:UPI,Net Banking,Cash',
+            'payment_mode'           => 'required|string|max:50',
+            'payment_account'        => 'nullable|string|in:upi,cash_box_1,cash_box_2,bank',
+            'transaction_id'         => 'nullable|string|max:100',
             'amount_collected'       => 'required|numeric|min:0',
             'payment_date'           => 'nullable|date',
             'term_2_due_date'        => 'nullable|date',
@@ -343,10 +364,10 @@ class AdmissionController extends Controller
             'category'               => 'nullable|string|max:50',
             'religion'               => 'nullable|string|max:50',
             'mother_tongue'          => 'nullable|string|max:50',
-            'aadhaar_no'             => 'nullable|string|max:20',
-            'pincode'                => 'nullable|string|max:10',
+            'aadhaar_no'             => ['nullable', 'string', 'regex:/^[0-9]{12}$/'],
+            'pincode'                => ['nullable', 'string', 'regex:/^[1-9][0-9]{5}$/'],
             'father_photo'           => 'nullable|image|max:3072',
-            'father_aadhaar'         => 'nullable|string|max:20',
+            'father_aadhaar'         => ['nullable', 'string', 'regex:/^[0-9]{12}$/'],
             'mother_photo'           => 'nullable|image|max:3072',
             'guardian_photo'         => 'nullable|image|max:3072',
             'doc_birth_certificate'  => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
@@ -357,6 +378,28 @@ class AdmissionController extends Controller
             'doc_pan_id'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'additional_items'       => 'nullable|array',
             'additional_items.*'     => 'nullable|integer|min:0',
+        ], [
+            'first_name.required'       => 'Student First Name is required.',
+            'class_id.required'         => 'Please select the Standard / Class applying for.',
+            'class_id.exists'           => 'The selected Class does not exist.',
+            'parent_name.required'      => 'Father / Primary Parent Name is required.',
+            'parent_mobile.required'    => 'Father / Primary Parent Mobile number is required.',
+            'parent_mobile.regex'       => 'Father Mobile number must be a valid 10-digit Indian mobile number (e.g. 9876543210).',
+            'mother_mobile.regex'       => 'Mother Mobile number must be a valid 10-digit mobile number (e.g. 9876543210).',
+            'guardian_mobile.regex'     => 'Guardian Mobile number must be a valid 10-digit mobile number (e.g. 9876543210).',
+            'aadhaar_no.regex'          => 'Student Aadhaar number must be exactly 12 numeric digits.',
+            'father_aadhaar.regex'      => 'Father Aadhaar number must be exactly 12 numeric digits.',
+            'pincode.regex'             => 'Pincode must be a valid 6-digit postal code (e.g. 600001).',
+            'dob.before_or_equal'       => 'Date of Birth cannot be in the future.',
+            'email.email'               => 'Student Email address must be a valid email format.',
+            'parent_email.email'        => 'Father Email address must be a valid email format.',
+            'mother_email.email'        => 'Mother Email address must be a valid email format.',
+            'payment_terms.required'    => 'Payment Terms selection is required (Single Payment, 2 Terms, or 3 Terms).',
+            'payment_mode.required'     => 'Payment Mode is required (UPI, Net Banking, or Cash).',
+            'amount_collected.required' => 'Amount Collected Today is required (enter 0 if paying later).',
+            'amount_collected.numeric'  => 'Amount Collected must be a valid number.',
+            'amount_collected.min'      => 'Amount Collected cannot be negative.',
+            'previous_percentage.between' => 'Previous Percentage / CGPA must be between 0 and 100.',
         ]);
 
         $currentYear = AcademicYear::current();
@@ -452,6 +495,18 @@ class AdmissionController extends Controller
         $paymentDate = $request->payment_date ?: date('Y-m-d');
         $paymentMode = $request->payment_mode;
         $paymentTerms = $request->payment_terms;
+        $remainingFees = max(0, $totalFee - $totalKitFee);
+
+        $paymentAccount = $request->input('payment_account');
+        if (!$paymentAccount) {
+            if (strtolower($paymentMode) === 'upi') {
+                $paymentAccount = 'upi';
+            } elseif (str_contains(strtolower($paymentMode), 'box 2') || strtolower($paymentMode) === 'cash_box_2') {
+                $paymentAccount = 'cash_box_2';
+            } else {
+                $paymentAccount = 'cash_box_1';
+            }
+        }
 
         // Term Breakdown Calculations
         $terms = [];
@@ -599,7 +654,7 @@ class AdmissionController extends Controller
             $guardianPhotoPath = $request->file('guardian_photo')->store('parents/photos', 'public');
         }
 
-        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, $photoPath, $fatherPhotoPath, $motherPhotoPath, $guardianPhotoPath, $isAsp, $aspFee, $transportFee, $concessionAmount, &$student) {
+        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentAccount, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, $photoPath, $fatherPhotoPath, $motherPhotoPath, $guardianPhotoPath, $isAsp, $aspFee, $transportFee, $concessionAmount, &$student) {
             $studentFullName = trim($request->first_name . ' ' . ($request->last_name ?? ''));
 
             // Save Enquiry
@@ -624,6 +679,7 @@ class AdmissionController extends Controller
                 'amount_collected'     => $amountCollected,
                 'pending_amount'       => $pendingAmount,
                 'payment_mode'         => $paymentMode,
+                'payment_account'      => $paymentAccount,
                 'payment_date'         => $paymentDate,
                 'payment_status'       => $overallStatus,
                 'fee_breakdown'        => $terms,
@@ -724,6 +780,7 @@ class AdmissionController extends Controller
                 'admission_paid_amount'    => $amountCollected,
                 'admission_pending_amount' => $pendingAmount,
                 'payment_mode'             => $paymentMode,
+                'payment_account'          => $paymentAccount,
                 'payment_date'             => $paymentDate,
                 'payment_status'           => $overallStatus,
                 'admission_fee_terms'      => $terms,
@@ -798,7 +855,10 @@ class AdmissionController extends Controller
                     'amount_paid'      => $amountCollected,
                     'total_paid'       => $amountCollected,
                     'payment_mode'     => $feePaymentMode,
-                    'remarks'          => 'Admission Fee Payment (' . str_replace('_', ' ', strtoupper($paymentTerms)) . ')',
+                    'payment_account'  => $paymentAccount,
+                    'term_name'        => 'Admission Fee',
+                    'transaction_id'   => $request->input('transaction_id') ?: $request->input('upi_ref_no'),
+                    'remarks'          => 'Admission Fee Payment for ' . ($classModel?->name ? 'Class ' . $classModel->name : 'New Admission') . ' (' . str_replace('_', ' ', strtoupper($paymentTerms)) . ')',
                     'collected_by'     => Auth::id(),
                 ]);
             }
@@ -1027,13 +1087,21 @@ class AdmissionController extends Controller
     {
         $enquiry = Enquiry::findOrFail($id);
 
+        if ($request->filled('parent_mobile')) {
+            $cleaned = preg_replace('/[^\d]/', '', (string)$request->input('parent_mobile'));
+            if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                $cleaned = substr($cleaned, 2);
+            }
+            $request->merge(['parent_mobile' => $cleaned]);
+        }
+
         $validated = $request->validate([
             'student_name'    => 'required|string|max:100',
             'dob'             => 'nullable|date|before:today',
             'gender'          => 'nullable|in:male,female,other',
             'class_id'        => 'required|exists:classes,id',
             'parent_name'     => 'required|string|max:100',
-            'parent_mobile'   => 'required|string|max:15',
+            'parent_mobile'   => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'parent_email'    => 'nullable|email|max:100',
             'address'         => 'nullable|string|max:255',
             'source'          => 'nullable|string|max:50',
@@ -1096,13 +1164,23 @@ class AdmissionController extends Controller
 
     public function submitEnquiry(Request $request)
     {
+        if ($request->filled('parent_mobile')) {
+            $cleaned = preg_replace('/[^\d]/', '', (string)$request->input('parent_mobile'));
+            if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                $cleaned = substr($cleaned, 2);
+            }
+            $request->merge(['parent_mobile' => $cleaned]);
+        }
+
         $validated = $request->validate([
             'student_name'  => 'required|string|max:100',
             'class_id'      => 'required|exists:classes,id',
             'parent_name'   => 'required|string|max:100',
-            'parent_mobile' => 'required|string|max:15',
+            'parent_mobile' => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'parent_email'  => 'nullable|email|max:100',
             'documents.*'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+        ], [
+            'parent_mobile.regex' => 'Parent Mobile number must be a valid 10-digit Indian mobile number (e.g. 9876543210).',
         ]);
         $currentYear = AcademicYear::current();
 
@@ -1352,16 +1430,26 @@ class AdmissionController extends Controller
 
     public function storeApplication(Request $request)
     {
+        if ($request->filled('parent_mobile')) {
+            $cleaned = preg_replace('/[^\d]/', '', (string)$request->input('parent_mobile'));
+            if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                $cleaned = substr($cleaned, 2);
+            }
+            $request->merge(['parent_mobile' => $cleaned]);
+        }
+
         $validated = $request->validate([
             'student_name'  => 'required|string|max:100',
             'dob'           => 'nullable|date|before:today',
             'gender'        => 'nullable|in:male,female,other',
             'class_id'      => 'required|exists:classes,id',
             'parent_name'   => 'required|string|max:100',
-            'parent_mobile' => 'required|string|max:15',
+            'parent_mobile' => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'parent_email'  => 'nullable|email|max:100',
             'address'       => 'nullable|string|max:500',
             'previous_school' => 'nullable|string|max:150',
+        ], [
+            'parent_mobile.regex' => 'Parent Mobile number must be a valid 10-digit Indian mobile number (e.g. 9876543210).',
         ]);
 
         // Check duplicate

@@ -103,11 +103,22 @@
       discount: 0,
       paymentType: 'single',
       singleMode: 'cash',
+      paymentAccount: 'cash_box_1',
       submitting: false,
       splits: [
-        { payment_mode: 'cash', amount: {{ $dues->first()?->balance ?? 0 }}, transaction_id: '' },
-        { payment_mode: 'upi',  amount: 0, transaction_id: '' }
+        { payment_mode: 'cash', payment_account: 'cash_box_1', amount: {{ $dues->first()?->balance ?? 0 }}, transaction_id: '' },
+        { payment_mode: 'upi', payment_account: 'upi', amount: 0, transaction_id: '' }
       ],
+
+      handleModeChange() {
+        if (this.singleMode === 'cash') {
+          this.paymentAccount = 'cash_box_1';
+        } else if (this.singleMode === 'upi' || this.singleMode === 'online') {
+          this.paymentAccount = 'upi';
+        } else {
+          this.paymentAccount = 'bank';
+        }
+      },
 
       init() {
         const keys = Object.keys(this.duesMap);
@@ -161,6 +172,7 @@
       addSplitRow() {
         this.splits.push({
           payment_mode: 'upi',
+          payment_account: 'upi',
           amount: 0,
           transaction_id: ''
         });
@@ -314,11 +326,12 @@
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1.5">Payment Method <span class="text-rose-500">*</span></label>
               <select name="payment_mode" 
-                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 bg-white" 
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
                       x-model="singleMode"
+                      @change="handleModeChange()"
                       :disabled="paymentType !== 'single'">
                 <option value="cash">Cash</option>
-                <option value="upi">UPI</option>
+                <option value="upi">UPI / QR Code</option>
                 <option value="card">Card / POS</option>
                 <option value="bank_transfer">Bank Transfer / NEFT / RTGS</option>
                 <option value="cheque">Cheque</option>
@@ -327,12 +340,25 @@
               </select>
             </div>
 
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">Deposit Account <span class="text-rose-500">*</span></label>
+              <select name="payment_account" 
+                      x-model="paymentAccount"
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                      :disabled="paymentType !== 'single'">
+                <option value="upi">🟣 UPI Account (Virtual / QR)</option>
+                <option value="cash_box_1">🟢 Cash Box 1 (Front Office)</option>
+                <option value="cash_box_2">🔵 Cash Box 2 (Accounts Office)</option>
+                <option value="bank">🏦 School Bank Account</option>
+              </select>
+            </div>
+
             {{-- Reference / UTR for online/UPI/Card --}}
-            <div x-show="singleMode === 'upi' || singleMode === 'online' || singleMode === 'card' || singleMode === 'bank_transfer'">
-              <label class="block text-xs font-bold text-slate-700 mb-1.5">Transaction ID / UTR</label>
+            <div class="sm:col-span-2" x-show="singleMode === 'upi' || singleMode === 'online' || singleMode === 'card' || singleMode === 'bank_transfer'">
+              <label class="block text-xs font-bold text-slate-700 mb-1.5">Transaction ID / UTR / Reference</label>
               <input type="text" 
                      name="transaction_id" 
-                     class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono text-slate-900 bg-white" 
+                     class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
                      placeholder="e.g. UTR123456789"
                      :disabled="paymentType !== 'single'">
             </div>
@@ -394,12 +420,13 @@
             <template x-for="(split, index) in splits" :key="index">
               <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 {{-- Payment Method --}}
-                <div class="w-full sm:w-1/3">
+                <div class="w-full sm:w-1/4">
                   <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Method</label>
                   <select :name="'splits[' + index + '][payment_mode]'" 
                           x-model="split.payment_mode" 
+                          @change="split.payment_account = (split.payment_mode === 'cash' ? 'cash_box_1' : (split.payment_mode === 'upi' ? 'upi' : 'bank'))"
                           :disabled="paymentType !== 'split'"
-                          class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white">
+                          class="w-full px-2.5 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-800 bg-white">
                     <option value="cash">Cash</option>
                     <option value="upi">UPI</option>
                     <option value="card">Card / POS</option>
@@ -410,8 +437,22 @@
                   </select>
                 </div>
 
+                {{-- Destination Account --}}
+                <div class="w-full sm:w-1/4">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Account</label>
+                  <select :name="'splits[' + index + '][payment_account]'" 
+                          x-model="split.payment_account" 
+                          :disabled="paymentType !== 'split'"
+                          class="w-full px-2 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-800 bg-white">
+                    <option value="cash_box_1">Cash Box 1</option>
+                    <option value="cash_box_2">Cash Box 2</option>
+                    <option value="upi">UPI Account</option>
+                    <option value="bank">Bank Account</option>
+                  </select>
+                </div>
+
                 {{-- Amount --}}
-                <div class="w-full sm:w-1/3">
+                <div class="w-full sm:w-1/4">
                   <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Amount (₹)</label>
                   <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400 font-bold text-xs">₹</span>
@@ -426,13 +467,13 @@
                 </div>
 
                 {{-- Reference / Details --}}
-                <div class="w-full sm:w-1/3">
-                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Reference / UTR / Cheque</label>
+                <div class="w-full sm:w-1/4">
+                  <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Ref / UTR / Cheque</label>
                   <input type="text" 
                          :name="'splits[' + index + '][transaction_id]'" 
                          x-model="split.transaction_id" 
                          :disabled="paymentType !== 'split'"
-                         placeholder="Optional Ref / ID" 
+                         placeholder="Optional Ref" 
                          class="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-800">
                 </div>
 

@@ -268,6 +268,7 @@ class FeeController extends Controller
             'payment_date'     => 'required|date|before_or_equal:today',
             'payment_type'     => 'required|in:single,split',
             'payment_mode'     => 'required_if:payment_type,single|nullable|in:cash,cheque,dd,online,upi,card,bank_transfer',
+            'payment_account'  => 'nullable|string|in:upi,cash_box_1,cash_box_2,bank',
             'transaction_id'   => 'nullable|string|max:100',
             'remarks'          => 'nullable|string|max:1000',
             'cheque_number'    => 'nullable|string|max:50',
@@ -277,6 +278,7 @@ class FeeController extends Controller
             'idempotency_token'=> 'nullable|string|max:100',
             'splits'           => 'required_if:payment_type,split|nullable|array',
             'splits.*.payment_mode'  => 'required_with:splits|string|in:cash,cheque,dd,online,upi,card,bank_transfer',
+            'splits.*.payment_account' => 'nullable|string|in:upi,cash_box_1,cash_box_2,bank',
             'splits.*.amount'        => 'required_with:splits|numeric|gt:0',
             'splits.*.transaction_id'=> 'nullable|string|max:100',
             'splits.*.cheque_number' => 'nullable|string|max:50',
@@ -396,6 +398,16 @@ class FeeController extends Controller
             }
 
             $paymentMode = $isSplit ? 'split' : $validated['payment_mode'];
+            $paymentAccount = $validated['payment_account'] ?? null;
+            if (!$paymentAccount && !$isSplit) {
+                if ($paymentMode === 'cash') {
+                    $paymentAccount = 'cash_box_1';
+                } elseif (in_array($paymentMode, ['upi', 'online'])) {
+                    $paymentAccount = 'upi';
+                } else {
+                    $paymentAccount = 'bank';
+                }
+            }
 
             $payment = FeePayment::create([
                 'student_id'       => $student->id,
@@ -412,6 +424,7 @@ class FeeController extends Controller
                 'amount_paid'      => $netPayable,
                 'total_paid'       => $netPayable,
                 'payment_mode'     => $paymentMode,
+                'payment_account'  => $paymentAccount,
                 'transaction_id'   => $isSplit ? null : ($validated['transaction_id'] ?? null),
                 'cheque_number'    => $isSplit ? null : ($validated['cheque_number'] ?? null),
                 'cheque_date'      => $isSplit ? null : ($validated['cheque_date'] ?? null),
@@ -424,15 +437,27 @@ class FeeController extends Controller
 
             if ($isSplit) {
                 foreach ($splits as $sp) {
+                    $spMode = $sp['payment_mode'];
+                    $spAccount = $sp['payment_account'] ?? null;
+                    if (!$spAccount) {
+                        if ($spMode === 'cash') {
+                            $spAccount = 'cash_box_1';
+                        } elseif (in_array($spMode, ['upi', 'online'])) {
+                            $spAccount = 'upi';
+                        } else {
+                            $spAccount = 'bank';
+                        }
+                    }
                     FeePaymentSplit::create([
-                        'fee_payment_id' => $payment->id,
-                        'payment_mode'   => $sp['payment_mode'],
-                        'amount'         => (float)$sp['amount'],
-                        'transaction_id' => $sp['transaction_id'] ?? null,
-                        'cheque_number'  => $sp['cheque_number'] ?? null,
-                        'cheque_date'    => !empty($sp['cheque_date']) ? $sp['cheque_date'] : null,
-                        'bank_name'      => $sp['bank_name'] ?? null,
-                        'branch_name'    => $sp['branch_name'] ?? null,
+                        'fee_payment_id'  => $payment->id,
+                        'payment_mode'    => $spMode,
+                        'payment_account' => $spAccount,
+                        'amount'          => (float)$sp['amount'],
+                        'transaction_id'  => $sp['transaction_id'] ?? null,
+                        'cheque_number'   => $sp['cheque_number'] ?? null,
+                        'cheque_date'     => !empty($sp['cheque_date']) ? $sp['cheque_date'] : null,
+                        'bank_name'       => $sp['bank_name'] ?? null,
+                        'branch_name'     => $sp['branch_name'] ?? null,
                     ]);
                 }
             }

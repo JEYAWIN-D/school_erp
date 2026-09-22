@@ -23,6 +23,7 @@ class Employee extends Model
         'assigned_vehicle', 'assigned_block', 'shift_timing',
         'salary_on_hold', 'investment_80c', 'investment_80d', 'hra_exemption', 'tax_regime',
         'manager_id',
+        'approval_status', 'approved_by', 'approved_at', 'rejection_reason',
     ];
 
     protected $casts = [
@@ -117,6 +118,11 @@ class Employee extends Model
     public function staffAttendances(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(StaffAttendance::class);
+    }
+
+    public function staffEvents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StaffEvent::class);
     }
 
     public function manager(): \Illuminate\Database\Eloquent\Relations\BelongsTo

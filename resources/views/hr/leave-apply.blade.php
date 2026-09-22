@@ -6,7 +6,10 @@
         <a href="{{ route('hr.leaves') }}" class="btn-icon">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         </a>
-        <h1 class="page-title">Apply Leave</h1>
+        <div>
+            <h1 class="page-title text-xl font-black text-slate-800">Apply Leave on Behalf</h1>
+            <p class="text-xs font-semibold text-slate-500 mt-0.5">Admin &bull; Apply leave on behalf of a staff member (Awaiting Principal approval)</p>
+        </div>
     </div>
 
     @if(session('success'))<div class="alert-success">{{ session('success') }}</div>@endif
@@ -88,8 +91,8 @@
                 @endif
 
                 <div class="flex gap-3">
-                    <button type="submit" class="btn btn-primary flex-1">Submit Application</button>
-                    <a href="{{ route('hr.leaves') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary flex-1 font-bold">Submit Application on Behalf</button>
+                    <a href="{{ route('hr.leaves') }}" class="btn btn-secondary font-bold">Cancel</a>
                 </div>
             </div>
         </form>

@@ -16,6 +16,7 @@ class FeePaymentSplit extends Model
         'cheque_date',
         'bank_name',
         'branch_name',
+        'payment_account',
         'remarks',
     ];
 

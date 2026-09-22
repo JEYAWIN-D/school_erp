@@ -36,7 +36,7 @@ class Student extends Model
         'rejection_reason', 'rejected_by', 'rejected_at',
         'parent_visitor_pass_token',
         'payment_terms', 'total_admission_fee', 'admission_paid_amount',
-        'admission_pending_amount', 'payment_mode', 'payment_date', 'payment_status', 'admission_fee_terms',
+        'admission_pending_amount', 'payment_mode', 'payment_account', 'payment_date', 'payment_status', 'admission_fee_terms',
         'document_token',
         'emis_no', 'identification_mark_1', 'identification_mark_2',
         'is_asp', 'asp_fee',

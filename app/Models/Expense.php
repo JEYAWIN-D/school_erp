@@ -16,6 +16,7 @@ class Expense extends Model
         'amount',
         'expense_date',
         'payment_method',
+        'payment_account',
         'vendor_name',
         'vendor_invoice_no',
         'invoice_receipt_path',
