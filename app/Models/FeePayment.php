@@ -10,7 +10,7 @@ class FeePayment extends Model
     protected $fillable = [
         'student_id', 'enrollment_id', 'fee_head_id', 'term_number', 'term_name', 'academic_year_id',
         'receipt_number', 'payment_date', 'amount', 'late_fee', 'discount',
-        'amount_paid', 'total_paid', 'payment_mode', 'transaction_id',
+        'amount_paid', 'total_paid', 'payment_mode', 'payment_account', 'transaction_id',
         'cheque_number', 'cheque_bank', 'cheque_branch', 'cheque_date',
         'cheque_status', 'bounce_charge', 'bounce_reason',
         'remarks', 'collected_by', 'is_cancelled', 'cancel_reason',

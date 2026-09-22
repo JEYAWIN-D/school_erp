@@ -36,7 +36,7 @@ class Student extends Model
         'rejection_reason', 'rejected_by', 'rejected_at',
         'parent_visitor_pass_token',
         'payment_terms', 'total_admission_fee', 'admission_paid_amount',
-        'admission_pending_amount', 'payment_mode', 'payment_date', 'payment_status', 'admission_fee_terms',
+        'admission_pending_amount', 'payment_mode', 'payment_account', 'payment_date', 'payment_status', 'admission_fee_terms',
         'document_token',
         'emis_no', 'identification_mark_1', 'identification_mark_2',
         'is_asp', 'asp_fee',
@@ -44,6 +44,9 @@ class Student extends Model
         'transport_route_id', 'transport_stop_id', 'transport_distance_km', 'transport_fee',
         'sibling_name', 'sibling_admission_no', 'sibling_class',
         'documents_submitted', 'selected_eca',
+        'father_qualification', 'mother_qualification', 'father_income', 'mother_income',
+        'stream_group', 'stream_group_allotted', 'is_tc_enclosed', 'is_qualified_promotion', 'year_of_passing',
+        'dress_size', 'shoe_size', 'second_language', 'custom_kit_items', 'textbook_custom_fields',
     ];
 
     protected static function booted(): void
@@ -85,6 +88,8 @@ class Student extends Model
         'transport_fee'                 => 'decimal:2',
         'documents_submitted'           => 'array',
         'selected_eca'                  => 'array',
+        'custom_kit_items'              => 'array',
+        'textbook_custom_fields'        => 'array',
         'aadhaar_no'                    => \App\Casts\EncryptedStringResilient::class,
         'father_aadhaar'                => \App\Casts\EncryptedStringResilient::class,
         'passport_number'               => \App\Casts\EncryptedStringResilient::class,
@@ -264,5 +269,46 @@ class Student extends Model
     public function getGuardianPhotoUrlAttribute(): ?string
     {
         return $this->guardian_photo ? asset('storage/' . $this->guardian_photo) : null;
+    }
+
+    /**
+     * Get the next sequence integer for a given prefix (e.g. 'EPSB' or 'EPSG').
+     */
+    public static function getNextSequenceNumber(string $prefix): int
+    {
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+        $query  = static::withTrashed()->where('admission_no', 'like', $prefix . '%');
+
+        if ($driver === 'pgsql') {
+            $max = $query->whereRaw("admission_no ~ ?", ['^' . $prefix . '[0-9]+$'])
+                         ->max(\Illuminate\Support\Facades\DB::raw("CAST(SUBSTRING(admission_no FROM 5) AS INTEGER)")) ?? 0;
+        } elseif ($driver === 'sqlite') {
+            $max = $query->max(\Illuminate\Support\Facades\DB::raw("CAST(SUBSTR(admission_no, 5) AS INTEGER)")) ?? 0;
+        } else {
+            $max = $query->whereRaw("admission_no REGEXP ?", ['^' . $prefix . '[0-9]+$'])
+                         ->max(\Illuminate\Support\Facades\DB::raw("CAST(SUBSTRING(admission_no, 5) AS UNSIGNED)")) ?? 0;
+        }
+
+        return ((int)$max) + 1;
+    }
+
+    /**
+     * Generate the next sequential official admission number based on gender:
+     * - Boys: EPSB0001, EPSB0002, ... (Pattern: EPSB0000)
+     * - Girls: EPSG0001, EPSG0002, ... (Pattern: EPSG000 / EPSG0000)
+     */
+    public static function generateAdmissionNumber(?string $gender = null): string
+    {
+        $g = strtolower(trim((string)$gender));
+        $isFemale = in_array($g, ['female', 'f', 'girl', 'g']) || str_starts_with($g, 'fem');
+        $prefix = $isFemale ? 'EPSG' : 'EPSB';
+
+        $next = static::getNextSequenceNumber($prefix);
+        do {
+            $candidate = $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
+            $next++;
+        } while (static::withTrashed()->where('admission_no', $candidate)->exists());
+
+        return $candidate;
     }
 }

@@ -8,6 +8,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 
@@ -150,24 +151,29 @@ class PortalController extends Controller
 
         $enrollment = $this->getEnrollment($child->id);
 
-        $todayAtt = null;
-        try {
-            $todayAtt = DB::table('attendance_records')
-                ->where('student_id', $child->id)
-                ->where('date', today()->toDateString())
-                ->first();
-        } catch (\Exception $e) {}
+        $cacheKey = 'parent_dash_' . $child->id;
+        $data = Cache::remember($cacheKey, 60, function () use ($child, $enrollment) {
+            $todayAtt = null;
+            try {
+                $todayAtt = DB::table('attendance_records')
+                    ->where('student_id', $child->id)
+                    ->where('date', today()->toDateString())
+                    ->first();
+            } catch (\Exception $e) {}
 
-        $attSummary = $this->attendanceSummary($child->id, now()->startOfMonth(), now()->endOfMonth());
-        $fees        = $this->getFeeBalance($child->id);
-        $feeBalance  = $fees['balance'];
-        $recentMarks = $this->getRecentMarks($child->id);
-        $notices     = $this->getNotices();
-        $homework    = $this->getHomework($enrollment?->class_id ?? 0);
+            $attSummary = $this->attendanceSummary($child->id, now()->startOfMonth(), now()->endOfMonth());
+            $fees        = $this->getFeeBalance($child->id);
+            $feeBalance  = $fees['balance'];
+            $recentMarks = $this->getRecentMarks($child->id);
+            $notices     = $this->getNotices();
+            $homework    = $this->getHomework($enrollment?->class_id ?? 0);
 
-        return view('portal.parent.dashboard', compact(
-            'children', 'child', 'enrollment', 'todayAtt',
-            'attSummary', 'feeBalance', 'recentMarks', 'notices', 'homework'
+            return compact('todayAtt', 'attSummary', 'feeBalance', 'recentMarks', 'notices', 'homework');
+        });
+
+        return view('portal.parent.dashboard', array_merge(
+            compact('children', 'child', 'enrollment'),
+            $data
         ));
     }
 
@@ -327,42 +333,49 @@ class PortalController extends Controller
 
         $enrollment = $this->getEnrollment($student->id);
 
-        // Today's timetable (day_of_week is tinyint: 1=Mon..7=Sun ISO)
-        $dayOfWeek = (int) now()->format('N');
-        $timetable = collect();
-        try {
-            $timetable = DB::table('timetables as t')
-                ->join('subjects as s', 's.id', '=', 't.subject_id')
-                ->where('t.section_id', $enrollment?->section_id ?? 0)
-                ->where('t.day_of_week', $dayOfWeek)
-                ->where('t.is_active', true)
-                ->orderBy('t.start_time')
-                ->select('s.name as subject', 't.start_time', 't.end_time')
-                ->get();
-        } catch (\Exception $e) {}
+        $cacheKey = 'student_dash_' . $student->id;
+        $data = Cache::remember($cacheKey, 60, function () use ($student, $enrollment) {
+            $dayOfWeek = (int) now()->format('N');
+            $timetable = collect();
+            try {
+                $timetable = DB::table('timetables as t')
+                    ->join('subjects as s', 's.id', '=', 't.subject_id')
+                    ->where('t.section_id', $enrollment?->section_id ?? 0)
+                    ->where('t.day_of_week', $dayOfWeek)
+                    ->where('t.is_active', true)
+                    ->orderBy('t.start_time')
+                    ->select('s.name as subject', 't.start_time', 't.end_time')
+                    ->get();
+            } catch (\Exception $e) {}
 
-        $todayAtt = null;
-        try {
-            $todayAtt = DB::table('attendance_records')
-                ->where('student_id', $student->id)
-                ->where('date', today()->toDateString())
-                ->first();
-        } catch (\Exception $e) {}
+            $todayAtt = null;
+            try {
+                $todayAtt = DB::table('attendance_records')
+                    ->where('student_id', $student->id)
+                    ->where('date', today()->toDateString())
+                    ->first();
+            } catch (\Exception $e) {}
 
-        $attSummary = $this->attendanceSummary($student->id, now()->startOfMonth(), now()->endOfMonth());
-        $attPct = $attSummary['total'] > 0
-            ? round($attSummary['present'] / $attSummary['total'] * 100, 1)
-            : null;
+            $attSummary = $this->attendanceSummary($student->id, now()->startOfMonth(), now()->endOfMonth());
+            $attPct = $attSummary['total'] > 0
+                ? round($attSummary['present'] / $attSummary['total'] * 100, 1)
+                : null;
 
-        $homework    = $this->getHomework($enrollment?->class_id ?? 0);
-        $notices     = $this->getNotices(4);
-        $recentMarks = $this->getRecentMarks($student->id);
-        $fees        = $this->getFeeBalance($student->id);
-        $feeBalance  = $fees['balance'];
+            $homework    = $this->getHomework($enrollment?->class_id ?? 0);
+            $notices     = $this->getNotices(4);
+            $recentMarks = $this->getRecentMarks($student->id);
+            $fees        = $this->getFeeBalance($student->id);
+            $feeBalance  = $fees['balance'];
 
-        return view('portal.student.dashboard', compact(
-            'student', 'enrollment', 'timetable', 'todayAtt',
-            'attSummary', 'attPct', 'homework', 'notices', 'recentMarks', 'feeBalance'
+            return compact(
+                'timetable', 'todayAtt', 'attSummary', 'attPct',
+                'homework', 'notices', 'recentMarks', 'feeBalance'
+            );
+        });
+
+        return view('portal.student.dashboard', array_merge(
+            compact('student', 'enrollment'),
+            $data
         ));
     }
 

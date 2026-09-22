@@ -12,7 +12,7 @@ class SuperAdminSeeder extends Seeder
     {
         $defaultPassword = env('SUPERADMIN_DEFAULT_PASSWORD', 'Admin@1234');
 
-        $user = User::firstOrCreate(
+        $user = User::updateOrCreate(
             ['email' => 'admin@schoolerp.in'],
             [
                 'name'      => 'Super Admin',

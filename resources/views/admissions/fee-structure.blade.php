@@ -118,40 +118,65 @@
     </div>
   </div>
 
-  {{-- ── Studies & Academic Fees Section ─────────────────────── --}}
+  {{-- ── Studies & Academic Fees Section (Official 2026-2027 Schedule) ──── --}}
   <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-6">
     <div class="flex items-center justify-between">
       <h3 class="font-bold text-slate-900 text-base flex items-center gap-2.5">
         <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100">📖</span>
-        <span>Studies & Academic Fees (Basic Form)</span>
+        <span>Official Fee Structure (2026–2027)</span>
       </h3>
-      <span class="px-3 py-1 rounded-lg bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold">Basic Form</span>
+      <span class="px-3 py-1 rounded-lg bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold" x-text="currentFee.official_name || currentClass.name"></span>
     </div>
 
-    {{-- 4 Component Cards Grid --}}
+    {{-- 4 Component Cards Grid (Term 1, Term 2, Term 3, Material/Adm Fee) --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
-        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Tuition Fees</p>
-        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.tuition_fee)"></p>
-        <p class="text-[11px] text-slate-400 font-medium">Class teaching fee per annum</p>
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">April I Term</p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.term1_fee)"></p>
+        <p class="text-[11px] text-blue-600 font-semibold">Due Date: 01.04.2026</p>
       </div>
 
       <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
-        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Book Fees</p>
-        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.book_fee)"></p>
-        <p class="text-[11px] text-slate-400 font-medium">Textbooks & learning materials</p>
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Aug II Term</p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.term2_fee)"></p>
+        <p class="text-[11px] text-blue-600 font-semibold">Due Date: 05.08.2026</p>
       </div>
 
       <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
-        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Exam Fees</p>
-        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.exam_fee)"></p>
-        <p class="text-[11px] text-slate-400 font-medium">Term assessments & exams</p>
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Dec III Term</p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.term3_fee)"></p>
+        <p class="text-[11px] text-blue-600 font-semibold">Due Date: 05.12.2026</p>
       </div>
 
       <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-1">
-        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide">Lab / Computer Fees</p>
-        <p class="text-2xl font-black text-slate-900 font-mono" x-text="formatMoney(currentFee.lab_fee)"></p>
-        <p class="text-[11px] text-slate-400 font-medium">Lab maintenance & computer</p>
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide" x-text="currentFee.material_fee > 0 ? 'Material Fee' : 'New Admission Fee'"></p>
+        <p class="text-2xl font-black text-slate-900 font-mono" x-text="currentFee.material_fee > 0 ? formatMoney(currentFee.material_fee) : formatMoney(currentFee.admission_fee)"></p>
+        <p class="text-[11px] text-slate-500 font-medium" x-text="currentFee.material_fee > 0 ? 'Due Date: 10.01.2026' : 'Rs.2,500 extra for new adm.'"></p>
+      </div>
+    </div>
+
+    {{-- Integrated Coaching Option for Grade XI / XII --}}
+    <div x-show="currentFee.has_integrated" class="p-5 rounded-2xl bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-extrabold text-indigo-950 uppercase">🎓 Grade XI (Integrated) NEET / JEE Coaching Fee</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">Integrated</span>
+        </div>
+        <span class="text-base font-black font-mono text-indigo-900" x-text="formatMoney(currentFee.integrated_fee || 105000)"></span>
+      </div>
+      <div class="grid grid-cols-3 gap-3 text-xs">
+        <div class="bg-white p-3 rounded-xl border border-indigo-100">
+          <span class="text-[10px] text-slate-500 block uppercase font-bold">April I Term</span>
+          <span class="font-mono font-bold text-indigo-900 text-sm" x-text="formatMoney(currentFee.integrated_term1 || 52500)"></span>
+        </div>
+        <div class="bg-white p-3 rounded-xl border border-indigo-100">
+          <span class="text-[10px] text-slate-500 block uppercase font-bold">Aug II Term</span>
+          <span class="font-mono font-bold text-indigo-900 text-sm" x-text="formatMoney(currentFee.integrated_term2 || 32500)"></span>
+        </div>
+        <div class="bg-white p-3 rounded-xl border border-indigo-100">
+          <span class="text-[10px] text-slate-500 block uppercase font-bold">Dec III Term</span>
+          <span class="font-mono font-bold text-indigo-900 text-sm" x-text="formatMoney(currentFee.integrated_term3 || 20000)"></span>
+        </div>
       </div>
     </div>
 
@@ -162,8 +187,8 @@
           ✓
         </div>
         <div>
-          <h4 class="text-sm font-bold text-slate-900">Total Basic Academic Fees</h4>
-          <p class="text-xs text-blue-600 font-medium">Includes Tuition, Books, Exam & Lab charges</p>
+          <h4 class="text-sm font-bold text-slate-900">Total Academic Fee (2026–2027)</h4>
+          <p class="text-xs text-blue-600 font-medium">Sum of April I, Aug II, Dec III Terms (plus Material Fee if applicable)</p>
         </div>
       </div>
 
@@ -251,6 +276,5 @@
       <span x-text="'Apply for ' + currentClass.name + ' →'"></span>
     </a>
   </div>
-
-</div>
 @endsection
+

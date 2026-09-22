@@ -1,4 +1,4 @@
-{{-- ── High-Speed Mobile Navigation & Instant Loader Engine ──────────────── --}}
+{{-- ── Navigation Progress Loader & Touch Feedback (Zero Background Requests) ── --}}
 <style>
   /* Top Glow Progress Bar */
   #dasa-nav-loader {
@@ -7,8 +7,8 @@
     left: 0;
     width: 0%;
     height: 3px;
-    background: linear-gradient(90deg, #38bdf8 0%, #6366f1 50%, #a855f7 100%);
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.8), 0 0 5px rgba(56, 189, 248, 0.9);
+    background: linear-gradient(90deg, #a13431 0%, #c8973a 50%, #8c2826 100%);
+    box-shadow: 0 0 10px rgba(161, 52, 49, 0.8), 0 0 5px rgba(200, 151, 58, 0.9);
     z-index: 9999999;
     pointer-events: none;
     opacity: 0;
@@ -33,33 +33,11 @@
 
 <div id="dasa-nav-loader" aria-hidden="true"></div>
 
-{{-- Modern Speculation Rules for Chrome/Android instant preloading --}}
-<script type="speculationrules">
-{
-  "prefetch": [
-    {
-      "where": {
-        "and": [
-          { "href_matches": "/*" },
-          { "not": { "href_matches": "*/logout" } },
-          { "not": { "href_matches": "*export*" } },
-          { "not": { "href_matches": "*download*" } },
-          { "not": { "href_matches": "*delete*" } },
-          { "not": { "href_matches": "*/destroy" } }
-        ]
-      },
-      "eagerness": "moderate"
-    }
-  ]
-}
-</script>
-
 <script>
 (function() {
   var loader = document.getElementById('dasa-nav-loader');
   var progressTimer = null;
   var currentWidth = 0;
-  var prefetchedUrls = new Set();
 
   function setProgress(pct, duration) {
     if (!loader) return;
@@ -74,11 +52,10 @@
     loader.classList.add('active');
     setProgress(35, 0.15);
 
-    // Smoothly increment while waiting for response
     progressTimer = setInterval(function() {
-      if (currentWidth < 80) {
+      if (currentWidth < 85) {
         currentWidth += Math.random() * 8;
-        setProgress(Math.min(currentWidth, 80), 0.4);
+        setProgress(Math.min(currentWidth, 85), 0.4);
       }
     }, 400);
   }
@@ -106,11 +83,9 @@
     var href = a.getAttribute('href');
     if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return false;
     
-    // Same origin check
     try {
       var url = new URL(a.href, window.location.href);
       if (url.origin !== window.location.origin) return false;
-      // Skip actions and heavy downloads
       var path = url.pathname.toLowerCase();
       if (path.includes('/logout') || path.includes('/export') || path.includes('/download') || path.endsWith('.pdf') || path.endsWith('.xlsx')) {
         return false;
@@ -121,32 +96,7 @@
     }
   }
 
-  // Instant prefetch using <link rel="prefetch">
-  function prefetchUrl(url) {
-    if (!url || prefetchedUrls.has(url) || url === window.location.href) return;
-    prefetchedUrls.add(url);
-
-    var link = document.createElement('link');
-    link.rel = 'prefetch';
-    link.href = url;
-    link.as = 'document';
-    document.head.appendChild(link);
-  }
-
-  // 1. Listen for link touch/hover to PREFETCH before user even releases finger
-  document.addEventListener('touchstart', function(e) {
-    var a = e.target.closest('a');
-    var validUrl = isEligibleLink(a);
-    if (validUrl) prefetchUrl(validUrl);
-  }, { passive: true });
-
-  document.addEventListener('mouseover', function(e) {
-    var a = e.target.closest('a');
-    var validUrl = isEligibleLink(a);
-    if (validUrl) prefetchUrl(validUrl);
-  }, { passive: true });
-
-  // 2. Listen for click to start instant loading bar
+  // ONLY start visual loader when user EXPLICITLY CLICKS a link (no background prefetching)
   document.addEventListener('click', function(e) {
     var a = e.target.closest('a');
     var validUrl = isEligibleLink(a);
@@ -155,43 +105,13 @@
     }
   });
 
-  // 3. Complete on beforeunload
   window.addEventListener('beforeunload', function() {
     startNavLoader();
     setProgress(95, 0.1);
   });
 
-  // 4. Reset on bfcache restore
-  window.addEventListener('pageshow', function(e) {
+  window.addEventListener('pageshow', function() {
     completeNavLoader();
   });
-
-  // 5. Idle prefetch of top primary modules
-  function idlePrefetchModules() {
-    var primaryRoutes = [
-      @can('view admissions') "{{ route('admissions.index') }}", "{{ route('admissions.approvals') }}", @endcan
-      @can('view students') "{{ route('students.index') }}", @endcan
-      @can('view attendance') "{{ route('attendance.index') }}", @endcan
-      @can('view examinations') "{{ route('examinations.index') }}", @endcan
-      @can('view fees') "{{ route('fees.index') }}", @endcan
-      @can('view expenses') "{{ route('expenses.index') }}", @endcan
-      @can('view employees') "{{ route('hr.index') }}", "{{ route('hr.employees') }}", "{{ route('hr.payroll') }}", @endcan
-      "{{ route('dashboard') }}"
-    ];
-
-    primaryRoutes.forEach(function(url) {
-      if (url && url !== window.location.href) {
-        prefetchUrl(url);
-      }
-    });
-  }
-
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(function() {
-      setTimeout(idlePrefetchModules, 1000);
-    });
-  } else {
-    setTimeout(idlePrefetchModules, 2000);
-  }
 })();
 </script>

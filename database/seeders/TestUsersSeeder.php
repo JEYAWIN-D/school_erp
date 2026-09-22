@@ -31,6 +31,8 @@ class TestUsersSeeder extends Seeder
             ['name' => 'Event Coordinator',     'email' => 'events@schoolerp.in',               'role' => 'event_coordinator'],
             ['name' => 'IT Admin Demo',         'email' => 'itadmin@schoolerp.in',              'role' => 'it_admin'],
             ['name' => 'Alumni Coordinator',    'email' => 'alumni@schoolerp.in',               'role' => 'alumni_coordinator'],
+            ['name' => 'Student Demo',          'email' => 'student@schoolerp.in',              'role' => 'student'],
+            ['name' => 'Parent Demo',           'email' => 'parent@schoolerp.in',               'role' => 'parent'],
         ];
 
         foreach ($users as $data) {

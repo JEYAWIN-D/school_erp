@@ -33,22 +33,35 @@
     <div class="space-y-1.5 max-w-2xl">
       <div class="flex items-center gap-2">
         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-blue-500/60 border border-blue-400/40 text-blue-100">
-          DASA EDUGROUP ADMISSION MODULE
+          ERODE PUBLIC SCHOOL ADMISSION MODULE
         </span>
-        <span class="text-xs text-blue-200 font-medium">&bull; Academic Year {{ $academicYear?->name ?? '2025–2026' }}</span>
+        <span class="text-xs text-blue-200 font-medium">&bull; Academic Year {{ $academicYear?->name ?? '2026–2027' }}</span>
       </div>
       <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight" x-text="activeTab === 'fee-structure' ? 'Fees Structure' : 'Admission Enquiries'"></h1>
       <p class="text-blue-100 text-xs sm:text-sm leading-relaxed">
-        View studies fee structure and hostel fees for each standard from Pre-KG to Class 12. Click + New Admission to register.
+        View studies fee structure for each standard from Pre-KG to Class 12. Print official forms or click + New Admission to register.
       </p>
     </div>
 
-    <div class="flex items-center gap-3 flex-shrink-0 flex-wrap">
-      <a href="{{ route('admissions.approvals') }}" class="inline-flex items-center gap-2 bg-blue-700/70 hover:bg-blue-700 text-white border border-blue-400/40 font-bold px-4 py-3 rounded-2xl text-sm shadow-sm transition">
+    <div class="flex items-center gap-2 flex-shrink-0 flex-wrap">
+      {{-- 3 Official School Forms Quick Links (PDF 1, 2, 3) --}}
+      <div class="flex items-center gap-1.5 bg-blue-800/80 p-1 rounded-2xl border border-blue-400/30">
+        <a href="{{ route('admissions.print-form', ['form' => 'admission']) }}" target="_blank" class="px-2.5 py-1.5 rounded-xl bg-blue-700/60 hover:bg-blue-600 text-white text-xs font-bold transition flex items-center gap-1" title="Print Official General Admission Form (PDF 1)">
+          <span>📄 Adm Form</span>
+        </a>
+        <a href="{{ route('admissions.print-form', ['form' => 'grade11']) }}" target="_blank" class="px-2.5 py-1.5 rounded-xl bg-blue-700/60 hover:bg-blue-600 text-white text-xs font-bold transition flex items-center gap-1" title="Print Official Grade XI Form (PDF 2)">
+          <span>🎓 Grade XI</span>
+        </a>
+        <a href="{{ route('admissions.print-form', ['form' => 'enquiry']) }}" target="_blank" class="px-2.5 py-1.5 rounded-xl bg-blue-700/60 hover:bg-blue-600 text-white text-xs font-bold transition flex items-center gap-1" title="Print Official Enquiry Form (PDF 3)">
+          <span>📝 Enquiry</span>
+        </a>
+      </div>
+
+      <a href="{{ route('admissions.approvals') }}" class="inline-flex items-center gap-2 bg-blue-700/70 hover:bg-blue-700 text-white border border-blue-400/40 font-bold px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm shadow-sm transition">
         <i class="fas fa-check-double text-xs"></i>
         <span>Approvals Desk</span>
       </a>
-      <a href="{{ route('admissions.create') }}" class="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 font-bold px-5 py-3 rounded-2xl text-sm shadow-sm transition">
+      <a href="{{ route('admissions.create') }}" class="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 font-bold px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-sm transition">
         <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
         </svg>
@@ -467,3 +480,4 @@
   }
 </style>
 @endsection
+

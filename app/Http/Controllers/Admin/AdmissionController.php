@@ -21,6 +21,12 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AdmissionController extends Controller
 {
+    /**
+     * Whether the 2-tier approval workflow (Principal -> Admin confirmation) is active.
+     * Temporarily disabled per user request. Toggle this to true whenever requested to re-enable it.
+     */
+    protected bool $requireApprovalWorkflow = false;
+
     public function getFeeStructureData(): array
     {
         $classes = Classes::with('sections')->active()->orderBy('numeric_value')->get();
@@ -30,75 +36,272 @@ class AdmissionController extends Controller
             ->groupBy('class_id')
             ->pluck('total', 'class_id');
 
+        // Official Fee Structure 2026-2027 matching school schedule
+        $officialFees = [
+            'pre_kg' => [
+                'name'          => 'PRE KG',
+                'material_fee'  => 0,
+                'term1_fee'     => 21000,
+                'term2_fee'     => 10000,
+                'term3_fee'     => 10000,
+                'total_basic'   => 41000,
+                'admission_fee' => 2500,
+                'tier'          => 'Pre-KG',
+            ],
+            'junior_kg' => [
+                'name'          => 'JUNIOR KG',
+                'material_fee'  => 0,
+                'term1_fee'     => 22000,
+                'term2_fee'     => 10000,
+                'term3_fee'     => 10000,
+                'total_basic'   => 42000,
+                'admission_fee' => 2500,
+                'tier'          => 'Junior KG (LKG)',
+            ],
+            'senior_kg' => [
+                'name'          => 'SENIOR KG',
+                'material_fee'  => 0,
+                'term1_fee'     => 24500,
+                'term2_fee'     => 10000,
+                'term3_fee'     => 10000,
+                'total_basic'   => 44500,
+                'admission_fee' => 2500,
+                'tier'          => 'Senior KG (UKG)',
+            ],
+            '1' => [
+                'name'          => 'GRADE I',
+                'material_fee'  => 0,
+                'term1_fee'     => 25000,
+                'term2_fee'     => 11000,
+                'term3_fee'     => 11000,
+                'total_basic'   => 47000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade I',
+            ],
+            '2' => [
+                'name'          => 'GRADE II',
+                'material_fee'  => 0,
+                'term1_fee'     => 25000,
+                'term2_fee'     => 12250,
+                'term3_fee'     => 12250,
+                'total_basic'   => 49500,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade II',
+            ],
+            '3' => [
+                'name'          => 'GRADE III',
+                'material_fee'  => 0,
+                'term1_fee'     => 26000,
+                'term2_fee'     => 13000,
+                'term3_fee'     => 13000,
+                'total_basic'   => 52000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade III',
+            ],
+            '4' => [
+                'name'          => 'GRADE IV',
+                'material_fee'  => 0,
+                'term1_fee'     => 27000,
+                'term2_fee'     => 14000,
+                'term3_fee'     => 14000,
+                'total_basic'   => 55000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade IV',
+            ],
+            '5' => [
+                'name'          => 'GRADE V',
+                'material_fee'  => 0,
+                'term1_fee'     => 28500,
+                'term2_fee'     => 15000,
+                'term3_fee'     => 15000,
+                'total_basic'   => 58500,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade V',
+            ],
+            '6' => [
+                'name'          => 'GRADE VI',
+                'material_fee'  => 0,
+                'term1_fee'     => 30000,
+                'term2_fee'     => 15500,
+                'term3_fee'     => 15500,
+                'total_basic'   => 61000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade VI',
+            ],
+            '7' => [
+                'name'          => 'GRADE VII',
+                'material_fee'  => 0,
+                'term1_fee'     => 31000,
+                'term2_fee'     => 16000,
+                'term3_fee'     => 16000,
+                'total_basic'   => 63000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade VII',
+            ],
+            '8' => [
+                'name'          => 'GRADE VIII',
+                'material_fee'  => 0,
+                'term1_fee'     => 32000,
+                'term2_fee'     => 16750,
+                'term3_fee'     => 16750,
+                'total_basic'   => 65500,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade VIII',
+            ],
+            '9' => [
+                'name'          => 'GRADE IX',
+                'material_fee'  => 0,
+                'term1_fee'     => 34000,
+                'term2_fee'     => 17500,
+                'term3_fee'     => 17500,
+                'total_basic'   => 69000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade IX',
+            ],
+            '10' => [
+                'name'          => 'GRADE X',
+                'material_fee'  => 19500,
+                'term1_fee'     => 18000,
+                'term2_fee'     => 18000,
+                'term3_fee'     => 18000,
+                'total_basic'   => 73500,
+                'admission_fee' => 0,
+                'tier'          => 'Grade X',
+            ],
+            '11' => [
+                'name'          => 'GRADE XI',
+                'material_fee'  => 0,
+                'term1_fee'     => 40000,
+                'term2_fee'     => 20000,
+                'term3_fee'     => 20000,
+                'total_basic'   => 80000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade XI',
+                'integrated'    => [
+                    'term1_fee'   => 52500,
+                    'term2_fee'   => 32500,
+                    'term3_fee'   => 20000,
+                    'total_basic' => 105000,
+                ],
+            ],
+            '12' => [
+                'name'          => 'GRADE XII',
+                'material_fee'  => 0,
+                'term1_fee'     => 40000,
+                'term2_fee'     => 20000,
+                'term3_fee'     => 20000,
+                'total_basic'   => 80000,
+                'admission_fee' => 2500,
+                'tier'          => 'Grade XII',
+                'integrated'    => [
+                    'term1_fee'   => 52500,
+                    'term2_fee'   => 32500,
+                    'term3_fee'   => 20000,
+                    'total_basic' => 105000,
+                ],
+            ],
+        ];
+
         $standardFees = [];
         foreach ($classes as $cls) {
             $num = (int)($cls->numeric_value ?? 0);
-            $name = strtolower($cls->name);
+            $cleanName = strtolower(trim($cls->name));
 
-            // Fee calculations matching screenshot specifications
-            if (str_contains($name, 'pre') || str_contains($name, 'nursery') || str_contains($name, 'play')) {
-                $tuition = 18000;
-                $book = 2500;
-                $exam = 1500;
-                $lab = 0;
-                $tier = 'Basic Form';
-            } elseif (str_contains($name, 'lkg')) {
-                $tuition = 20000;
-                $book = 2500;
-                $exam = 1500;
-                $lab = 0;
-                $tier = 'Basic Form';
-            } elseif (str_contains($name, 'ukg')) {
-                $tuition = 22000;
-                $book = 2500;
-                $exam = 1500;
-                $lab = 0;
-                $tier = 'Basic Form';
-            } elseif ($num >= 1 && $num <= 5) {
-                $tuition = 25000 + (($num - 1) * 2000);
-                $book = 3000;
-                $exam = 2000;
-                $lab = 1000;
-                $tier = 'Primary Tier';
-            } elseif ($num >= 6 && $num <= 8) {
-                $tuition = 35000 + (($num - 6) * 2500);
-                $book = 3500;
-                $exam = 2500;
-                $lab = 2000;
-                $tier = 'Middle Tier';
-            } elseif ($num >= 9 && $num <= 10) {
-                $tuition = 45000 + (($num - 9) * 3000);
-                $book = 4000;
-                $exam = 3000;
-                $lab = 3000;
-                $tier = 'Secondary Tier';
-            } else { // 11, 12
-                $tuition = 55000 + (($num - 11) * 4000);
-                $book = 5000;
-                $exam = 3500;
-                $lab = 4500;
-                $tier = 'Senior Secondary Tier';
+            $key = null;
+            if (str_contains($cleanName, 'pre')) {
+                $key = 'pre_kg';
+            } elseif (str_contains($cleanName, 'lkg') || str_contains($cleanName, 'junior')) {
+                $key = 'junior_kg';
+            } elseif (str_contains($cleanName, 'ukg') || str_contains($cleanName, 'senior')) {
+                $key = 'senior_kg';
+            } elseif ($num >= 1 && $num <= 12) {
+                $key = (string)$num;
+            } elseif ($cleanName === 'i') {
+                $key = '1';
+            } elseif ($cleanName === 'ii') {
+                $key = '2';
+            } elseif ($cleanName === 'iii') {
+                $key = '3';
+            } elseif ($cleanName === 'iv') {
+                $key = '4';
+            } elseif ($cleanName === 'v') {
+                $key = '5';
+            } elseif ($cleanName === 'vi') {
+                $key = '6';
+            } elseif ($cleanName === 'vii') {
+                $key = '7';
+            } elseif ($cleanName === 'viii') {
+                $key = '8';
+            } elseif ($cleanName === 'ix') {
+                $key = '9';
+            } elseif ($cleanName === 'x') {
+                $key = '10';
+            } elseif ($cleanName === 'xi') {
+                $key = '11';
+            } elseif ($cleanName === 'xii') {
+                $key = '12';
             }
 
-            $totalBasic = $tuition + $book + $exam + $lab;
-            $hostel = 30000;
+            $fee = $officialFees[$key] ?? [
+                'name'          => 'CLASS ' . $cls->name,
+                'material_fee'  => 0,
+                'term1_fee'     => 25000,
+                'term2_fee'     => 11000,
+                'term3_fee'     => 11000,
+                'total_basic'   => 47000,
+                'admission_fee' => 2500,
+                'tier'          => 'Class ' . $cls->name,
+            ];
+
+            $materialFee  = (float)($fee['material_fee'] ?? 0);
+            $term1Fee     = (float)($fee['term1_fee'] ?? 0);
+            $term2Fee     = (float)($fee['term2_fee'] ?? 0);
+            $term3Fee     = (float)($fee['term3_fee'] ?? 0);
+            $totalBasic   = (float)($fee['total_basic'] ?? ($term1Fee + $term2Fee + $term3Fee + $materialFee));
+            $admissionFee = (float)($fee['admission_fee'] ?? 2500);
+            $tier         = $fee['tier'] ?? ('Class ' . $cls->name);
+
+            // Backward compatibility components:
+            $tuition = $term1Fee;
+            $book    = $materialFee > 0 ? $materialFee : $admissionFee;
+            $exam    = $term2Fee;
+            $lab     = $term3Fee;
+            $hostel  = 30000;
             $combined = $totalBasic + $hostel;
 
             $standardFees[$cls->id] = [
-                'class_id'        => $cls->id,
-                'class_name'      => $cls->name,
-                'tier'            => $tier,
-                'tuition_fee'     => $tuition,
-                'book_fee'        => $book,
-                'exam_fee'        => $exam,
-                'lab_fee'         => $lab,
-                'total_basic'     => $totalBasic,
-                'total_annual'    => $totalBasic, // For backwards compatibility
-                'hostel_annual'   => $hostel,
-                'hostel_monthly'  => 2500,
-                'combined_total'  => $combined,
-                'term_fee'        => round($totalBasic / 3),
-                'enquiries_count' => $enquiryCounts[$cls->id] ?? 0,
+                'class_id'             => $cls->id,
+                'class_name'           => $cls->name,
+                'official_name'        => $fee['name'] ?? ('GRADE ' . $cls->name),
+                'tier'                 => $tier,
+                'material_fee'         => $materialFee,
+                'term1_fee'            => $term1Fee,
+                'term2_fee'            => $term2Fee,
+                'term3_fee'            => $term3Fee,
+                'admission_fee'        => $admissionFee,
+                'total_basic'          => $totalBasic,
+                'total_annual'         => $totalBasic, // For backwards compatibility
+                'total_with_admission' => $totalBasic + $admissionFee,
+                'term_fee'             => round($totalBasic / 3),
+                'term1_date'           => '01.04.2026',
+                'term2_date'           => '05.08.2026',
+                'term3_date'           => '05.12.2026',
+                'term1_iso'            => '2026-04-01',
+                'term2_iso'            => '2026-08-05',
+                'term3_iso'            => '2026-12-05',
+                'tuition_fee'          => $tuition,
+                'book_fee'             => $book,
+                'exam_fee'             => $exam,
+                'lab_fee'              => $lab,
+                'hostel_annual'        => $hostel,
+                'hostel_monthly'       => 2500,
+                'combined_total'       => $combined,
+                'has_integrated'       => isset($fee['integrated']),
+                'integrated_fee'       => $fee['integrated']['total_basic'] ?? null,
+                'integrated_term1'     => $fee['integrated']['term1_fee'] ?? null,
+                'integrated_term2'     => $fee['integrated']['term2_fee'] ?? null,
+                'integrated_term3'     => $fee['integrated']['term3_fee'] ?? null,
+                'enquiries_count'      => $enquiryCounts[$cls->id] ?? 0,
             ];
         }
 
@@ -208,6 +411,66 @@ class AdmissionController extends Controller
         ));
     }
 
+    /**
+     * AJAX Endpoint to Auto-Fetch student by Roll Number (or Admission Number)
+     */
+    public function lookupSibling(Request $request)
+    {
+        $roll = trim($request->get('roll_number', ''));
+        if (!$roll) {
+            return response()->json(['found' => false, 'message' => 'Please enter a Roll No.']);
+        }
+
+        // Search by roll_number or admission_no in students table
+        $student = \App\Models\Student::with(['currentEnrollment.class', 'currentEnrollment.section'])
+            ->where(function ($q) use ($roll) {
+                $q->where('roll_number', $roll)
+                  ->orWhereRaw('LOWER(roll_number) = ?', [strtolower($roll)])
+                  ->orWhere('admission_no', $roll)
+                  ->orWhereRaw('LOWER(admission_no) = ?', [strtolower($roll)]);
+            })
+            ->first();
+
+        // If not found, check student_enrollments table by roll_number
+        if (!$student) {
+            $enrollment = \App\Models\StudentEnrollment::with(['student', 'class', 'section'])
+                ->where(function ($q) use ($roll) {
+                    $q->where('roll_number', $roll)
+                      ->orWhereRaw('LOWER(roll_number) = ?', [strtolower($roll)]);
+                })
+                ->latest('id')
+                ->first();
+
+            if ($enrollment && $enrollment->student) {
+                $student = $enrollment->student;
+                $student->setRelation('currentEnrollment', $enrollment);
+            }
+        }
+
+        if (!$student) {
+            return response()->json([
+                'found'   => false,
+                'message' => "No student found with Roll No: {$roll}",
+            ]);
+        }
+
+        $fullName = trim($student->first_name . ' ' . ($student->last_name ?? ''));
+        $className = $student->currentEnrollment?->class?->name ?? '';
+        $sectionName = $student->currentEnrollment?->section?->name ?? '';
+        $classSection = trim(($className ? 'Class ' . $className : '') . ($sectionName ? ' - Section ' . $sectionName : ''));
+
+        return response()->json([
+            'found'   => true,
+            'student' => [
+                'id'            => $student->id,
+                'name'          => $fullName,
+                'roll_number'   => $student->roll_number ?: $roll,
+                'admission_no'  => $student->admission_no,
+                'class_section' => $classSection ?: ('Class ' . ($student->class_id ?? 'N/A')),
+            ],
+        ]);
+    }
+
     public function printFeeStructure($classId = null)
     {
         $feeData      = $this->getFeeStructureData();
@@ -248,24 +511,92 @@ class AdmissionController extends Controller
         ));
     }
 
-    public function printForm()
+    public function printForm(Request $request)
     {
+        $formType = $request->get('form', 'admission'); // 'admission', 'grade11', 'enquiry'
+        $student  = $request->filled('student_id') ? \App\Models\Student::find($request->student_id) : null;
+        $enquiry  = $request->filled('enquiry_id') ? \App\Models\Enquiry::find($request->enquiry_id) : null;
+
         $feeData      = $this->getFeeStructureData();
         $classes      = $feeData['classes'];
         $sections     = \App\Models\Section::where('is_active', true)->get(['id', 'class_id', 'name']);
         $academicYear = $feeData['academicYear'];
         $activities   = $feeData['activities'];
-        $school       = \App\Models\SchoolSetting::first() ?? (object)[
-            'school_name' => 'DASA EDUGROUP',
-            'phone'       => '+91 98765 43210',
-            'email'       => 'info@dasaedugroup.com',
-            'website'     => 'www.dasaedugroup.com',
-            'address'     => '123, Education City Campus, India'
-        ];
+        $school       = \App\Models\SchoolSetting::first();
 
         return view('admissions.print-application-form', compact(
-            'classes', 'sections', 'academicYear', 'activities', 'school'
+            'formType', 'student', 'enquiry', 'classes', 'sections', 'academicYear', 'activities', 'school'
         ));
+    }
+
+    public function savePrintForm(Request $request)
+    {
+        $validated = $request->validate([
+            'student_name'          => 'required|string|max:150',
+            'form_type'             => 'nullable|string|in:admission,grade11,enquiry',
+            'class_id'              => 'nullable',
+            'dob'                   => 'nullable|date',
+            'gender'                => 'nullable|string|max:10',
+            'father_name'           => 'nullable|string|max:100',
+            'mother_name'           => 'nullable|string|max:100',
+            'parent_mobile'         => 'nullable|string|max:20',
+            'father_mobile'         => 'nullable|string|max:20',
+            'mother_mobile'         => 'nullable|string|max:20',
+            'father_occupation'     => 'nullable|string|max:100',
+            'mother_occupation'     => 'nullable|string|max:100',
+            'father_qualification'  => 'nullable|string|max:100',
+            'mother_qualification'  => 'nullable|string|max:100',
+            'father_income'         => 'nullable|string|max:100',
+            'mother_income'         => 'nullable|string|max:100',
+            'address'               => 'nullable|string|max:500',
+            'previous_school'       => 'nullable|string|max:150',
+            'stream_group'          => 'nullable|string|max:50',
+            'stream_group_allotted' => 'nullable|string|max:50',
+            'aadhaar_no'            => 'nullable|string|max:25',
+            'religion'              => 'nullable|string|max:50',
+            'caste'                 => 'nullable|string|max:50',
+            'blood_group'           => 'nullable|string|max:10',
+        ]);
+
+        $academicYear = \App\Models\AcademicYear::current();
+        $mobile = $validated['father_mobile'] ?? ($validated['parent_mobile'] ?? ($validated['mother_mobile'] ?? '9999999999'));
+
+        // Resolve class_id if numeric
+        $classId = is_numeric($request->class_id) ? (int)$request->class_id : null;
+
+        $enquiry = \App\Models\Enquiry::create([
+            'enquiry_number'        => \App\Models\Enquiry::generateNumber(),
+            'academic_year_id'      => $academicYear?->id,
+            'student_name'          => $validated['student_name'],
+            'class_id'              => $classId,
+            'dob'                   => $validated['dob'] ?? null,
+            'gender'                => $validated['gender'] ?? 'male',
+            'parent_name'           => $validated['father_name'] ?? ($validated['mother_name'] ?? 'Parent'),
+            'parent_mobile'         => $mobile,
+            'father_name'           => $validated['father_name'] ?? null,
+            'mother_name'           => $validated['mother_name'] ?? null,
+            'father_mobile'         => $validated['father_mobile'] ?? null,
+            'mother_mobile'         => $validated['mother_mobile'] ?? null,
+            'father_occupation'     => $validated['father_occupation'] ?? null,
+            'mother_occupation'     => $validated['mother_occupation'] ?? null,
+            'father_qualification'  => $validated['father_qualification'] ?? null,
+            'mother_qualification'  => $validated['mother_qualification'] ?? null,
+            'father_income'         => $validated['father_income'] ?? null,
+            'mother_income'         => $validated['mother_income'] ?? null,
+            'address'               => $validated['address'] ?? null,
+            'previous_school'       => $validated['previous_school'] ?? null,
+            'stream_group'          => $validated['stream_group'] ?? null,
+            'stream_group_allotted' => $validated['stream_group_allotted'] ?? null,
+            'status'                => 'new',
+            'source'                => 'walk_in',
+        ]);
+
+        return response()->json([
+            'success'        => true,
+            'message'        => 'Applicant record successfully saved to Admissions!',
+            'enquiry_id'     => $enquiry->id,
+            'enquiry_number' => $enquiry->enquiry_number,
+        ]);
     }
 
     public function store(Request $request)
@@ -286,25 +617,44 @@ class AdmissionController extends Controller
             }
         }
 
+        // Sanitize & normalize digits-only fields (mobile numbers, aadhaar, pincode)
+        $digitsOnlyFields = ['parent_mobile', 'mother_mobile', 'guardian_mobile', 'aadhaar_no', 'father_aadhaar', 'pincode'];
+        $sanitizedDigits = [];
+        foreach ($digitsOnlyFields as $f) {
+            if ($request->filled($f)) {
+                $cleaned = preg_replace('/[^\d]/', '', (string)$request->input($f));
+                // If user entered +91 or 91 prefix with 12 digits for phone numbers, normalize to 10 digits
+                if (in_array($f, ['parent_mobile', 'mother_mobile', 'guardian_mobile']) && strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                    $cleaned = substr($cleaned, 2);
+                }
+                $sanitizedDigits[$f] = $cleaned !== '' ? $cleaned : null;
+            } elseif ($request->has($f)) {
+                $sanitizedDigits[$f] = null;
+            }
+        }
+        if (!empty($sanitizedDigits)) {
+            $request->merge($sanitizedDigits);
+        }
+
         $validated = $request->validate([
             'first_name'             => 'required|string|max:50',
             'last_name'              => 'nullable|string|max:50',
             'email'                  => 'nullable|email|max:100',
-            'dob'                    => 'nullable|date',
+            'dob'                    => 'nullable|date|before_or_equal:today',
             'gender'                 => 'nullable|in:male,female,other',
             'photo'                  => 'nullable|image|max:3072',
             'class_id'               => 'required|exists:classes,id',
             'section_id'             => 'nullable|exists:sections,id',
             'parent_name'            => 'required|string|max:100',
-            'parent_mobile'          => 'required|string|max:15',
+            'parent_mobile'          => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'parent_email'           => 'nullable|email|max:100',
             'father_occupation'      => 'nullable|string|max:100',
             'mother_name'            => 'nullable|string|max:100',
             'mother_occupation'      => 'nullable|string|max:100',
-            'mother_mobile'          => 'nullable|string|max:15',
+            'mother_mobile'          => ['nullable', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'mother_email'           => 'nullable|email|max:100',
             'guardian_name'          => 'nullable|string|max:100',
-            'guardian_mobile'        => 'nullable|string|max:15',
+            'guardian_mobile'        => ['nullable', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'guardian_relation'      => 'nullable|string|max:50',
             'annual_family_income'   => 'nullable|numeric|min:0',
             'address'                => 'nullable|string|max:255',
@@ -329,12 +679,15 @@ class AdmissionController extends Controller
             'concession_amount'      => 'nullable|numeric|min:0',
             'concession_remarks'     => 'nullable|string|max:255',
             'sibling_name'           => 'nullable|string|max:255',
+            'sibling_roll_no'        => 'nullable|string|max:50',
             'sibling_admission_no'   => 'nullable|string|max:50',
             'sibling_class'          => 'nullable|string|max:50',
             'documents_submitted'    => 'nullable|array',
             'activities'             => 'nullable|array',
             'payment_terms'          => 'required|in:single,2_terms,3_terms',
-            'payment_mode'           => 'required|in:UPI,Net Banking,Cash',
+            'payment_mode'           => 'required|string|max:50',
+            'payment_account'        => 'nullable|string|in:upi,cash_box_1,cash_box_2,bank',
+            'transaction_id'         => 'nullable|string|max:100',
             'amount_collected'       => 'required|numeric|min:0',
             'payment_date'           => 'nullable|date',
             'term_2_due_date'        => 'nullable|date',
@@ -343,10 +696,10 @@ class AdmissionController extends Controller
             'category'               => 'nullable|string|max:50',
             'religion'               => 'nullable|string|max:50',
             'mother_tongue'          => 'nullable|string|max:50',
-            'aadhaar_no'             => 'nullable|string|max:20',
-            'pincode'                => 'nullable|string|max:10',
+            'aadhaar_no'             => ['nullable', 'string', 'regex:/^[0-9]{12}$/'],
+            'pincode'                => ['nullable', 'string', 'regex:/^[1-9][0-9]{5}$/'],
             'father_photo'           => 'nullable|image|max:3072',
-            'father_aadhaar'         => 'nullable|string|max:20',
+            'father_aadhaar'         => ['nullable', 'string', 'regex:/^[0-9]{12}$/'],
             'mother_photo'           => 'nullable|image|max:3072',
             'guardian_photo'         => 'nullable|image|max:3072',
             'doc_birth_certificate'  => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
@@ -357,18 +710,53 @@ class AdmissionController extends Controller
             'doc_pan_id'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'additional_items'       => 'nullable|array',
             'additional_items.*'     => 'nullable|integer|min:0',
+        ], [
+            'first_name.required'       => 'Student First Name is required.',
+            'class_id.required'         => 'Please select the Standard / Class applying for.',
+            'class_id.exists'           => 'The selected Class does not exist.',
+            'parent_name.required'      => 'Father / Primary Parent Name is required.',
+            'parent_mobile.required'    => 'Father / Primary Parent Mobile number is required.',
+            'parent_mobile.regex'       => 'Father Mobile number must be a valid 10-digit Indian mobile number (e.g. 9876543210).',
+            'mother_mobile.regex'       => 'Mother Mobile number must be a valid 10-digit mobile number (e.g. 9876543210).',
+            'guardian_mobile.regex'     => 'Guardian Mobile number must be a valid 10-digit mobile number (e.g. 9876543210).',
+            'aadhaar_no.regex'          => 'Student Aadhaar number must be exactly 12 numeric digits.',
+            'father_aadhaar.regex'      => 'Father Aadhaar number must be exactly 12 numeric digits.',
+            'pincode.regex'             => 'Pincode must be a valid 6-digit postal code (e.g. 600001).',
+            'dob.before_or_equal'       => 'Date of Birth cannot be in the future.',
+            'email.email'               => 'Student Email address must be a valid email format.',
+            'parent_email.email'        => 'Father Email address must be a valid email format.',
+            'mother_email.email'        => 'Mother Email address must be a valid email format.',
+            'payment_terms.required'    => 'Payment Terms selection is required (Single Payment, 2 Terms, or 3 Terms).',
+            'payment_mode.required'     => 'Payment Mode is required (UPI, Net Banking, or Cash).',
+            'amount_collected.required' => 'Amount Collected Today is required (enter 0 if paying later).',
+            'amount_collected.numeric'  => 'Amount Collected must be a valid number.',
+            'amount_collected.min'      => 'Amount Collected cannot be negative.',
+            'previous_percentage.between' => 'Previous Percentage / CGPA must be between 0 and 100.',
         ]);
 
         $currentYear = AcademicYear::current();
         $feeData = $this->getFeeStructureData();
         $classFee = $feeData['standardFees'][$request->class_id] ?? null;
 
-        // Calculate Fee Totals from fee structure
-        $tuition = $classFee['tuition_fee'] ?? 18000;
-        $book = $classFee['book_fee'] ?? 2500;
-        $exam = $classFee['exam_fee'] ?? 1500;
-        $lab = $classFee['lab_fee'] ?? 0;
-        $basicTotal = $tuition + $book + $exam + $lab;
+        // Calculate Fee Totals from official fee structure 2026-2027
+        $isIntegrated = $request->boolean('is_integrated');
+        $includeAdmissionFee = $request->has('include_admission_fee') ? $request->boolean('include_admission_fee') : true;
+
+        if ($isIntegrated && !empty($classFee['has_integrated'])) {
+            $term1Fee     = (float)($classFee['integrated_term1'] ?? 52500);
+            $term2Fee     = (float)($classFee['integrated_term2'] ?? 32500);
+            $term3Fee     = (float)($classFee['integrated_term3'] ?? 20000);
+            $materialFee  = 0;
+            $admissionFee = $includeAdmissionFee ? (float)($classFee['admission_fee'] ?? 2500) : 0;
+            $basicTotal   = (float)($classFee['integrated_fee'] ?? 105000) + $admissionFee;
+        } else {
+            $term1Fee     = (float)($classFee['term1_fee'] ?? 25000);
+            $term2Fee     = (float)($classFee['term2_fee'] ?? 11000);
+            $term3Fee     = (float)($classFee['term3_fee'] ?? 11000);
+            $materialFee  = (float)($classFee['material_fee'] ?? 0);
+            $admissionFee = $includeAdmissionFee ? (float)($classFee['admission_fee'] ?? 2500) : 0;
+            $basicTotal   = (float)($classFee['total_basic'] ?? ($term1Fee + $term2Fee + $term3Fee + $materialFee)) + $admissionFee;
+        }
 
         // After School Program (ASP) Fee — replaces hostel per school requirement
         $isAsp = $request->boolean('is_asp');
@@ -435,8 +823,23 @@ class AdmissionController extends Controller
             return back()->withInput()->with('error', implode(' ', $stockCheckErrors) . ' Please replenish stock in Warehouse before completing admission.');
         }
 
-        // Subtotal before Concession: Tuition + ASP + Transport + Admission Kits
-        $totalKitFee = $standardKitFee + $additionalInventoryFee;
+        // Custom Kit Items & Textbooks added during admission
+        $customKitFee = 0;
+        $customKitItems = [];
+        if ($request->filled('custom_kit_items')) {
+            $rawCustom = $request->input('custom_kit_items');
+            $customKitItems = is_string($rawCustom) ? json_decode($rawCustom, true) : $rawCustom;
+            if (is_array($customKitItems)) {
+                foreach ($customKitItems as $cItem) {
+                    $cQty = max(1, (int)($cItem['quantity'] ?? 1));
+                    $cPrice = max(0, (float)($cItem['unit_price'] ?? 0));
+                    $customKitFee += $cQty * $cPrice;
+                }
+            }
+        }
+
+        // Subtotal before Concession: Tuition + ASP + Transport + Admission Kits (Standard + Additional + Custom)
+        $totalKitFee = $standardKitFee + $additionalInventoryFee + $customKitFee;
         $subTotal = $basicTotal + $aspFee + $transportFee + $totalKitFee;
 
         // Concessions (Staff kid, Topper, Sports, Single shot, Referral, Sibling)
@@ -452,6 +855,18 @@ class AdmissionController extends Controller
         $paymentDate = $request->payment_date ?: date('Y-m-d');
         $paymentMode = $request->payment_mode;
         $paymentTerms = $request->payment_terms;
+        $remainingFees = max(0, $totalFee - $totalKitFee);
+
+        $paymentAccount = $request->input('payment_account');
+        if (!$paymentAccount) {
+            if (strtolower($paymentMode) === 'upi') {
+                $paymentAccount = 'upi';
+            } elseif (str_contains(strtolower($paymentMode), 'box 2') || strtolower($paymentMode) === 'cash_box_2') {
+                $paymentAccount = 'cash_box_2';
+            } else {
+                $paymentAccount = 'cash_box_1';
+            }
+        }
 
         // Term Breakdown Calculations
         $terms = [];
@@ -484,7 +899,7 @@ class AdmissionController extends Controller
             $t2Pending = max(0, $t2Amount - $t2Paid);
             $t2Status = $t2Paid >= $t2Amount ? 'paid' : ($t2Paid > 0 ? 'partially_paid' : 'pending');
 
-            $term2DueDate = $request->term_2_due_date ?: date('Y-m-d', strtotime('+90 days'));
+            $term2DueDate = $request->term_2_due_date ?: '2026-08-05';
 
             $terms[] = [
                 'term_number'  => 1,
@@ -510,14 +925,18 @@ class AdmissionController extends Controller
                 'payment_date' => $t2Paid > 0 ? $paymentDate : null,
             ];
         } else { // 3_terms
-            // Kit amounts added directly to Term 1; remaining tuition fees, etc. divided evenly
-            $remT1 = (float)round($remainingFees / 3, 2);
-            $remT2 = (float)round($remainingFees / 3, 2);
-            $remT3 = (float)round($remainingFees - ($remT1 + $remT2), 2);
+            // Official 3 terms: Term 1 (T1 fee + Material fee + Admission fee), Term 2 (T2 fee), Term 3 (T3 fee)
+            $facilityShare   = round(($aspFee + $transportFee) / 3, 2);
+            $concessionShare = round($concessionAmount / 3, 2);
 
-            $t1Amount = (float)round($totalKitFee + $remT1, 2);
-            $t2Amount = $remT2;
-            $t3Amount = $remT3;
+            $baseT1   = $term1Fee + $materialFee + $admissionFee;
+            $t1Amount = max(0, (float)round($baseT1 + $totalKitFee + $facilityShare - $concessionShare, 2));
+
+            $baseT2   = $term2Fee;
+            $t2Amount = max(0, (float)round($baseT2 + $facilityShare - $concessionShare, 2));
+
+            // Remaining balance assigned to Term 3 to guarantee exact total sum
+            $t3Amount = max(0, (float)round($totalFee - ($t1Amount + $t2Amount), 2));
 
             $rem = $amountCollected;
 
@@ -535,8 +954,8 @@ class AdmissionController extends Controller
             $t3Pending = max(0, $t3Amount - $t3Paid);
             $t3Status = $t3Paid >= $t3Amount ? 'paid' : ($t3Paid > 0 ? 'partially_paid' : 'pending');
 
-            $term2DueDate = $request->term_2_due_date ?: date('Y-m-d', strtotime('+90 days'));
-            $term3DueDate = $request->term_3_due_date ?: date('Y-m-d', strtotime('+180 days'));
+            $term2DueDate = $request->term_2_due_date ?: '2026-08-05';
+            $term3DueDate = $request->term_3_due_date ?: '2026-12-05';
 
             $terms[] = [
                 'term_number'  => 1,
@@ -599,7 +1018,7 @@ class AdmissionController extends Controller
             $guardianPhotoPath = $request->file('guardian_photo')->store('parents/photos', 'public');
         }
 
-        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, $photoPath, $fatherPhotoPath, $motherPhotoPath, $guardianPhotoPath, $isAsp, $aspFee, $transportFee, $concessionAmount, &$student) {
+        DB::transaction(function () use ($validated, $currentYear, $totalFee, $amountCollected, $pendingAmount, $paymentMode, $paymentAccount, $paymentDate, $paymentTerms, $overallStatus, $terms, $issuedItemsSummary, $request, $photoPath, $fatherPhotoPath, $motherPhotoPath, $guardianPhotoPath, $isAsp, $aspFee, $transportFee, $concessionAmount, $customKitItems, &$student) {
             $studentFullName = trim($request->first_name . ' ' . ($request->last_name ?? ''));
 
             // Save Enquiry
@@ -615,23 +1034,32 @@ class AdmissionController extends Controller
                 'mother_name'          => $request->mother_name,
                 'mother_mobile'        => $request->mother_mobile,
                 'mother_occupation'    => $request->mother_occupation,
-                'last_school_studied'  => $request->previous_school,
-                'last_class_studied'   => $request->previous_class,
-                'referred_by'          => $request->referred_by ?? $request->source,
-                'follow_up_remarks'    => $request->notes,
+                'last_school_studied'      => $request->previous_school_name ?: $request->previous_school,
+                'previous_school_attended' => $request->previous_school_name ?: $request->previous_school,
+                'last_class_studied'       => $request->previous_class,
+                'previous_class'           => $request->previous_class,
+                'board'                    => $request->previous_school_board ?: $request->board,
+                'previous_percentage'      => $request->previous_percentage ?: $request->previous_marks,
+                'year_of_passing'          => $request->year_of_passing,
+                'stream_group'             => $request->stream_group,
+                'referred_by'              => $request->referred_by ?? $request->source,
+                'dress_size'               => $request->dress_size,
+                'shoe_size'                => $request->shoe_size,
+                'second_language'          => $request->second_language,
+                'follow_up_remarks'        => $request->notes,
                 'payment_terms'        => $paymentTerms,
                 'total_admission_fee'  => $totalFee,
                 'amount_collected'     => $amountCollected,
                 'pending_amount'       => $pendingAmount,
                 'payment_mode'         => $paymentMode,
+                'payment_account'      => $paymentAccount,
                 'payment_date'         => $paymentDate,
                 'payment_status'       => $overallStatus,
                 'fee_breakdown'        => $terms,
             ]));
 
-            // Generate Admission Number (Max 12 chars for DB column)
-            $admCount = \App\Models\Student::count() + 1;
-            $admNo = substr('ADM' . date('y') . '-' . str_pad($admCount, 4, '0', STR_PAD_LEFT), 0, 12);
+            // Generate Official School Admission Number: Boys (EPSB0000 sample -> EPSB0001...), Girls (EPSG000 sample -> EPSG0001...)
+            $admNo = \App\Models\Student::generateAdmissionNumber($request->gender);
 
             // Generate Formatted Roll Number (e.g. 11A041, Max 12 chars)
             $classModel = \App\Models\Classes::find($request->class_id);
@@ -661,7 +1089,12 @@ class AdmissionController extends Controller
             $totalEnrolledCount = \App\Models\StudentEnrollment::count();
             $autoHouse = $houses[$totalEnrolledCount % count($houses)];
 
-            // Save Student with 2-Tier Approval Status ('pending_principal') and Parent Photos
+            // Statuses based on requireApprovalWorkflow (temporarily disabled per user request: direct active/enrolled)
+            $studentStatus    = $this->requireApprovalWorkflow ? 'pending_principal' : 'active';
+            $enrollmentStatus = $this->requireApprovalWorkflow ? 'pending' : 'active';
+            $enquiryStatus    = $this->requireApprovalWorkflow ? 'pending_principal_approval' : 'enrolled';
+
+            // Save Student with Parent Photos
             $student = \App\Models\Student::create([
                 'admission_no'             => $admNo,
                 'admission_date'           => $paymentDate,
@@ -683,13 +1116,19 @@ class AdmissionController extends Controller
                 'father_mobile'            => $request->parent_mobile ? substr($request->parent_mobile, 0, 15) : null,
                 'father_email'             => $request->parent_email,
                 'father_occupation'        => $request->father_occupation,
+                'father_qualification'     => $request->father_qualification,
+                'father_income'            => $request->father_income,
                 'father_photo'             => $fatherPhotoPath,
                 'father_aadhaar'           => $request->father_aadhaar ? substr(preg_replace('/[^0-9]/', '', $request->father_aadhaar), 0, 12) : null,
                 'mother_name'              => $request->mother_name,
                 'mother_occupation'        => $request->mother_occupation,
+                'mother_qualification'     => $request->mother_qualification,
+                'mother_income'            => $request->mother_income,
                 'mother_mobile'            => $request->mother_mobile ? substr($request->mother_mobile, 0, 15) : null,
                 'mother_email'             => $request->mother_email,
                 'mother_photo'             => $motherPhotoPath,
+                'emergency_contact_name'   => $request->emergency_contact_name,
+                'emergency_contact_mobile' => $request->emergency_contact_mobile,
                 'guardian_name'            => $request->guardian_name,
                 'guardian_mobile'          => $request->guardian_mobile ? substr($request->guardian_mobile, 0, 15) : null,
                 'guardian_relation'        => $request->guardian_relation,
@@ -700,7 +1139,12 @@ class AdmissionController extends Controller
                 'permanent_address'        => $request->address,
                 'previous_school_name'     => $request->previous_school,
                 'previous_percentage'      => $request->previous_percentage,
-                'status'                   => 'pending_principal',
+                'stream_group'             => $request->stream_group,
+                'stream_group_allotted'    => $request->stream_group_allotted ?: $request->stream_group,
+                'is_tc_enclosed'           => $request->boolean('is_tc_enclosed'),
+                'is_qualified_promotion'   => $request->is_qualified_promotion,
+                'year_of_passing'          => $request->year_of_passing,
+                'status'                   => $studentStatus,
                 'student_type'             => $request->filled('transport_route_id') ? 'transport' : ($isAsp ? 'asp' : 'day_scholar'),
                 'emis_no'                  => $request->emis_no,
                 'identification_mark_1'    => $request->identification_mark_1,
@@ -724,12 +1168,32 @@ class AdmissionController extends Controller
                 'admission_paid_amount'    => $amountCollected,
                 'admission_pending_amount' => $pendingAmount,
                 'payment_mode'             => $paymentMode,
+                'payment_account'          => $paymentAccount,
                 'payment_date'             => $paymentDate,
                 'payment_status'           => $overallStatus,
                 'admission_fee_terms'      => $terms,
+                'dress_size'               => $request->dress_size,
+                'shoe_size'                => $request->shoe_size,
+                'second_language'          => $request->second_language,
+                'stream_group'             => $request->stream_group,
+                'stream_group_allotted'    => $request->stream_group,
+                'previous_school_name'     => $request->previous_school_name ?: $request->previous_school,
+                'previous_school_board'    => $request->previous_school_board ?: $request->board,
+                'previous_percentage'      => $request->previous_percentage ?: $request->previous_marks,
+                'year_of_passing'          => $request->year_of_passing,
+                'is_tc_enclosed'           => $request->boolean('is_tc_enclosed') || $request->is_tc_enclosed == '1',
+                'is_qualified_promotion'   => $request->is_qualified_promotion ?? 'Yes',
+                'tc_number'                => $request->tc_number,
+                'tc_date'                  => $request->tc_date,
+                'custom_kit_items'         => $customKitItems ?: null,
+                'textbook_custom_fields'   => [
+                    'second_language' => $request->second_language,
+                    'textbook_pack'   => $request->textbook_pack,
+                    'textbook_notes'  => $request->textbook_notes,
+                ],
             ]);
 
-            // Save Student Enrollment (pending until final approval)
+            // Save Student Enrollment
             \App\Models\StudentEnrollment::create([
                 'student_id'       => $student->id,
                 'class_id'         => $request->class_id,
@@ -737,7 +1201,7 @@ class AdmissionController extends Controller
                 'academic_year_id' => $currentYear?->id,
                 'roll_number'      => $autoRollNo,
                 'house'            => $autoHouse,
-                'status'           => 'pending',
+                'status'           => $enrollmentStatus,
                 'enrollment_date'  => $paymentDate,
             ]);
 
@@ -798,7 +1262,10 @@ class AdmissionController extends Controller
                     'amount_paid'      => $amountCollected,
                     'total_paid'       => $amountCollected,
                     'payment_mode'     => $feePaymentMode,
-                    'remarks'          => 'Admission Fee Payment (' . str_replace('_', ' ', strtoupper($paymentTerms)) . ')',
+                    'payment_account'  => $paymentAccount,
+                    'term_name'        => 'Admission Fee',
+                    'transaction_id'   => $request->input('transaction_id') ?: $request->input('upi_ref_no'),
+                    'remarks'          => 'Admission Fee Payment for ' . ($classModel?->name ? 'Class ' . $classModel->name : 'New Admission') . ' (' . str_replace('_', ' ', strtoupper($paymentTerms)) . ')',
                     'collected_by'     => Auth::id(),
                 ]);
             }
@@ -851,15 +1318,19 @@ class AdmissionController extends Controller
                 ]);
             }
 
-            // Flag Enquiry as issued
+            // Flag Enquiry as issued & enrolled
             $enquiry->update([
                 'is_inventory_issued' => true,
-                'status'              => 'pending_principal_approval',
+                'status'              => $enquiryStatus,
             ]);
         });
 
+        $successMsg = $this->requireApprovalWorkflow
+            ? 'Admission application submitted successfully! It has been forwarded to the Principal for formal review and approval.'
+            : 'Student admitted and enrolled successfully! Admission slip and register entry created.';
+
         return redirect()->route('admissions.submission-summary', $student->id)
-            ->with('success', 'Admission application submitted successfully! It has been forwarded to the Principal for formal review and approval.');
+            ->with('success', $successMsg);
     }
 
     /**
@@ -1027,13 +1498,21 @@ class AdmissionController extends Controller
     {
         $enquiry = Enquiry::findOrFail($id);
 
+        if ($request->filled('parent_mobile')) {
+            $cleaned = preg_replace('/[^\d]/', '', (string)$request->input('parent_mobile'));
+            if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                $cleaned = substr($cleaned, 2);
+            }
+            $request->merge(['parent_mobile' => $cleaned]);
+        }
+
         $validated = $request->validate([
             'student_name'    => 'required|string|max:100',
             'dob'             => 'nullable|date|before:today',
             'gender'          => 'nullable|in:male,female,other',
             'class_id'        => 'required|exists:classes,id',
             'parent_name'     => 'required|string|max:100',
-            'parent_mobile'   => 'required|string|max:15',
+            'parent_mobile'   => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'parent_email'    => 'nullable|email|max:100',
             'address'         => 'nullable|string|max:255',
             'source'          => 'nullable|string|max:50',
@@ -1096,13 +1575,50 @@ class AdmissionController extends Controller
 
     public function submitEnquiry(Request $request)
     {
+        // Clean mobile numbers
+        foreach (['parent_mobile', 'father_mobile', 'mother_mobile'] as $mobField) {
+            if ($request->filled($mobField)) {
+                $cleaned = preg_replace('/[^\d]/', '', (string)$request->input($mobField));
+                if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                    $cleaned = substr($cleaned, 2);
+                }
+                $request->merge([$mobField => $cleaned]);
+            }
+        }
+
+        // Fallbacks for parent_name and parent_mobile from father/mother fields
+        if (!$request->filled('parent_name')) {
+            $request->merge(['parent_name' => $request->father_name ?: ($request->mother_name ?: 'Parent')]);
+        }
+        if (!$request->filled('parent_mobile')) {
+            $request->merge(['parent_mobile' => $request->father_mobile ?: $request->mother_mobile]);
+        }
+
         $validated = $request->validate([
-            'student_name'  => 'required|string|max:100',
-            'class_id'      => 'required|exists:classes,id',
-            'parent_name'   => 'required|string|max:100',
-            'parent_mobile' => 'required|string|max:15',
-            'parent_email'  => 'nullable|email|max:100',
-            'documents.*'   => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'student_name'          => 'required|string|max:100',
+            'class_id'              => 'required|exists:classes,id',
+            'dob'                   => 'nullable|date|before:today',
+            'last_school_studied'   => 'nullable|string|max:150',
+            'parent_name'           => 'required|string|max:100',
+            'parent_mobile'         => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
+            'parent_email'          => 'nullable|email|max:100',
+            'father_name'           => 'nullable|string|max:100',
+            'father_qualification'  => 'nullable|string|max:100',
+            'father_occupation'     => 'nullable|string|max:100',
+            'father_income'         => 'nullable|string|max:100',
+            'father_mobile'         => ['nullable', 'string', 'regex:/^[6-9][0-9]{9}$/'],
+            'mother_name'           => 'nullable|string|max:100',
+            'mother_qualification'  => 'nullable|string|max:100',
+            'mother_occupation'     => 'nullable|string|max:100',
+            'mother_income'         => 'nullable|string|max:100',
+            'mother_mobile'         => ['nullable', 'string', 'regex:/^[6-9][0-9]{9}$/'],
+            'referred_by'           => 'nullable|string|max:100',
+            'address'               => 'nullable|string|max:500',
+            'documents.*'           => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+        ], [
+            'parent_mobile.regex' => 'Parent Mobile number must be a valid 10-digit Indian mobile number (e.g. 9876543210).',
+            'father_mobile.regex' => 'Father Mobile number must be a valid 10-digit Indian mobile number.',
+            'mother_mobile.regex' => 'Mother Mobile number must be a valid 10-digit Indian mobile number.',
         ]);
         $currentYear = AcademicYear::current();
 
@@ -1114,12 +1630,13 @@ class AdmissionController extends Controller
         }
 
         $enquiry = Enquiry::create(array_merge($validated, [
-            'enquiry_number'   => Enquiry::generateNumber(),
-            'status'           => 'new',
-            'academic_year_id' => $currentYear?->id,
-            'source'           => $request->source ?? 'website',
-            'referral_name'    => $request->referral_name,
-            'documents'        => $docPaths ?: null,
+            'enquiry_number'         => Enquiry::generateNumber(),
+            'status'                 => 'new',
+            'academic_year_id'       => $currentYear?->id,
+            'previous_school'        => $request->last_school_studied ?: $request->previous_school,
+            'source'                 => $request->source ?? 'website',
+            'referral_name'          => $request->referred_by ?: $request->referral_name,
+            'documents'              => $docPaths ?: null,
         ]));
 
         // Notify admin
@@ -1352,16 +1869,26 @@ class AdmissionController extends Controller
 
     public function storeApplication(Request $request)
     {
+        if ($request->filled('parent_mobile')) {
+            $cleaned = preg_replace('/[^\d]/', '', (string)$request->input('parent_mobile'));
+            if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                $cleaned = substr($cleaned, 2);
+            }
+            $request->merge(['parent_mobile' => $cleaned]);
+        }
+
         $validated = $request->validate([
             'student_name'  => 'required|string|max:100',
             'dob'           => 'nullable|date|before:today',
             'gender'        => 'nullable|in:male,female,other',
             'class_id'      => 'required|exists:classes,id',
             'parent_name'   => 'required|string|max:100',
-            'parent_mobile' => 'required|string|max:15',
+            'parent_mobile' => ['required', 'string', 'regex:/^[6-9][0-9]{9}$/'],
             'parent_email'  => 'nullable|email|max:100',
             'address'       => 'nullable|string|max:500',
             'previous_school' => 'nullable|string|max:150',
+        ], [
+            'parent_mobile.regex' => 'Parent Mobile number must be a valid 10-digit Indian mobile number (e.g. 9876543210).',
         ]);
 
         // Check duplicate

@@ -135,7 +135,7 @@ label-s{display:block;font-size:11px;font-weight:700;color:#374151;text-transfor
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div>
           <label style="display:block;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Admission No.</label>
-          <input type="text" name="admission_no" class="inp" placeholder="ADM-24-001 (optional)">
+          <input type="text" name="admission_no" class="inp" placeholder="EPSB0001 or EPSG0001 (optional)">
         </div>
         <div>
           <label style="display:block;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Parent Phone *</label>

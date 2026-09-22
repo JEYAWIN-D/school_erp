@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\HostelController;
 use App\Http\Controllers\Admin\OnlineExamController;
 use App\Http\Controllers\Admin\ClassesController;
 use App\Http\Controllers\Admin\ExpenseController;
+use App\Http\Controllers\Admin\AccountManagementController;
 use App\Http\Controllers\Public\PublicFeePaymentController;
 
 // ── Auth ──────────────────────────────────────────────────
@@ -66,7 +67,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:view admissions')->prefix('admissions')->name('admissions.')->group(function () {
         Route::get('/',            [AdmissionController::class, 'index'])->name('index');
         Route::get('/create',      [AdmissionController::class, 'create'])->name('create');
+        Route::get('/sibling-lookup', [AdmissionController::class, 'lookupSibling'])->name('sibling-lookup');
         Route::get('/print-form',  [AdmissionController::class, 'printForm'])->name('print-form');
+        Route::post('/save-print-form', [AdmissionController::class, 'savePrintForm'])->name('save-print-form');
         Route::get('/fee-structure',[AdmissionController::class, 'feeStructure'])->name('fee-structure');
         Route::get('/fee-structure/{classId?}/print', [AdmissionController::class, 'printFeeStructure'])->name('fee-structure.print');
         Route::post('/',           [AdmissionController::class, 'store'])->name('store');
@@ -570,6 +573,14 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{expense}/verify',  [ExpenseController::class, 'verify'])->name('verify');
         Route::post('/{expense}/approve', [ExpenseController::class, 'approve'])->name('approve');
         Route::post('/{expense}/reject',  [ExpenseController::class, 'reject'])->name('reject');
+    });
+
+    // ── Module 6.2 — Account Management (UPI, Cash Boxes, Financial Ledger) ──
+    Route::middleware('permission:view fees')->prefix('accounts')->name('accounts.')->group(function () {
+        Route::get('/',              [AccountManagementController::class, 'index'])->name('index');
+        Route::get('/daybook',       [AccountManagementController::class, 'daybook'])->name('daybook');
+        Route::post('/transfer',     [AccountManagementController::class, 'storeTransfer'])->name('transfer');
+        Route::get('/export',        [AccountManagementController::class, 'export'])->name('export');
     });
 
     // ── Module 7 — HR & Payroll ───────────────────────────

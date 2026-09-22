@@ -4,10 +4,16 @@
 
 /* ── CSS Variables ─────────────────────────────────────── */
 :root {
-  /* Brand */
-  --color-primary:   #4F46E5;
-  --color-primary-h: #4338CA;
-  --color-primary-l: #EEF2FF;
+  /* Brand - Erode Public School Maroon & Gold */
+  --color-primary:   #8C2826;
+  --color-primary-h: #731E1C;
+  --color-primary-l: #FFF5F5;
+
+  --color-maroon:    #8C2826;
+  --color-maroon-h:  #731E1C;
+  --color-maroon-l:  #FFF5F5;
+  --color-gold:      #C8973A;
+  --color-gold-l:    #FEF9EE;
 
   /* Semantic */
   --color-success: #16A34A;
@@ -36,10 +42,10 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 12px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);
 
-  /* Sidebar gradient */
-  --gradient-sidebar: linear-gradient(180deg, #1E3A8A 0%, #1E1B4B 100%);
-  --gradient-primary: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
-  --gradient-header:  linear-gradient(135deg, #1D4ED8 0%, #4F46E5 100%);
+  /* Sidebar gradient - Deep School Maroon */
+  --gradient-sidebar: linear-gradient(180deg, #380E0D 0%, #1A0505 100%);
+  --gradient-primary: linear-gradient(135deg, #8C2826 0%, #A13431 100%);
+  --gradient-header:  linear-gradient(135deg, #8C2826 0%, #C8973A 100%);
 }
 
 
@@ -515,3 +521,5 @@
   from { opacity: 0; transform: translateX(100%); }
   to   { opacity: 1; transform: translateX(0); }
 }
+
+

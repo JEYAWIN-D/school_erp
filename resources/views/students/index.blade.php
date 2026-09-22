@@ -37,10 +37,6 @@
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"/></svg>
         Import
       </a>
-      <a href="{{ route('students.create') }}" class="btn btn-primary btn-sm">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Admit Student
-      </a>
     </div>
   </div>
 
@@ -209,11 +205,7 @@
                   <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                 </div>
                 <p class="text-sm font-semibold text-slate-700 mb-1">No students found</p>
-                <p class="text-xs text-slate-400 mb-4">Try adjusting your filters or admit a new student.</p>
-                <a href="{{ route('students.create') }}" class="btn btn-primary btn-sm">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                  Admit Student
-                </a>
+                <p class="text-xs text-slate-400">Try adjusting your search or filters.</p>
               </div>
             </td>
           </tr>

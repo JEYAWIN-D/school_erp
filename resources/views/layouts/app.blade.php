@@ -11,13 +11,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  </noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   {{-- Chart.js — deferred, crossorigin for CORS caching benefit --}}
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer crossorigin="anonymous"></script>
@@ -74,14 +68,15 @@
          }"
          style="background: var(--gradient-sidebar)">
 
-    {{-- Logo --}}
-    <div class="flex items-center gap-3 px-4 py-4 border-b border-white/10 flex-shrink-0">
-      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center flex-shrink-0 shadow-blue-glow">
-        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+    {{-- Brand Header: Erode Public School & DasaTech --}}
+    <div class="flex items-center gap-3 px-3.5 py-3 border-b border-white/10 flex-shrink-0">
+      <div class="w-10 h-10 rounded-xl bg-white/15 p-1 flex items-center justify-center flex-shrink-0 border border-white/20 shadow-xs">
+        <img src="{{ asset('images/school-seal-badge.png') }}" class="w-full h-full object-contain" alt="Erode Public School Crest">
       </div>
-      <div class="flex-1 overflow-hidden" x-show="sidebarOpen || isMobile">
-        <p class="text-white font-extrabold text-base leading-tight truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">{{ config('app.name', 'DASA EduERP') }}</p>
-        <p class="text-slate-300 text-xs font-medium truncate">2025-2026 Academic Year</p>
+      <div class="flex-1 min-w-0" x-show="sidebarOpen || isMobile">
+        <p class="text-white font-extrabold text-[14px] leading-tight truncate" style="font-family:'Plus Jakarta Sans',sans-serif;">Erode Public School</p>
+        <p class="text-amber-300 text-[10.5px] font-bold tracking-wide truncate mt-0.5" style="font-family:'Plus Jakarta Sans',sans-serif;">Senior Secondary &bull; CBSE</p>
+        <p class="text-slate-400 text-[10px] font-medium tracking-tight truncate mt-0.5" style="font-family:'Plus Jakarta Sans',sans-serif;">Powered by <span class="text-white/90 font-semibold">DasaTech</span></p>
       </div>
       {{-- Mobile close button --}}
       <button x-show="isMobile" @click="sidebarOpen = false"
@@ -90,6 +85,7 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
+
 
     {{-- Nav — only this scrolls --}}
     <nav class="flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5 min-h-0" style="-ms-overflow-style:none;scrollbar-width:none">
@@ -214,7 +210,10 @@
           </svg>
           Help & Support
         </a>
-        <p class="text-slate-600 text-[10px]">DASA EduERP &bull; v1.0</p>
+        <p class="text-slate-300 text-[10.5px] font-medium flex items-center justify-between pt-1 border-t border-white/10" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          <span>DasaTech EduERP</span>
+          <span class="text-amber-300 font-semibold text-[10px]">v2.6 Enterprise</span>
+        </p>
       </div>
     </div>
 
@@ -290,7 +289,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           <div class="flex flex-col leading-none">
-            <span class="text-[11px] font-mono font-bold text-slate-800 tracking-wide" x-text="t">--:--:-- --</span>
+            <span class="text-[11px] font-bold text-slate-800 tracking-wide tabular-nums" x-text="t">--:--:-- --</span>
             <span class="text-[9px] text-slate-400 font-medium mt-0.5" x-text="d"></span>
           </div>
         </div>

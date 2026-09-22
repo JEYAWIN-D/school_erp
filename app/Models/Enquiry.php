@@ -21,11 +21,13 @@ class Enquiry extends Model
         'documents', 'doc_checklist', 'referral_name',
         'missing_docs', 'docs_flag_note',
         'payment_terms', 'total_admission_fee', 'amount_collected', 'pending_amount',
-        'payment_mode', 'payment_date', 'payment_status', 'fee_breakdown',
+        'payment_mode', 'payment_account', 'payment_date', 'payment_status', 'fee_breakdown',
         'last_school_studied', 'last_class_studied',
-        'father_name', 'father_mobile', 'father_occupation',
-        'mother_name', 'mother_mobile', 'mother_occupation',
+        'father_name', 'father_mobile', 'father_occupation', 'father_qualification', 'father_income',
+        'mother_name', 'mother_mobile', 'mother_occupation', 'mother_qualification', 'mother_income',
         'referred_by', 'follow_up_remarks',
+        'stream_group', 'year_of_passing', 'previous_school_attended', 'board',
+        'dress_size', 'shoe_size', 'second_language',
     ];
 
     protected $casts = [

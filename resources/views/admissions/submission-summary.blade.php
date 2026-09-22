@@ -19,7 +19,7 @@
 
     <div class="flex items-center gap-2">
       <a href="{{ route('admissions.approvals') }}" class="btn btn-secondary btn-sm flex items-center gap-1.5 shadow-xs">
-        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <svg class="w-4 h-4 text-[#8C2826]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         <span>View Approval Queue</span>
       </a>
       <a href="{{ route('admissions.create') }}" class="btn btn-primary btn-sm flex items-center gap-1.5 shadow-xs">
@@ -33,7 +33,7 @@
   <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-        <span class="w-3 h-3 rounded-full bg-blue-500 animate-ping"></span>
+        <span class="w-3 h-3 rounded-full bg-[#8C2826] animate-ping"></span>
         <h2 class="text-sm font-black text-slate-900 uppercase tracking-wider">Admission Approval Pipeline</h2>
       </div>
       <span class="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
@@ -50,19 +50,19 @@
         <div class="space-y-0.5 min-w-0">
           <p class="text-xs font-black text-emerald-900">1. Admin Desk Submission</p>
           <p class="text-[11px] text-emerald-700">Data, photos &amp; fees logged</p>
-          <span class="text-[10px] font-mono text-emerald-600">Completed {{ now()->format('d M, h:i A') }}</span>
+          <span class="text-[10px] font-semibold text-emerald-600">Completed {{ now()->format('d M, h:i A') }}</span>
         </div>
       </div>
 
       {{-- Stage 2: Pending --}}
-      <div class="p-4 rounded-2xl bg-blue-50 border-2 border-blue-400 flex items-start gap-3 relative shadow-xs">
-        <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shrink-0 animate-pulse">
+      <div class="p-4 rounded-2xl bg-[#FFF5F5] border-2 border-[#FECACA] flex items-start gap-3 relative shadow-xs">
+        <div class="w-8 h-8 rounded-xl bg-[#8C2826] text-white flex items-center justify-center font-bold text-sm shrink-0 animate-pulse">
           ⏳
         </div>
         <div class="space-y-0.5 min-w-0">
-          <p class="text-xs font-black text-blue-900">2. Principal Review</p>
-          <p class="text-[11px] text-blue-700 font-medium">Pending Principal endorsement</p>
-          <span class="text-[10px] font-bold text-blue-800 bg-blue-100/80 px-2 py-0.5 rounded">Sent to principal@schoolerp.in</span>
+          <p class="text-xs font-black text-[#380E0D]">2. Principal Review</p>
+          <p class="text-[11px] text-[#8C2826] font-medium">Pending Principal endorsement</p>
+          <span class="text-[10px] font-bold text-[#5C1210] bg-[#FFF5F5] px-2 py-0.5 rounded">Sent to principal@schoolerp.in</span>
         </div>
       </div>
 
@@ -89,11 +89,11 @@
       {{-- Student Profile Card --}}
       <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-5">
         <div class="flex items-center gap-4">
-          <div class="w-20 h-20 rounded-2xl bg-slate-100 border-2 border-blue-200 overflow-hidden shrink-0">
+          <div class="w-20 h-20 rounded-2xl bg-slate-100 border-2 border-[#FECACA] overflow-hidden shrink-0">
             @if($student->photo)
               <img src="{{ asset('storage/' . $student->photo) }}" class="w-full h-full object-cover" alt="{{ $student->full_name }}">
             @else
-              <div class="w-full h-full flex items-center justify-center bg-blue-50 text-blue-600 font-black text-2xl">
+              <div class="w-full h-full flex items-center justify-center bg-[#FFF5F5] text-[#8C2826] font-black text-2xl">
                 {{ substr($student->first_name, 0, 1) }}
               </div>
             @endif
@@ -101,11 +101,11 @@
           <div class="min-w-0 flex-1 space-y-1">
             <div class="flex items-center gap-2">
               <h2 class="text-lg font-black text-slate-900 truncate">{{ $student->full_name }}</h2>
-              <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
+              <span class="px-2 py-0.5 rounded bg-[#FFF5F5] text-[#8C2826] text-xs font-bold border border-[#FECACA]">
                 Class {{ $student->currentEnrollment?->class?->name ?? '—' }} ({{ $student->currentEnrollment?->section?->name ?? 'A' }})
               </span>
             </div>
-            <p class="text-xs font-mono font-bold text-blue-700">Admission No: {{ $student->admission_no }}</p>
+            <p class="text-xs font-bold text-[#8C2826]">Admission No: {{ $student->admission_no }}</p>
             <p class="text-xs text-slate-500">Roll No: {{ $student->roll_number ?? 'Auto-Allocated' }} &bull; Gender: {{ ucfirst($student->gender ?? '—') }}</p>
           </div>
         </div>
@@ -122,9 +122,9 @@
               @endif
             </div>
             <div class="min-w-0 flex-1 text-xs">
-              <span class="text-[10px] uppercase font-bold text-blue-600 block">Father</span>
+              <span class="text-[10px] uppercase font-bold text-[#8C2826] block">Father</span>
               <p class="font-bold text-slate-800 truncate">{{ $student->father_name ?? $student->parent_name }}</p>
-              <p class="font-mono text-slate-500 text-[11px]">{{ $student->father_mobile ?? $student->parent_mobile }}</p>
+              <p class="text-slate-500 font-medium text-[11px]">{{ $student->father_mobile ?? $student->parent_mobile }}</p>
             </div>
           </div>
 
@@ -140,7 +140,7 @@
             <div class="min-w-0 flex-1 text-xs">
               <span class="text-[10px] uppercase font-bold text-rose-600 block">Mother</span>
               <p class="font-bold text-slate-800 truncate">{{ $student->mother_name ?? '—' }}</p>
-              <p class="font-mono text-slate-500 text-[11px]">{{ $student->mother_mobile ?? '—' }}</p>
+              <p class="text-slate-500 font-medium text-[11px]">{{ $student->mother_mobile ?? '—' }}</p>
             </div>
           </div>
         </div>
@@ -149,16 +149,16 @@
         <div class="p-4 rounded-2xl bg-slate-900 text-white space-y-2">
           <div class="flex items-center justify-between text-xs">
             <span class="text-slate-400 font-medium">Total Admission Fee Billed:</span>
-            <span class="font-mono font-bold text-base text-amber-300">₹{{ number_format($student->total_admission_fee ?? 0, 2) }}</span>
+            <span class="font-bold text-base text-amber-300 tabular-nums">₹{{ number_format($student->total_admission_fee ?? 0, 2) }}</span>
           </div>
           <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
             <span class="text-emerald-400 font-bold">Initial Amount Collected:</span>
-            <span class="font-mono font-bold text-emerald-400">₹{{ number_format($student->admission_paid_amount ?? 0, 2) }}</span>
+            <span class="font-bold text-emerald-400 tabular-nums">₹{{ number_format($student->admission_paid_amount ?? 0, 2) }}</span>
           </div>
           @if(($student->admission_pending_amount ?? 0) > 0)
           <div class="flex items-center justify-between text-xs">
             <span class="text-slate-400">Remaining Balance:</span>
-            <span class="font-mono font-bold text-rose-300">₹{{ number_format($student->admission_pending_amount, 2) }}</span>
+            <span class="font-bold text-rose-300 tabular-nums">₹{{ number_format($student->admission_pending_amount, 2) }}</span>
           </div>
           @endif
         </div>
@@ -197,7 +197,7 @@
           <div class="w-40 h-40 flex items-center justify-center">
             {!! $docUploadQrSvg !!}
           </div>
-          <p class="text-[10px] font-mono font-bold text-slate-500 mt-1">SCAN TO UPLOAD CERTIFICATES</p>
+          <p class="text-[10px] font-bold text-slate-500 mt-1 tracking-wide">SCAN TO UPLOAD CERTIFICATES</p>
         </div>
 
         {{-- WhatsApp & Print Action Buttons --}}

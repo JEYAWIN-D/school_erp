@@ -419,6 +419,33 @@
             <p class="text-sm font-bold text-slate-900">{{ $student->mother_tongue ?? '—' }}</p>
           </div>
 
+          {{-- Uniform Dress Size Tile --}}
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs">
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <span class="text-sm">👕</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Dress Size</span>
+            </div>
+            <p class="text-sm font-bold text-slate-900">{{ $student->dress_size ?? '—' }}</p>
+          </div>
+
+          {{-- Shoe Size Tile --}}
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs">
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <span class="text-sm">👞</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Shoe Size</span>
+            </div>
+            <p class="text-sm font-bold text-slate-900">{{ $student->shoe_size ?? '—' }}</p>
+          </div>
+
+          {{-- Second Language Tile --}}
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs">
+            <div class="flex items-center gap-1.5 text-slate-400">
+              <span class="text-sm">📖</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">2nd Language</span>
+            </div>
+            <p class="text-sm font-bold text-slate-900">{{ $student->second_language ?? '—' }}</p>
+          </div>
+
           {{-- Aadhaar Number Tile --}}
           <div class="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-1 hover:border-indigo-300 transition-all shadow-2xs">
             <div class="flex items-center gap-1.5 text-slate-400">
@@ -495,6 +522,75 @@
 
         </div>
       </div>
+
+      {{-- Academic Background & Senior Secondary Stream Card --}}
+      @if($student->stream_group || $student->previous_school_name || $student->previous_percentage || $student->year_of_passing)
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <span class="text-base">🎓</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Academic Specialization &amp; Previous Records</h3>
+              <p class="text-xs text-slate-400">Senior secondary stream group, qualifying board exams, and previous school history</p>
+            </div>
+          </div>
+          @if($student->stream_group)
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              Grade XI / XII Stream Allotted
+            </span>
+          @endif
+        </div>
+
+        @if($student->stream_group)
+        <div class="p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50/70 to-slate-50 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="space-y-0.5">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 block">Allotted Stream / Group</span>
+            <p class="text-sm font-extrabold text-blue-950">{{ $student->stream_group }}</p>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white self-start sm:self-auto shadow-2xs">CBSE Senior Secondary</span>
+        </div>
+        @endif
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/70 space-y-0.5">
+            <span class="text-slate-400 font-bold block uppercase text-[10px]">Previous School</span>
+            <span class="font-bold text-slate-900 text-sm block">{{ $student->previous_school_name ?: '—' }}</span>
+          </div>
+
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/70 space-y-0.5">
+            <span class="text-slate-400 font-bold block uppercase text-[10px]">Board Affiliation</span>
+            <span class="font-bold text-slate-900 text-sm block">{{ $student->previous_school_board ?: 'CBSE' }}</span>
+          </div>
+
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/70 space-y-0.5">
+            <span class="text-slate-400 font-bold block uppercase text-[10px]">Marks / Percentage</span>
+            <span class="font-mono font-bold text-blue-700 text-sm block">{{ $student->previous_percentage ? $student->previous_percentage . '%' : '—' }}</span>
+          </div>
+
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/70 space-y-0.5">
+            <span class="text-slate-400 font-bold block uppercase text-[10px]">Year of Passing</span>
+            <span class="font-mono font-bold text-slate-900 text-sm block">{{ $student->year_of_passing ?: '—' }}</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-6 pt-1 text-xs font-semibold text-slate-700">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold {{ $student->is_tc_enclosed ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
+              {{ $student->is_tc_enclosed ? '✓' : '✗' }}
+            </span>
+            <span>Original TC {{ $student->is_tc_enclosed ? 'Enclosed' : 'Pending' }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md flex items-center justify-center text-xs font-bold {{ $student->is_qualified_promotion ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400' }}">
+              {{ $student->is_qualified_promotion ? '✓' : '✗' }}
+            </span>
+            <span>Qualified for Promotion ({{ $student->is_qualified_promotion ?: 'Yes' }})</span>
+          </div>
+        </div>
+      </div>
+      @endif
 
       {{-- Parent & Guardian Information Card --}}
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
@@ -797,8 +893,23 @@
             </div>
             <div class="space-y-1.5 text-xs bg-white p-3 rounded-xl border border-indigo-100">
               <span class="text-slate-400 font-medium block">Selected Activity:</span>
-              <span class="text-sm font-bold text-indigo-900 block">{{ $student->selected_eca ?: 'No specific club selected' }}</span>
-              <p class="text-[10px] text-slate-500">School provides 1 complimentary ECA activity per student without extra fees.</p>
+              @php
+                $ecaList = is_array($student->selected_eca)
+                  ? $student->selected_eca
+                  : (!empty($student->selected_eca) ? [$student->selected_eca] : []);
+              @endphp
+              @if(count($ecaList) > 0)
+                <div class="flex flex-wrap gap-1.5 py-1">
+                  @foreach($ecaList as $eca)
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {{ ucwords(str_replace('_', ' ', $eca)) }}
+                    </span>
+                  @endforeach
+                </div>
+              @else
+                <span class="text-sm font-bold text-slate-500 block">No specific club selected</span>
+              @endif
+              <p class="text-[10px] text-slate-500">School provides complimentary ECA activity per student without extra fees.</p>
             </div>
           </div>
         </div>
@@ -1500,6 +1611,57 @@
             <td class="py-3 px-4 text-center font-mono font-black text-slate-900">{{ $issue->total_quantity }} {{ $issue->item?->unit }}</td>
             <td class="py-3 px-4 text-right font-mono text-slate-700">₹{{ number_format($issue->unit_charge, 2) }}</td>
             <td class="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹{{ number_format($issue->additional_charge, 2) }}</td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+    </div>
+  </div>
+  @endif
+
+  {{-- Custom Kit Items & Textbooks --}}
+  @if(!empty($student->custom_kit_items) && is_array($student->custom_kit_items) && count($student->custom_kit_items) > 0)
+  <div class="bg-white rounded-2xl border border-indigo-100 shadow-sm p-6 sm:p-8 space-y-4">
+    <div class="flex items-center justify-between border-b border-indigo-50 pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <span>📚</span>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Custom Kit Items &amp; Textbooks</h3>
+          <p class="text-xs text-slate-400">Specialized books, equipment &amp; kit items requested for this student</p>
+        </div>
+      </div>
+      <span class="px-2.5 py-1 rounded-full text-xs font-extrabold bg-indigo-100 text-indigo-800">
+        {{ count($student->custom_kit_items) }} Custom Items
+      </span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs text-left">
+        <thead class="bg-indigo-50/50 text-slate-600 border-b border-indigo-100 font-bold uppercase tracking-wider text-[10px]">
+          <tr>
+            <th class="py-3 px-4">Item / Book Name</th>
+            <th class="py-3 px-4">Category</th>
+            <th class="py-3 px-4">Size / Spec</th>
+            <th class="py-3 px-4 text-center">Quantity</th>
+            <th class="py-3 px-4 text-right">Unit Price</th>
+            <th class="py-3 px-4 text-right">Total Price</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 font-medium">
+          @foreach($student->custom_kit_items as $cItem)
+          @php
+            $qty = (int)($cItem['quantity'] ?? 1);
+            $price = (float)($cItem['unit_price'] ?? 0);
+          @endphp
+          <tr class="hover:bg-slate-50/70 transition">
+            <td class="py-3 px-4 font-bold text-slate-900">{{ $cItem['name'] ?? '—' }}</td>
+            <td class="py-3 px-4 text-slate-600">{{ $cItem['category'] ?? 'Textbook' }}</td>
+            <td class="py-3 px-4 text-slate-600 font-mono">{{ $cItem['specification'] ?? '—' }}</td>
+            <td class="py-3 px-4 text-center font-mono font-bold">{{ $qty }}</td>
+            <td class="py-3 px-4 text-right font-mono text-slate-700">₹{{ number_format($price, 2) }}</td>
+            <td class="py-3 px-4 text-right font-mono font-bold text-indigo-700">₹{{ number_format($qty * $price, 2) }}</td>
           </tr>
           @endforeach
         </tbody>

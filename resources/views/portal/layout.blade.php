@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>@yield('title', 'Portal') — {{ config('app.name') }}</title>
+  <link rel="icon" type="image/png" href="{{ asset('images/school-seal-badge.png') }}">
   @vite(['resources/css/app.css', 'resources/js/app.js'])
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -141,15 +142,14 @@
   <aside class="ps-sidebar" id="ps-sidebar">
 
     {{-- Logo --}}
-    <div class="ps-logo">
-      <div class="ps-logo-icon">
-        <svg style="width:1.125rem;height:1.125rem;" fill="none" stroke="white" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
-        </svg>
+    <div class="ps-logo" style="padding: 0.875rem; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 0.75rem;">
+      <div class="ps-logo-icon" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); padding: 3px; border-radius: 0.75rem; box-shadow: 0 2px 6px rgba(0,0,0,0.25); width: 2.5rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <img src="{{ asset('images/school-seal-badge.png') }}" alt="Erode Public School Crest" style="width:100%;height:100%;object-fit:contain;">
       </div>
       <div class="ps-logo-text" style="flex:1;min-width:0;overflow:hidden;">
-        <p style="color:#fff;font-weight:700;font-size:.875rem;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ config('app.name') }}</p>
-        <p style="color:rgba(148,163,184,.6);font-size:.7rem;white-space:nowrap;">Student Portal</p>
+        <p style="color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:0.875rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;">Erode Public School</p>
+        <p style="color:#fcd34d;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.65rem;font-weight:700;letter-spacing:0.03em;white-space:nowrap;margin:0.2rem 0 0 0;">Senior Secondary &bull; CBSE</p>
+        <p style="color:#94a3b8;font-family:'Plus Jakarta Sans',sans-serif;font-size:0.625rem;font-weight:500;white-space:nowrap;margin:0.2rem 0 0 0;">Powered by <strong style="color:#ffffff;">DasaTech</strong></p>
       </div>
       {{-- Mobile close button --}}
       <button onclick="closeSidebar()" class="ps-icon-btn ps-hamburger" style="color:rgba(148,163,184,.8);margin-left:auto;" title="Close menu">

@@ -49,6 +49,8 @@
   <div class="school-header">
     @if($school && $school->logo)
       <div><img src="{{ public_path('storage/' . $school->logo) }}" class="school-logo" alt="Logo"></div>
+    @else
+      <div><img src="{{ public_path('images/school-logo.png') }}" class="school-logo" alt="Logo"></div>
     @endif
     <div class="school-name">{{ $school->school_name ?? config('app.name') }}</div>
     <div class="school-address">{{ $school->address ?? '' }}{{ ($school->city ?? '') ? ', ' . $school->city : '' }}</div>

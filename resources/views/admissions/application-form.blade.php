@@ -88,7 +88,11 @@
           </div>
           <div>
             <label class="label">Mobile Number <span class="text-red-500">*</span></label>
-            <input type="tel" name="parent_mobile" value="{{ old('parent_mobile') }}" class="input @error('parent_mobile') input-error @enderror" placeholder="10-digit mobile">
+            <input type="tel" name="parent_mobile" value="{{ old('parent_mobile') }}"
+                   class="input @error('parent_mobile') input-error @enderror"
+                   inputmode="numeric" maxlength="10" minlength="10" pattern="[6-9][0-9]{9}"
+                   oninput="this.value=this.value.replace(/\D/g,'').slice(0,10)"
+                   placeholder="10-digit mobile (e.g. 9876543210)">
             @error('parent_mobile') <p class="field-error">{{ $message }}</p> @enderror
           </div>
           <div>

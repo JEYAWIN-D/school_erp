@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover"/>
 <title>DASA EduERP — Complete School Management Platform</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" href="{{ asset('images/school-seal-badge.png') }}">
 <meta name="description" content="The all-in-one school management platform trusted by leading institutions. Automate admissions, attendance, fees, exams, communication and more."/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
@@ -244,8 +244,8 @@ footer{background:var(--navy);color:rgba(255,255,255,.6);padding:4rem 0 2rem}
   <div class="container">
     <div class="nav-inner">
       <a href="/" class="nav-logo">
-        <div class="nav-logo-icon">
-          <svg width="16" height="16" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+        <div class="nav-logo-icon" style="background:transparent;padding:0;">
+          <img src="{{ asset('images/school-seal-badge.png') }}" alt="Logo" style="width:100%;height:100%;object-fit:contain;">
         </div>
         DASA EduERP
       </a>
@@ -687,8 +687,8 @@ footer{background:var(--navy);color:rgba(255,255,255,.6);padding:4rem 0 2rem}
     <div class="footer-top">
       <div class="footer-brand">
         <div class="footer-logo-wrap">
-          <div class="nav-logo-icon">
-            <svg width="16" height="16" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+          <div class="nav-logo-icon" style="background:transparent;padding:0;">
+            <img src="{{ asset('images/school-seal-badge.png') }}" alt="Logo" style="width:100%;height:100%;object-fit:contain;">
           </div>
           DASA EduERP
         </div>

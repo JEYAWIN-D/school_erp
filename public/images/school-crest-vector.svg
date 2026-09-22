@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="10 12 380 408" width="100%" height="100%">
+  <defs>
+    <!-- Top Text Arc matching shield contour -->
+    <path id="eps-arc" d="M 32,132 A 190,190 0 0,1 368,132" fill="none" />
+    <!-- Crisp drop shadow -->
+    <filter id="crest-shadow" x="-8%" y="-8%" width="116%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#crest-shadow)">
+    <!-- 1. Top Arched School Title (Bold & Crisp) -->
+    <text font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif" font-weight="900" font-size="27" fill="#9f2d2a" letter-spacing="2.2px">
+      <textPath href="#eps-arc" startOffset="50%" text-anchor="middle">ERODE PUBLIC SCHOOL</textPath>
+    </text>
+
+    <!-- 2. Ribbon Back Tails (Left & Right) -->
+    <!-- Left Tail Fold & Notch -->
+    <polygon points="40,336 12,336 26,362 12,388 48,388 48,368" fill="#423b50" stroke="#342e3f" stroke-width="1.5"/>
+    <polygon points="40,368 48,368 48,388 40,378" fill="#2a2433"/>
+
+    <!-- Right Tail Fold & Notch -->
+    <polygon points="360,336 388,336 374,362 388,388 352,388 352,368" fill="#423b50" stroke="#342e3f" stroke-width="1.5"/>
+    <polygon points="360,368 352,368 352,388 360,378" fill="#2a2433"/>
+
+    <!-- 3. Shield Body -->
+    <!-- Left Half: Royal Crimson/Maroon -->
+    <path d="M 200,76 Q 136,94 72,106 C 65,225 110,348 200,414 L 200,76 Z"
+          fill="#9f2d2a" />
+
+    <!-- Right Half: Warm Ivory Cream -->
+    <path d="M 200,76 Q 264,94 328,106 C 335,225 290,348 200,414 L 200,76 Z"
+          fill="#faf8ee" />
+
+    <!-- Shield Outer Slate Border -->
+    <path d="M 200,76 Q 136,94 72,106 C 65,225 110,348 200,414 C 290,348 335,225 328,106 Q 264,94 200,76 Z"
+          fill="none" stroke="#4d455d" stroke-width="7.5" stroke-linejoin="round" />
+
+    <!-- Center Divider Line -->
+    <line x1="200" y1="76" x2="200" y2="414" stroke="#4d455d" stroke-width="3" />
+
+    <!-- 4. Left Emblem: Open Book with Fountain Pen Nib (Pure White, High Contrast) -->
+    <g id="book-emblem" fill="#ffffff">
+      <!-- Center Nib Wing Shape -->
+      <polygon points="136,190 151,215 142,255 136,270 130,255 121,215"/>
+      <!-- Nib slit & hole (maroon) -->
+      <circle cx="136" cy="235" r="2.5" fill="#9f2d2a"/>
+      <line x1="136" y1="237" x2="136" y2="270" stroke="#9f2d2a" stroke-width="2"/>
+
+      <!-- Left Pages fanning outward -->
+      <!-- Page 1 (inner) -->
+      <path d="M 127,215 Q 110,230 106,252 Q 119,257 132,268 L 132,258 Q 119,248 113,235 Q 119,223 127,215 Z"/>
+      <!-- Page 2 (middle) -->
+      <path d="M 123,203 Q 100,219 96,248 Q 105,253 117,261 L 117,252 Q 105,242 102,227 Q 110,212 123,203 Z"/>
+      <!-- Page 3 (outer vertical) -->
+      <path d="M 119,191 L 100,191 L 100,246 Q 106,249 113,253 L 113,244 Q 106,240 106,199 L 119,199 Z"/>
+      <!-- Bottom spine curve -->
+      <path d="M 92,223 L 86,223 L 86,244 Q 94,255 111,265 L 113,259 Q 96,248 92,223 Z"/>
+
+      <!-- Right Pages fanning outward (mirror) -->
+      <!-- Page 1 (inner) -->
+      <path d="M 145,215 Q 162,230 166,252 Q 153,257 140,268 L 140,258 Q 153,248 159,235 Q 153,223 145,215 Z"/>
+      <!-- Page 2 (middle) -->
+      <path d="M 149,203 Q 172,219 176,248 Q 167,253 155,261 L 155,252 Q 167,242 170,227 Q 162,212 149,203 Z"/>
+      <!-- Page 3 (outer vertical) -->
+      <path d="M 153,191 L 172,191 L 172,246 Q 166,249 159,253 L 159,244 Q 166,240 166,199 L 153,199 Z"/>
+      <!-- Bottom spine curve -->
+      <path d="M 180,223 L 186,223 L 186,244 Q 178,255 161,265 L 159,259 Q 176,248 180,223 Z"/>
+    </g>
+
+    <!-- 5. Right Emblem: Laurel Wreath (Slate Purple #4d455d, High Contrast Bold Leaves) -->
+    <g id="wreath-emblem" fill="#4d455d" stroke="#4d455d" stroke-linejoin="round">
+      <!-- Left curved branch of wreath -->
+      <!-- Stem -->
+      <path d="M 264,272 C 236,272 224,242 226,218 C 227,201 234,187 243,177" fill="none" stroke-width="3" stroke-linecap="round"/>
+      <!-- Leaves along left branch -->
+      <path d="M 264,272 C 259,265 251,265 246,270 C 251,275 260,275 264,272 Z"/>
+      <path d="M 251,268 C 242,261 236,263 232,270 C 239,273 247,271 251,268 Z"/>
+      <path d="M 243,262 C 232,253 227,255 223,263 C 230,266 238,264 243,262 Z"/>
+      <path d="M 235,252 C 224,243 219,245 215,253 C 223,256 231,254 235,252 Z"/>
+      <path d="M 229,240 C 218,231 213,233 211,242 C 218,245 226,243 229,240 Z"/>
+      <path d="M 227,226 C 216,217 213,221 212,229 C 219,232 226,229 227,226 Z"/>
+      <path d="M 229,212 C 220,203 217,207 218,215 C 224,218 229,215 229,212 Z"/>
+      <path d="M 234,198 C 226,189 225,193 228,201 C 233,204 236,200 234,198 Z"/>
+      <path d="M 243,185 C 236,176 238,180 243,187 C 247,189 248,186 243,185 Z"/>
+
+      <!-- Inner leaves along left branch -->
+      <path d="M 255,264 C 250,257 243,255 241,260 C 246,265 253,265 255,264 Z"/>
+      <path d="M 245,254 C 238,247 233,247 231,252 C 236,257 243,257 245,254 Z"/>
+      <path d="M 238,242 C 232,235 227,235 225,241 C 230,245 236,244 238,242 Z"/>
+      <path d="M 234,228 C 229,221 224,222 223,228 C 228,231 233,230 234,228 Z"/>
+      <path d="M 235,214 C 231,207 227,209 227,215 C 231,218 235,216 235,214 Z"/>
+      <path d="M 241,200 C 238,193 234,195 235,201 C 239,204 242,202 241,200 Z"/>
+
+      <!-- Right curved branch of wreath (mirror) -->
+      <!-- Stem -->
+      <path d="M 264,272 C 292,272 304,242 302,218 C 301,201 294,187 285,177" fill="none" stroke-width="3" stroke-linecap="round"/>
+      <!-- Leaves along right branch -->
+      <path d="M 264,272 C 269,265 277,265 282,270 C 277,275 268,275 264,272 Z"/>
+      <path d="M 277,268 C 286,261 292,263 296,270 C 289,273 281,271 277,268 Z"/>
+      <path d="M 285,262 C 296,253 301,255 305,263 C 298,266 290,264 285,262 Z"/>
+      <path d="M 293,252 C 304,243 309,245 313,253 C 305,256 297,254 293,252 Z"/>
+      <path d="M 299,240 C 310,231 315,233 317,242 C 310,245 302,243 299,240 Z"/>
+      <path d="M 301,226 C 312,217 315,221 316,229 C 309,232 302,229 301,226 Z"/>
+      <path d="M 299,212 C 308,203 311,207 310,215 C 304,218 299,215 299,212 Z"/>
+      <path d="M 294,198 C 302,189 303,193 300,201 C 295,204 292,200 294,198 Z"/>
+      <path d="M 285,185 C 292,176 290,180 285,187 C 281,189 280,186 285,185 Z"/>
+
+      <!-- Inner leaves along right branch -->
+      <path d="M 273,264 C 278,257 285,255 287,260 C 282,265 275,265 273,264 Z"/>
+      <path d="M 283,254 C 290,247 295,247 297,252 C 292,257 285,257 283,254 Z"/>
+      <path d="M 290,242 C 296,235 301,235 303,241 C 298,245 292,244 290,242 Z"/>
+      <path d="M 294,228 C 299,221 304,222 305,228 C 300,231 295,230 294,228 Z"/>
+      <path d="M 293,214 C 297,207 301,209 301,215 C 297,218 293,216 293,214 Z"/>
+      <path d="M 287,200 C 290,193 294,195 293,201 C 289,204 286,202 287,200 Z"/>
+
+      <!-- Bottom tie ribbon -->
+      <circle cx="264" cy="272" r="4" fill="#4d455d"/>
+      <path d="M 264,272 Q 258,283 252,288" fill="none" stroke-width="2.5"/>
+      <path d="M 264,272 Q 270,283 276,288" fill="none" stroke-width="2.5"/>
+    </g>
+
+    <!-- 6. Bottom Banner Ribbon (Front Bar) -->
+    <!-- Front bar drop shadow / border -->
+    <rect x="36" y="322" width="328" height="48" rx="2" fill="#4d455d" stroke="#342e3f" stroke-width="2"/>
+    <rect x="39" y="325" width="322" height="42" rx="1" fill="#544c66"/>
+
+    <!-- Ribbon Text: TOMORROW'S INSIDE -->
+    <text x="200" y="353"
+          text-anchor="middle"
+          font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif"
+          font-weight="900"
+          font-size="22"
+          fill="#ffffff"
+          letter-spacing="2.8px">TOMORROW'S INSIDE</text>
+
+    <!-- Lower point of shield extends below the ribbon (at Y=414) -->
+  </g>
+</svg>

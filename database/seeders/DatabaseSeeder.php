@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             SchoolSettingsSeeder::class,
             SuperAdminSeeder::class,
+            TestUsersSeeder::class,
             EmployeeSeeder::class,
             AddFiftyTeachingStaffSeeder::class,
             WarehouseSeeder::class,

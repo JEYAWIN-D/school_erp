@@ -201,7 +201,7 @@ class StudentController extends Controller
         $feeHeadNames = [];
 
         DB::transaction(function () use ($validated, $request, $currentYear, &$newStudentId, &$feeHeadNames) {
-            $admissionNumber = $this->generateAdmissionNumber();
+            $admissionNumber = Student::generateAdmissionNumber($validated['gender'] ?? $request->gender);
 
             $student = Student::create(array_merge($validated, [
                 'admission_no' => $admissionNumber,
@@ -554,27 +554,9 @@ class StudentController extends Controller
         return $pdf->stream('tc-' . ($student->admission_no ?? $student->id) . '.pdf');
     }
 
-    private function generateAdmissionNumber(): string
+    private function generateAdmissionNumber(?string $gender = null): string
     {
-        $year   = date('Y');
-        $driver = DB::connection()->getDriverName();
-        $prefix = 'ADM-' . $year . '-';
-
-        if ($driver === 'pgsql') {
-            $max = Student::whereYear('admission_date', $year)
-                ->where('admission_no', 'like', $prefix . '%')
-                ->max(DB::raw("CAST(RIGHT(admission_no, 4) AS INTEGER)")) ?? 0;
-        } elseif ($driver === 'sqlite') {
-            $max = Student::whereYear('admission_date', $year)
-                ->where('admission_no', 'like', $prefix . '%')
-                ->max(DB::raw("CAST(SUBSTR(admission_no, -4) AS INTEGER)")) ?? 0;
-        } else {
-            $max = Student::whereYear('admission_date', $year)
-                ->where('admission_no', 'like', $prefix . '%')
-                ->max(DB::raw("CAST(SUBSTRING(admission_no, -4) AS UNSIGNED)")) ?? 0;
-        }
-
-        return $prefix . str_pad($max + 1, 4, '0', STR_PAD_LEFT);
+        return Student::generateAdmissionNumber($gender);
     }
 
     public function export(Request $request)
@@ -1560,25 +1542,9 @@ class StudentController extends Controller
         // Cache for fuzzy class-name lookups (hit DB at most once per unique name)
         $classNameCache = [];
 
-        // Pre-fetch admission-number counter ONCE — avoids per-row DB query and duplicate numbers
-        $year      = date('Y');
-        $admPrefix = 'ADM-' . $year . '-';
-        $driver    = DB::connection()->getDriverName();
-
-        if ($driver === 'pgsql') {
-            $maxSeq = Student::whereYear('admission_date', $year)
-                ->where('admission_no', 'like', $admPrefix . '%')
-                ->max(DB::raw("CAST(RIGHT(admission_no, 4) AS INTEGER)")) ?? 0;
-        } elseif ($driver === 'sqlite') {
-            $maxSeq = Student::whereYear('admission_date', $year)
-                ->where('admission_no', 'like', $admPrefix . '%')
-                ->max(DB::raw("CAST(SUBSTR(admission_no, -4) AS INTEGER)")) ?? 0;
-        } else {
-            $maxSeq = Student::whereYear('admission_date', $year)
-                ->where('admission_no', 'like', $admPrefix . '%')
-                ->max(DB::raw("CAST(SUBSTRING(admission_no, -4) AS UNSIGNED)")) ?? 0;
-        }
-        $nextSeq = (int)$maxSeq;
+        // Pre-fetch admission-number counters for boys (EPSB) and girls (EPSG) ONCE — avoids per-row DB query and duplicate numbers
+        $nextSeqBoys  = Student::getNextSequenceNumber('EPSB');
+        $nextSeqGirls = Student::getNextSequenceNumber('EPSG');
 
         foreach ($rows as $i => $row) {
             if (!is_array($row) || empty(array_filter($row, fn($v) => !is_null($v) && trim((string)$v) !== ''))) {
@@ -1854,8 +1820,12 @@ class StudentController extends Controller
             if ($customAdmNo) {
                 $admissionNo = $customAdmNo;
             } else {
-                $nextSeq++;
-                $admissionNo = $admPrefix . str_pad($nextSeq, 4, '0', STR_PAD_LEFT);
+                $isGirl = (str_contains(strtolower((string)$gender), 'fem') || strtolower((string)$gender) === 'f' || strtolower((string)$gender) === 'girl');
+                if ($isGirl) {
+                    $admissionNo = 'EPSG' . str_pad((string)$nextSeqGirls++, 4, '0', STR_PAD_LEFT);
+                } else {
+                    $admissionNo = 'EPSB' . str_pad((string)$nextSeqBoys++, 4, '0', STR_PAD_LEFT);
+                }
             }
 
             try {

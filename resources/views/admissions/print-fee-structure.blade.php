@@ -63,11 +63,8 @@
 
       <div class="flex items-center gap-5 z-10">
         {{-- Crest Logo --}}
-        <div class="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-lg">
-          <svg class="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 01-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
-          </svg>
+        <div class="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shrink-0 shadow-lg p-1 border border-white/30">
+          <img src="{{ asset('images/school-seal-badge.png') }}" alt="Erode Public School" class="w-full h-full object-contain">
         </div>
 
         <div>
@@ -103,61 +100,93 @@
         </p>
       </div>
 
-      {{-- ── Card 1: Studies & Academic Fees ───────────────────── --}}
+      {{-- ── Card 1: Official Studies & Academic Fees (2026-2027 Schedule) ── --}}
       <div class="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <div class="flex items-center gap-3">
             <span class="w-7 h-7 rounded-full bg-blue-900 text-white flex items-center justify-center font-bold text-xs">1</span>
-            <h3 class="text-sm font-extrabold text-slate-900 uppercase tracking-wider">STUDIES &amp; ACADEMIC FEES (BASIC FORM)</h3>
+            <h3 class="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+              OFFICIAL FEE STRUCTURE — {{ $currentFee['official_name'] ?? ($selectedClass?->name ?? 'STANDARD') }}
+            </h3>
           </div>
-          <span class="text-xl">📖</span>
+          <span class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs border border-blue-200">2026–2027</span>
         </div>
 
         {{-- 4 Grid Component Cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {{-- Tuition Fees --}}
+          {{-- Term 1 --}}
           <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-center space-y-1.5">
-            <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 mx-auto flex items-center justify-center text-base">🎓</div>
-            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">TUITION FEES</p>
-            <p class="text-xl font-black text-slate-900 font-mono">₹{{ number_format($currentFee['tuition_fee'] ?? 18000) }}</p>
-            <p class="text-[10px] text-slate-400 font-medium">Class teaching fee per annum</p>
+            <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 mx-auto flex items-center justify-center text-base">🌱</div>
+            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">APRIL I TERM</p>
+            <p class="text-xl font-black text-slate-900 font-mono">₹{{ number_format($currentFee['term1_fee'] ?? 25000) }}</p>
+            <p class="text-[10px] text-blue-700 font-bold">Due Date: 01.04.2026</p>
           </div>
 
-          {{-- Book Fees --}}
+          {{-- Term 2 --}}
           <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-center space-y-1.5">
-            <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center text-base">📚</div>
-            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">BOOK FEES</p>
-            <p class="text-xl font-black text-slate-900 font-mono">₹{{ number_format($currentFee['book_fee'] ?? 2500) }}</p>
-            <p class="text-[10px] text-slate-400 font-medium">Textbooks &amp; learning materials</p>
+            <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 mx-auto flex items-center justify-center text-base">🌿</div>
+            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">AUG II TERM</p>
+            <p class="text-xl font-black text-slate-900 font-mono">₹{{ number_format($currentFee['term2_fee'] ?? 11000) }}</p>
+            <p class="text-[10px] text-blue-700 font-bold">Due Date: 05.08.2026</p>
           </div>
 
-          {{-- Exam Fees --}}
+          {{-- Term 3 --}}
           <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-center space-y-1.5">
-            <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 mx-auto flex items-center justify-center text-base">📋</div>
-            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">EXAM FEES</p>
-            <p class="text-xl font-black text-slate-900 font-mono">₹{{ number_format($currentFee['exam_fee'] ?? 1500) }}</p>
-            <p class="text-[10px] text-slate-400 font-medium">Term assessments &amp; exams</p>
+            <div class="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 mx-auto flex items-center justify-center text-base">🌳</div>
+            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">DEC. III TERM</p>
+            <p class="text-xl font-black text-slate-900 font-mono">₹{{ number_format($currentFee['term3_fee'] ?? 11000) }}</p>
+            <p class="text-[10px] text-blue-700 font-bold">Due Date: 05.12.2026</p>
           </div>
 
-          {{-- Lab / Computer Fees --}}
+          {{-- Material or Admission Fee --}}
           <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-center space-y-1.5">
-            <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 mx-auto flex items-center justify-center text-base">🖥️</div>
-            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">LAB / COMPUTER FEES</p>
-            <p class="text-xl font-black text-slate-900 font-mono">₹{{ number_format($currentFee['lab_fee'] ?? 0) }}</p>
-            <p class="text-[10px] text-slate-400 font-medium">Lab maintenance &amp; computer</p>
+            <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 mx-auto flex items-center justify-center text-base">📋</div>
+            <p class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
+              {{ ($currentFee['material_fee'] ?? 0) > 0 ? 'MATERIAL FEE' : 'ADMISSION FEE' }}
+            </p>
+            <p class="text-xl font-black text-slate-900 font-mono">
+              ₹{{ number_format(($currentFee['material_fee'] ?? 0) > 0 ? $currentFee['material_fee'] : ($currentFee['admission_fee'] ?? 2500)) }}
+            </p>
+            <p class="text-[10px] text-slate-500 font-semibold">
+              {{ ($currentFee['material_fee'] ?? 0) > 0 ? 'Due: 10.01.2026' : 'Rs.2,500/- extra' }}
+            </p>
           </div>
         </div>
+
+        @if(!empty($currentFee['has_integrated']))
+        {{-- Integrated Coaching Option --}}
+        <div class="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-indigo-950 uppercase tracking-wide">Grade XI (Integrated Coaching) NEET / JEE</span>
+            <span class="font-mono font-black text-indigo-900 text-sm">Total: ₹{{ number_format($currentFee['integrated_fee'] ?? 105000) }}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-xs text-center font-mono">
+            <div class="bg-white p-2 rounded-xl border border-indigo-100">
+              <span class="text-[10px] text-slate-500 block font-sans">April I Term</span>
+              <span class="font-bold text-indigo-900">₹{{ number_format($currentFee['integrated_term1'] ?? 52500) }}</span>
+            </div>
+            <div class="bg-white p-2 rounded-xl border border-indigo-100">
+              <span class="text-[10px] text-slate-500 block font-sans">Aug II Term</span>
+              <span class="font-bold text-indigo-900">₹{{ number_format($currentFee['integrated_term2'] ?? 32500) }}</span>
+            </div>
+            <div class="bg-white p-2 rounded-xl border border-indigo-100">
+              <span class="text-[10px] text-slate-500 block font-sans">Dec III Term</span>
+              <span class="font-bold text-indigo-900">₹{{ number_format($currentFee['integrated_term3'] ?? 20000) }}</span>
+            </div>
+          </div>
+        </div>
+        @endif
 
         {{-- Blue Academic Total Banner --}}
         <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-extrabold text-sm">✓</div>
             <div>
-              <p class="text-xs font-extrabold text-blue-950 uppercase tracking-wider">TOTAL BASIC ACADEMIC FEES</p>
-              <p class="text-[11px] text-blue-700 font-medium">Includes Tuition, Books, Exam &amp; Lab charges</p>
+              <p class="text-xs font-extrabold text-blue-950 uppercase tracking-wider">TOTAL ACADEMIC FEES (2026–2027)</p>
+              <p class="text-[11px] text-blue-700 font-medium">April I + Aug II + Dec III Terms (plus Material Fee if applicable)</p>
             </div>
           </div>
-          <p class="text-2xl font-black text-blue-800 font-mono">₹{{ number_format($currentFee['total_basic'] ?? 22000) }}</p>
+          <p class="text-2xl font-black text-blue-800 font-mono">₹{{ number_format($currentFee['total_basic'] ?? 47000) }}</p>
         </div>
       </div>
 
@@ -214,10 +243,12 @@
             <span class="uppercase tracking-wider">Important Notes</span>
           </div>
           <ul class="text-[11px] text-slate-700 space-y-1 font-medium pl-6 list-disc">
-            <li>All fees are payable on an annual / term basis.</li>
+            <li class="font-bold text-blue-900">ADMISSION FEES FOR PRE KG TO IX STD &amp; XI: Rs.2500/- extra</li>
+            <li class="font-semibold text-slate-800">TERM DUE DATES: Term I: 01.04.2026 &bull; Term II: 05.08.2026 &bull; Term III: 05.12.2026</li>
+            <li>Grade IX / X Material Fee Due Date: 10.01.2026</li>
+            <li>All fees are payable on an annual or 3-term basis.</li>
             <li>Hostel facility is optional and available on request.</li>
             <li>Fees once paid are non-refundable except as per school policy.</li>
-            <li>For any queries, please contact the school administration office.</li>
           </ul>
         </div>
 
@@ -268,3 +299,4 @@
   </script>
 </body>
 </html>
+
