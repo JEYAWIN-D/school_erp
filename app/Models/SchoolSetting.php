@@ -14,6 +14,7 @@ class SchoolSetting extends Model
         'currency_symbol', 'date_format', 'timezone',
         'academic_year_format', 'medium',
         'sms_enabled', 'whatsapp_enabled', 'online_payment_enabled',
+        'school_dispersal_time',
         // ID card template
         'id_card_header_color', 'id_card_text_color', 'id_card_bg_color',
         'id_card_header_text', 'id_card_footer_text',

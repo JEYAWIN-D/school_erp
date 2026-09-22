@@ -586,6 +586,42 @@ Route::middleware(['auth'])->group(function () {
     // ── Module 7 — HR & Payroll ───────────────────────────
     Route::middleware('permission:view employees')->prefix('hr')->name('hr.')->group(function () {
         Route::get('/',               [HrController::class, 'index'])->name('index');
+
+        // Staff Approval (Admin is View Only; Backend API is created now and permanent for future Principal Login)
+        Route::get('/staff-approvals',                   [HrController::class, 'staffApprovals'])->name('staff-approvals');
+        Route::post('/staff-approvals/{id}/approve',     [HrController::class, 'approveStaff'])->name('staff-approvals.approve');
+        Route::post('/staff-approvals/{id}/reject',      [HrController::class, 'rejectStaff'])->name('staff-approvals.reject');
+
+        // Staff Approval API (Permanent backend contract for Principal login)
+        Route::get('/api/staff-approvals',               [HrController::class, 'apiStaffApprovals'])->name('api.staff-approvals.index');
+        Route::get('/api/staff-approvals/{id}',          [HrController::class, 'apiStaffApprovalDetail'])->name('api.staff-approvals.show');
+        Route::post('/api/staff-approvals/{id}/approve', [HrController::class, 'approveStaff'])->name('api.staff-approvals.approve');
+        Route::post('/api/staff-approvals/{id}/reject',  [HrController::class, 'rejectStaff'])->name('api.staff-approvals.reject');
+
+        // Leave Application: Apply On Behalf API (Permanent backend contract)
+        Route::post('/api/leaves/apply-on-behalf',       [HrController::class, 'apiApplyLeaveOnBehalf'])->name('api.leaves.apply-on-behalf');
+
+        // Leave Approval (Admin is View Only; Leave Approval API is strictly NOT created now)
+        Route::get('/leave-approvals',                   [HrController::class, 'leaveApprovals'])->name('leave-approvals');
+
+        Route::get('/attendance/mark',                [HrController::class, 'markAttendance'])->name('attendance.mark');
+        Route::post('/attendance/mark',               [HrController::class, 'saveAttendanceMark'])->name('attendance.mark.save');
+
+        Route::get('/attendance/view',                [HrController::class, 'viewAttendance'])->name('attendance.view');
+        Route::get('/attendance/status/{status}',     [HrController::class, 'viewStatusAttendance'])->name('attendance.status');
+        Route::get('/attendance/absent',              [HrController::class, 'viewAbsentAttendance'])->name('attendance.absent');
+        Route::get('/attendance/on-duty',             [HrController::class, 'viewOnDutyAttendance'])->name('attendance.on-duty');
+        Route::get('/attendance/paid-off',            [HrController::class, 'viewPaidOffAttendance'])->name('attendance.paid-off');
+        Route::get('/attendance/permission',          [HrController::class, 'viewPermissionAttendance'])->name('attendance.permission');
+        Route::post('/attendance/permission/update-in-time', [HrController::class, 'updatePermissionInTime'])->name('attendance.permission.update-in-time');
+        Route::get('/attendance/staff/{id}',          [HrController::class, 'viewStaffAttendanceDetail'])->name('attendance.staff-detail');
+
+        Route::get('/reports',                        [HrController::class, 'reports'])->name('reports');
+        Route::get('/reports/export',                 [HrController::class, 'exportReportsExcel'])->name('reports.export');
+
+        Route::get('/events',                         [HrController::class, 'events'])->name('events');
+        Route::post('/events',                        [HrController::class, 'storeEvent'])->name('events.store');
+        Route::delete('/events/{id}',                 [HrController::class, 'deleteEvent'])->name('events.delete');
         Route::get('/employees',      [HrController::class, 'employees'])->name('employees');
         Route::get('/employees/create',[HrController::class, 'createEmployee'])->middleware('permission:create employees')->name('employees.create');
         Route::post('/employees',     [HrController::class, 'storeEmployee'])->middleware('permission:create employees')->name('employees.store');
@@ -616,8 +652,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/leaves',         [HrController::class, 'leaves'])->name('leaves');
         Route::get('/leaves/apply',   [HrController::class, 'applyLeaveForm'])->name('leaves.apply');
         Route::post('/leaves/apply',  [HrController::class, 'storeLeave'])->name('leaves.store');
-        Route::post('/leaves/{id}/approve',[HrController::class,'approveLeave'])->name('leaves.approve');
-        Route::post('/leaves/{id}/reject', [HrController::class,'rejectLeave'])->name('leaves.reject');
+        // Note: Leave Approval API (leaves.approve, leaves.reject) is strictly NOT created in this phase per requirements.
         // Departments & Designations
         Route::get('/departments',        [HrController::class, 'departments'])->name('departments');
         Route::post('/departments',       [HrController::class, 'storeDepartment'])->name('departments.store');

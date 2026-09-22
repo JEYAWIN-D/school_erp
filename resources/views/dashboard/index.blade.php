@@ -35,6 +35,12 @@
       <div class="mt-3">
         <p class="stat-number" x-data="{ val: 0 }" x-init="$nextTick(() => { let t = setInterval(() => { val < {{ $stats['total_students'] }} ? val++ : clearInterval(t) }, 20) })" x-text="val">0</p>
         <p class="text-xs text-slate-500 mt-1">Total Students</p>
+        @if($todayAttendance !== null)
+          <span class="inline-flex items-center gap-1 mt-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100" title="{{ $studentAttendanceStats->present ?? 0 }} present of {{ $studentAttendanceStats->total ?? 0 }} marked">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            {{ $todayAttendance }}% Attended Today
+          </span>
+        @endif
       </div>
       <a href="{{ route('students.index') }}" class="mt-2 text-xs text-blue-600 font-medium hover:text-blue-700">View all →</a>
     </div>
@@ -108,23 +114,60 @@
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="card lg:col-span-2">
       <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h3 class="font-semibold text-slate-800">Today's Attendance &amp; Class Strength</h3>
+        <div>
+          <h3 class="font-semibold text-slate-800">Today's Attendance &amp; Class Strength</h3>
+          @if($todayAttendance !== null && isset($studentAttendanceStats) && ($studentAttendanceStats->total ?? 0) > 0)
+            <p class="text-xs text-slate-500 mt-0.5">
+              <span class="font-bold text-emerald-600">{{ $studentAttendanceStats->present }} Present</span> &bull; 
+              <span class="font-bold text-rose-500">{{ $studentAttendanceStats->absent }} Absent</span>
+              @if(($studentAttendanceStats->late ?? 0) > 0)
+                &bull; <span class="font-bold text-amber-500">{{ $studentAttendanceStats->late }} Late</span>
+              @endif
+              @if(($studentAttendanceStats->leave_count ?? 0) > 0)
+                &bull; <span class="font-bold text-blue-500">{{ $studentAttendanceStats->leave_count }} Leave</span>
+              @endif
+              <span class="text-slate-400">({{ $studentAttendanceStats->total }} marked)</span>
+            </p>
+          @endif
+        </div>
         @if($todayAttendance !== null)
-          <span class="badge-green">{{ $todayAttendance }}% present today</span>
+          <div class="flex items-center gap-2">
+            <span class="badge-green font-bold text-xs px-2.5 py-1">{{ $todayAttendance }}% present today</span>
+            <a href="{{ route('attendance.index') }}" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">View All &rarr;</a>
+          </div>
         @else
-          <span class="badge-slate">No attendance yet</span>
+          <span class="badge-slate">No attendance yet today</span>
         @endif
       </div>
       @if($classStrength->isNotEmpty())
         @php $maxCount = $classStrength->max('student_count') ?: 1; @endphp
         <div class="space-y-2 max-h-56 overflow-y-auto pr-1">
           @foreach($classStrength as $row)
-          <div class="flex items-center gap-2">
-            <div class="w-24 text-xs text-slate-600 truncate flex-shrink-0">{{ $row->class_name }}</div>
-            <div class="flex-1 bg-slate-100 rounded-full h-2.5">
-              <div class="bg-indigo-500 h-2.5 rounded-full transition-all" style="width:{{ round($row->student_count/$maxCount*100) }}%"></div>
+          @php
+            $classAtt = isset($todayClassAttendance) ? ($todayClassAttendance[$row->class_id] ?? null) : null;
+          @endphp
+          <div class="flex items-center gap-2 py-1">
+            <div class="w-24 text-xs text-slate-600 truncate flex-shrink-0 font-medium">{{ $row->class_name }}</div>
+            <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              @if($classAtt && $classAtt->total > 0)
+                @php $classPct = round(($classAtt->present / $classAtt->total) * 100); @endphp
+                <div class="bg-emerald-500 h-2.5 rounded-full transition-all" style="width:{{ $classPct }}%" title="Today: {{ $classAtt->present }}/{{ $classAtt->total }} present ({{ $classPct }}%)"></div>
+              @else
+                <div class="bg-indigo-500 h-2.5 rounded-full transition-all" style="width:{{ round($row->student_count/$maxCount*100) }}%"></div>
+              @endif
             </div>
-            <div class="w-8 text-xs text-right text-slate-600 font-medium flex-shrink-0">{{ $row->student_count }}</div>
+            <div class="w-32 text-xs text-right text-slate-600 font-medium flex-shrink-0 flex items-center justify-end gap-1.5">
+              <span>{{ $row->student_count }}</span>
+              @if($classAtt && $classAtt->total > 0)
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {{ round(($classAtt->present / $classAtt->total) * 100) }}% today
+                </span>
+              @else
+                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-400">
+                  Not marked
+                </span>
+              @endif
+            </div>
           </div>
           @endforeach
         </div>

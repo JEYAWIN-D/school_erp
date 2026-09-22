@@ -8,6 +8,7 @@ use App\Models\Classes;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -62,6 +63,19 @@ class DashboardController extends Controller
         return $this->managementDashboard($currentYear);
     }
 
+    public static function clearCache(): void
+    {
+        try {
+            $currentYear = AcademicYear::current();
+            Cache::forget('mgmt_dashboard_v2_' . ($currentYear?->id ?? 0));
+            Cache::forget('mgmt_dashboard_v2_0');
+            $years = AcademicYear::pluck('id');
+            foreach ($years as $yId) {
+                Cache::forget('mgmt_dashboard_v2_' . $yId);
+            }
+        } catch (\Exception $e) {}
+    }
+
     private function managementDashboard($currentYear)
     {
         $cacheKey = 'mgmt_dashboard_v2_' . ($currentYear?->id ?? 0);
@@ -82,14 +96,34 @@ class DashboardController extends Controller
                 'new_admissions_month' => (int) ($studentCounts->new_admissions_month ?? 0),
             ];
 
-            $todayAttendance = null;
-            if ($currentYear) {
-                $attStats = DB::table('attendance_records')
-                    ->whereDate('date', today())
-                    ->selectRaw("COUNT(*) as total, COUNT(CASE WHEN status IN ('present', 'half_day') THEN 1 END) as present")
-                    ->first();
-                $todayAttendance = ($attStats && $attStats->total > 0) ? round($attStats->present / $attStats->total * 100, 1) : null;
-            }
+            $attStats = DB::table('attendance_records')
+                ->whereDate('date', today())
+                ->selectRaw("
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN status IN ('present', 'late', 'half_day') THEN 1 END) as present,
+                    COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent,
+                    COUNT(CASE WHEN status = 'late' THEN 1 END) as late,
+                    COUNT(CASE WHEN status = 'half_day' THEN 1 END) as half_day,
+                    COUNT(CASE WHEN status = 'leave' THEN 1 END) as leave_count,
+                    COUNT(CASE WHEN status = 'holiday' THEN 1 END) as holiday
+                ")
+                ->first();
+
+            $todayAttendance = ($attStats && $attStats->total > 0)
+                ? round($attStats->present / $attStats->total * 100, 1)
+                : null;
+            $studentAttendanceStats = $attStats;
+
+            $todayClassAttendance = DB::table('attendance_records')
+                ->whereDate('date', today())
+                ->select('class_id',
+                    DB::raw('COUNT(*) as total'),
+                    DB::raw("COUNT(CASE WHEN status IN ('present', 'late', 'half_day') THEN 1 END) as present"),
+                    DB::raw("COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent")
+                )
+                ->groupBy('class_id')
+                ->get()
+                ->keyBy('class_id');
 
             $todayCollection = DB::table('fee_payments')->where('is_cancelled', false)
                 ->whereDate('payment_date', today())->sum('amount');
@@ -104,13 +138,13 @@ class DashboardController extends Controller
                 ->join('classes as c', 'c.id', '=', 'se.class_id')
                 ->where('se.status', 'active')
                 ->when($currentYear, fn($q) => $q->where('se.academic_year_id', $currentYear->id))
-                ->select('c.name as class_name', DB::raw('COUNT(*) as student_count'))
+                ->select('c.id as class_id', 'c.name as class_name', DB::raw('COUNT(*) as student_count'))
                 ->groupBy('c.id', 'c.name')->orderBy('c.name')->get();
 
             $staffPresent = 0;
             try {
                 $staffPresent = DB::table('staff_attendance')->whereDate('date', today())
-                    ->where('status', 'present')->count();
+                    ->whereIn('status', ['present', 'late'])->count();
             } catch (\Exception $e) {}
 
             $collectionTrend = DB::table('fee_payments')
@@ -138,7 +172,8 @@ class DashboardController extends Controller
                 ->get();
 
             return compact(
-                'stats', 'todayAttendance', 'todayCollection', 'outstanding',
+                'stats', 'todayAttendance', 'studentAttendanceStats', 'todayClassAttendance',
+                'todayCollection', 'outstanding',
                 'classStrength', 'staffPresent', 'collectionTrend',
                 'recentNotices', 'upcomingEvents', 'todayBirthdays'
             );
@@ -164,7 +199,7 @@ class DashboardController extends Controller
                     ->leftJoin('subjects as s', 's.id', '=', 't.subject_id')
                     ->where('t.teacher_id', $employee->id)
                     ->when($currentYear, fn($q) => $q->where('t.academic_year_id', $currentYear->id))
-                    ->select('c.name as class_name', 's.name as subject_name', 't.day_of_week', 't.start_time', 't.end_time')
+                    ->select('t.class_id', 'c.name as class_name', 's.name as subject_name', 't.day_of_week', 't.start_time', 't.end_time')
                     ->orderBy('c.name')->orderBy('t.start_time')
                     ->get();
 
