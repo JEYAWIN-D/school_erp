@@ -134,34 +134,25 @@
 
             {{-- Color Presets --}}
             <div>
-              <label class="label text-xs">Curated Professional Presets</label>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-1.5">
+              <label class="label text-xs">Theme Color Options</label>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1.5">
                 @foreach($colorPresets as $key => $preset)
                 <button type="button"
                         @click="selectPreset('{{ $preset['hex'] }}')"
-                        class="p-2.5 rounded-xl border flex items-center gap-2.5 transition-all cursor-pointer text-left"
-                        :class="theme.primaryColor.toUpperCase() === '{{ strtoupper($preset['hex']) }}' ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'">
-                  <span class="w-5 h-5 rounded-full flex-shrink-0 shadow-2xs" style="background: {{ $preset['hex'] }}"></span>
-                  <div class="overflow-hidden">
-                    <p class="text-xs font-bold text-slate-700 truncate leading-tight">{{ $preset['label'] }}</p>
-                    <p class="text-[10px] text-slate-400 font-mono">{{ $preset['hex'] }}</p>
+                        class="p-3.5 rounded-xl border flex items-center gap-3 transition-all cursor-pointer text-left"
+                        :class="theme.primaryColor.toUpperCase() === '{{ strtoupper($preset['hex']) }}' ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/25 shadow-xs' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'">
+                  <span class="w-6 h-6 rounded-full flex-shrink-0 shadow-2xs border border-black/10" style="background: {{ $preset['hex'] }}"></span>
+                  <div class="overflow-hidden flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <p class="text-xs font-bold text-slate-800 truncate leading-tight">{{ $preset['label'] }}</p>
+                      @if(!empty($preset['is_default']))
+                        <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded">Default</span>
+                      @endif
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-mono mt-0.5">{{ $preset['hex'] }}</p>
                   </div>
                 </button>
                 @endforeach
-              </div>
-            </div>
-
-            {{-- Custom Color Picker --}}
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p class="text-xs font-semibold text-slate-700">Custom Brand Color</p>
-                <p class="text-[11px] text-slate-400">Pick any custom HEX color matching your school's official identity</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="color" x-model="theme.primaryColor"
-                       class="h-9 w-12 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white">
-                <input type="text" x-model="theme.primaryColor" maxlength="7"
-                       class="input input-sm w-24 font-mono uppercase text-xs">
               </div>
             </div>
           </div>
@@ -892,7 +883,7 @@ function settingsPage() {
   return {
     activeTab: '{{ request('tab', session('active_tab', 'appearance')) }}',
     theme: {
-      primaryColor: '{{ old('primary_color', $school?->primary_color ?? '#4F46E5') }}',
+      primaryColor: '{{ old('primary_color', in_array(strtoupper((string)($school?->primary_color)), ['#8C2826', '#2563EB', '#731E1C']) ? $school->primary_color : '#8C2826') }}',
       fontSize:     '{{ old('font_size', $school?->font_size ?? 'default') }}',
       fontFamily:   '{{ old('font_family', $school?->font_family ?? 'default') }}',
       uiDensity:    '{{ old('ui_density', $school?->ui_density ?? 'comfortable') }}',

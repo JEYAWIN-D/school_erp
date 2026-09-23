@@ -15,6 +15,8 @@
   {{-- Chart.js — deferred, crossorigin for CORS caching benefit --}}
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer crossorigin="anonymous"></script>
+  {{-- Dynamic Theme Styling --}}
+  <style>{!! \App\Models\SchoolSetting::getThemeCssVariables() !!}</style>
   @stack('head')
 </head>
 <body class="bg-slate-50 font-sans">
