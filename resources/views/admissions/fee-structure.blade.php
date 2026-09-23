@@ -288,68 +288,66 @@
     </div>
   </div>
 
-  {{-- Important Notes & Due Dates Box --}}
-  <div class="bg-amber-50/60 rounded-2xl p-5 border border-amber-200/80 space-y-2">
-    <div class="flex items-center gap-2 text-amber-950 font-extrabold text-xs">
-      <span class="w-5 h-5 rounded-full bg-amber-700 text-white flex items-center justify-center text-[10px]">i</span>
-      <span class="uppercase tracking-wider">Important Notes &amp; Fee Due Dates (2026–2027)</span>
-    </div>
-    <ul class="text-xs text-slate-700 space-y-1 font-medium pl-6 list-disc">
-      <li class="font-bold text-amber-950">New Admission Fee (Pre-KG to Class IX &amp; XI): ₹2,500/- extra one-time for new admissions.</li>
-      <li><strong>Term I Due Date:</strong> 01.04.2026 &bull; <strong>Term II Due Date:</strong> 05.08.2026 &bull; <strong>Term III Due Date:</strong> 05.12.2026</li>
-      <li><strong>Grade X Material Fee Due Date:</strong> 10.01.2026 (₹19,500)</li>
-      <li>All fees are strictly payable on an annual or 3-term basis as scheduled.</li>
-      <li>Fees once paid are non-refundable except as per school management policy.</li>
-    </ul>
-  </div>
-
-  {{-- ── Online Payment Link Card ───────────────────────────── --}}
-  <div class="bg-gradient-to-br from-[#8C2826] to-[#731E1C] rounded-2xl p-5 sm:p-6 text-white space-y-4 shadow-md">
-    <div class="flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-        </div>
+  {{-- Fee Due Dates & Important Guidelines --}}
+  <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-xl bg-rose-50 text-[#8C2826] border border-rose-200 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </span>
         <div>
-          <h3 class="font-extrabold text-white text-sm">Online Payment Link</h3>
-          <p class="text-rose-200 text-xs mt-0.5">Share via WhatsApp or SMS — parents pay digitally</p>
+          <h3 class="font-bold text-slate-800 text-sm">Fee Due Dates &amp; Guidelines (2026–2027)</h3>
+          <p class="text-xs text-slate-500">Official scheduled installment deadlines and admission terms</p>
         </div>
       </div>
-      <span class="px-2.5 py-1 rounded-full bg-amber-400 text-slate-900 text-[10px] font-black uppercase tracking-wide">SECURE</span>
+      <span class="inline-flex items-center px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold self-start sm:self-auto">
+        3-Term / Annual Schedule
+      </span>
     </div>
 
-    <div class="bg-white/10 border border-white/15 rounded-xl p-3 flex items-center gap-2">
-      <span class="font-mono text-xs text-rose-100 flex-1 break-all" x-text="'{{ url('/pay/fee') }}/' + currentClass.id"></span>
-      <button @click="navigator.clipboard.writeText('{{ url('/pay/fee') }}/' + currentClass.id).then(()=>{ $el.textContent='Copied!'; setTimeout(()=>$el.textContent='Copy',2000) })"
-              class="px-3 py-1.5 bg-white/20 hover:bg-white/30 border border-white/25 rounded-lg text-xs font-bold text-white transition cursor-pointer">Copy</button>
+    {{-- 3 Due Date Cards --}}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="bg-slate-50/80 rounded-xl p-4 border border-slate-200/60">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Term I</div>
+        <div class="text-base font-extrabold text-slate-900 mt-1">01.04.2026</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">First term installment</div>
+      </div>
+
+      <div class="bg-slate-50/80 rounded-xl p-4 border border-slate-200/60">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Term II</div>
+        <div class="text-base font-extrabold text-slate-900 mt-1">05.08.2026</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">Second term installment</div>
+      </div>
+
+      <div class="bg-slate-50/80 rounded-xl p-4 border border-slate-200/60">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Term III</div>
+        <div class="text-base font-extrabold text-slate-900 mt-1">05.12.2026</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">Third term installment</div>
+      </div>
     </div>
 
-    <div class="flex items-center gap-3 flex-wrap">
-      <a :href="'https://wa.me/?text=' + encodeURIComponent('Pay ' + currentClass.name + ' fees securely: {{ url('/pay/fee') }}/' + currentClass.id)"
-         target="_blank"
-         class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-xs">
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        Share on WhatsApp
-      </a>
-      <a :href="'/pay/fee/' + currentClass.id" target="_blank"
-         class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/25 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-        <span>Open Payment Page</span>
-      </a>
+    {{-- Simple, Clean Key Notes --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
+      <div class="flex items-start gap-2.5 bg-amber-50/60 p-3.5 rounded-xl border border-amber-200/70">
+        <svg class="w-4 h-4 text-amber-700 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div>
+          <span class="font-bold text-amber-950">New Admission Fee:</span>
+          <span class="text-slate-700">₹2,500 extra one-time fee for new admissions (Pre-KG to Class IX &amp; XI).</span>
+        </div>
+      </div>
+
+      <div class="flex items-start gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200/60">
+        <svg class="w-4 h-4 text-slate-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div>
+          <span class="font-bold text-slate-800">Policy:</span>
+          <span class="text-slate-600">Strictly payable on 3-term or annual basis. Non-refundable as per school rules.</span>
+          <span x-show="currentClass.name === 'X'" class="block text-rose-700 font-bold mt-1">Grade X Material Fee: 10.01.2026 (₹19,500)</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  {{-- ── Bottom Action Bar ────────────────────────────────────── --}}
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
-    <span class="text-xs text-slate-500 font-semibold">
-      Selected Standard: <strong class="text-slate-900" x-text="currentClass.name"></strong>
-    </span>
 
-    <a :href="'{{ route('admissions.create') }}?class_id=' + currentClass.id"
-       class="inline-flex items-center justify-center gap-2 bg-[#8C2826] hover:bg-[#731E1C] text-white font-black px-7 py-3 rounded-2xl text-sm shadow-md transition">
-      <span x-text="'Apply for ' + currentClass.name + ' →'"></span>
-    </a>
-  </div>
 
 </div>
 @endsection

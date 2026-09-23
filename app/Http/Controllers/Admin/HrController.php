@@ -45,6 +45,7 @@ class HrController extends Controller
         // 2. Today's attendance records from staff_attendance table
         $todayAttendances = DB::table('staff_attendance')
             ->whereDate('date', $today)
+            ->select('id', 'employee_id', 'status', 'check_in')
             ->get()
             ->keyBy('employee_id');
 
@@ -1232,85 +1233,88 @@ class HrController extends Controller
 
     private function getUpcomingStaffCelebrations(): array
     {
-        $celebrations = [];
-        $today = today();
-        $limitDate = today()->addDays(30);
+        $todayStr = today()->toDateString();
+        return \Illuminate\Support\Facades\Cache::remember("hr_staff_celebrations_v1_{$todayStr}", 3600, function () {
+            $celebrations = [];
+            $today = today();
+            $limitDate = today()->addDays(30);
 
-        $employees = Employee::where('is_active', true)
-            ->where(function($q) {
-                $q->whereNotNull('dob')->orWhereNotNull('joining_date');
-            })
-            ->get();
+            $employees = Employee::where('is_active', true)
+                ->where(function($q) {
+                    $q->whereNotNull('dob')->orWhereNotNull('joining_date');
+                })
+                ->get();
 
-        foreach ($employees as $emp) {
-            // Check birthday
-            if ($emp->dob) {
-                $bdayThisYear = \Carbon\Carbon::create($today->year, $emp->dob->month, $emp->dob->day);
-                if ($bdayThisYear->lt($today)) {
-                    $bdayThisYear->addYear();
-                }
-                if ($bdayThisYear->betweenIncluded($today, $limitDate)) {
-                    $celebrations[] = [
-                        'type'        => 'birthday',
-                        'label'       => 'Birthday',
-                        'badge_class' => 'bg-pink-100 text-pink-700 border-pink-200',
-                        'staff_name'  => $emp->full_name,
-                        'date'        => $bdayThisYear,
-                        'date_label'  => $bdayThisYear->format('d M'),
-                        'days_left'   => $today->diffInDays($bdayThisYear),
-                        'title'       => $emp->full_name . "'s Birthday",
-                    ];
-                }
-            }
-
-            // Check joining anniversary
-            if ($emp->joining_date && $emp->joining_date->lt($today)) {
-                $joinThisYear = \Carbon\Carbon::create($today->year, $emp->joining_date->month, $emp->joining_date->day);
-                if ($joinThisYear->lt($today)) {
-                    $joinThisYear->addYear();
-                }
-                if ($joinThisYear->betweenIncluded($today, $limitDate)) {
-                    $years = $joinThisYear->year - $emp->joining_date->year;
-                    if ($years > 0) {
+            foreach ($employees as $emp) {
+                // Check birthday
+                if ($emp->dob) {
+                    $bdayThisYear = \Carbon\Carbon::create($today->year, $emp->dob->month, $emp->dob->day);
+                    if ($bdayThisYear->lt($today)) {
+                        $bdayThisYear->addYear();
+                    }
+                    if ($bdayThisYear->betweenIncluded($today, $limitDate)) {
                         $celebrations[] = [
-                            'type'        => 'joining_anniversary',
-                            'label'       => 'Joining Anniversary',
-                            'badge_class' => 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                            'type'        => 'birthday',
+                            'label'       => 'Birthday',
+                            'badge_class' => 'bg-pink-100 text-pink-700 border-pink-200',
                             'staff_name'  => $emp->full_name,
-                            'date'        => $joinThisYear,
-                            'date_label'  => $joinThisYear->format('d M'),
-                            'days_left'   => $today->diffInDays($joinThisYear),
-                            'title'       => $emp->full_name . " ({$years} " . ($years == 1 ? 'Year' : 'Years') . ' at School)',
+                            'date'        => $bdayThisYear,
+                            'date_label'  => $bdayThisYear->format('d M'),
+                            'days_left'   => $today->diffInDays($bdayThisYear),
+                            'title'       => $emp->full_name . "'s Birthday",
                         ];
                     }
                 }
+
+                // Check joining anniversary
+                if ($emp->joining_date && $emp->joining_date->lt($today)) {
+                    $joinThisYear = \Carbon\Carbon::create($today->year, $emp->joining_date->month, $emp->joining_date->day);
+                    if ($joinThisYear->lt($today)) {
+                        $joinThisYear->addYear();
+                    }
+                    if ($joinThisYear->betweenIncluded($today, $limitDate)) {
+                        $years = $joinThisYear->year - $emp->joining_date->year;
+                        if ($years > 0) {
+                            $celebrations[] = [
+                                'type'        => 'joining_anniversary',
+                                'label'       => 'Joining Anniversary',
+                                'badge_class' => 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                                'staff_name'  => $emp->full_name,
+                                'date'        => $joinThisYear,
+                                'date_label'  => $joinThisYear->format('d M'),
+                                'days_left'   => $today->diffInDays($joinThisYear),
+                                'title'       => $emp->full_name . " ({$years} " . ($years == 1 ? 'Year' : 'Years') . ' at School)',
+                            ];
+                        }
+                    }
+                }
             }
-        }
 
-        // Add explicit staff_events in next 30 days
-        $manualEvents = StaffEvent::with('employee')
-            ->whereBetween('event_date', [$today->toDateString(), $limitDate->toDateString()])
-            ->get();
+            // Add explicit staff_events in next 30 days
+            $manualEvents = StaffEvent::with('employee')
+                ->whereBetween('event_date', [$today->toDateString(), $limitDate->toDateString()])
+                ->get();
 
-        foreach ($manualEvents as $ev) {
-            $eventDate = \Carbon\Carbon::parse($ev->event_date);
-            $celebrations[] = [
-                'type'        => $ev->event_type,
-                'label'       => $ev->event_label,
-                'badge_class' => $ev->event_badge_color,
-                'staff_name'  => $ev->employee?->full_name ?? 'Staff Member',
-                'date'        => $eventDate,
-                'date_label'  => $eventDate->format('d M'),
-                'days_left'   => $today->diffInDays($eventDate),
-                'title'       => $ev->title,
-                'description' => $ev->description,
-            ];
-        }
+            foreach ($manualEvents as $ev) {
+                $eventDate = \Carbon\Carbon::parse($ev->event_date);
+                $celebrations[] = [
+                    'type'        => $ev->event_type,
+                    'label'       => $ev->event_label,
+                    'badge_class' => $ev->event_badge_color,
+                    'staff_name'  => $ev->employee?->full_name ?? 'Staff Member',
+                    'date'        => $eventDate,
+                    'date_label'  => $eventDate->format('d M'),
+                    'days_left'   => $today->diffInDays($eventDate),
+                    'title'       => $ev->title,
+                    'description' => $ev->description,
+                ];
+            }
 
-        // Sort by date
-        usort($celebrations, fn($a, $b) => $a['date']->timestamp <=> $b['date']->timestamp);
+            // Sort by date
+            usort($celebrations, fn($a, $b) => $a['date']->timestamp <=> $b['date']->timestamp);
 
-        return $celebrations;
+            return $celebrations;
+        });
     }
 
     public function employees(Request $request)

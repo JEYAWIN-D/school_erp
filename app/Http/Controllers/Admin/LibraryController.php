@@ -25,27 +25,45 @@ class LibraryController extends Controller
 {
     public function index()
     {
-        $stats = [
-            'total_books'  => Book::count(),
-            'total_copies' => Book::sum('total_copies'),
-            'available'    => Book::sum('available_copies'),
-            'issued'       => BookIssue::where('status', 'issued')->count(),
-            'overdue'      => BookIssue::where('status', 'issued')->where('due_date', '<', today())->count(),
-        ];
+        $statsData = \Illuminate\Support\Facades\Cache::remember('library_index_stats_v1', 120, function () {
+            $today = today()->toDateString();
+            $bookRow = DB::table('books')->selectRaw("
+                COUNT(*) as total_books,
+                COALESCE(SUM(total_copies), 0) as total_copies,
+                COALESCE(SUM(available_copies), 0) as available
+            ")->first();
 
-        // Pending fines (overdue unreturned books with fine accrued)
-        $totalFinesPending = BookIssue::where('status', 'issued')
-            ->where('due_date', '<', today())
-            ->sum('fine_amount') ?? 0;
+            $issueRow = DB::table('book_issues')
+                ->where('status', 'issued')
+                ->selectRaw("
+                    COUNT(*) as issued,
+                    COUNT(CASE WHEN due_date < '{$today}' THEN 1 END) as overdue,
+                    COALESCE(SUM(CASE WHEN due_date < '{$today}' THEN fine_amount ELSE 0 END), 0) as fine_amount
+                ")->first();
+
+            return [
+                'stats' => [
+                    'total_books'  => (int) ($bookRow->total_books ?? 0),
+                    'total_copies' => (int) ($bookRow->total_copies ?? 0),
+                    'available'    => (int) ($bookRow->available ?? 0),
+                    'issued'       => (int) ($issueRow->issued ?? 0),
+                    'overdue'      => (int) ($issueRow->overdue ?? 0),
+                ],
+                'totalFinesPending' => (float) ($issueRow->fine_amount ?? 0),
+            ];
+        });
+
+        $stats = $statsData['stats'];
+        $totalFinesPending = $statsData['totalFinesPending'];
 
         // Overdue issues for alert
-        $overdueIssues = BookIssue::with(['book', 'student'])
+        $overdueIssues = BookIssue::with(['book:id,title,accession_number', 'student:id,first_name,last_name,admission_no'])
             ->where('status', 'issued')
             ->where('due_date', '<', today())
             ->orderBy('due_date')
             ->limit(5)->get();
 
-        $recentIssues = BookIssue::with(['book', 'student'])->latest()->take(8)->get();
+        $recentIssues = BookIssue::with(['book:id,title,accession_number', 'student:id,first_name,last_name,admission_no'])->latest()->take(8)->get();
         return view('library.index', compact('stats', 'recentIssues', 'overdueIssues', 'totalFinesPending'));
     }
 

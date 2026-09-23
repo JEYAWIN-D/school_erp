@@ -17,6 +17,48 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer crossorigin="anonymous"></script>
   {{-- Dynamic Theme Styling --}}
   {!! \App\Models\SchoolSetting::getThemeCssVariables() !!}
+
+  {{-- Ultimate Instant Navigation: Speculation Rules API --}}
+  <script type="speculationrules">
+  {
+    "prefetch": [
+      {
+        "source": "list",
+        "urls": [
+          "{{ route('dashboard') }}",
+          "{{ route('students.index') }}",
+          "{{ route('admissions.index') }}",
+          "{{ route('classes.index') }}",
+          "{{ route('academics.index') }}",
+          "{{ route('attendance.index') }}",
+          "{{ route('examinations.index') }}",
+          "{{ route('fees.index') }}",
+          "{{ route('accounts.index') }}",
+          "{{ route('hr.index') }}",
+          "{{ route('library.index') }}",
+          "{{ route('transport.index') }}",
+          "{{ route('hostel.index') }}",
+          "{{ route('settings.index') }}"
+        ],
+        "eagerness": "moderate"
+      },
+      {
+        "where": {
+          "and": [
+            { "href_matches": "/*" },
+            { "not": { "href_matches": "/*logout*" } },
+            { "not": { "href_matches": "/*export*" } },
+            { "not": { "href_matches": "/*download*" } },
+            { "not": { "href_matches": "/*.pdf" } },
+            { "not": { "href_matches": "/*.xlsx" } },
+            { "not": { "selector_matches": "[data-no-instant]" } }
+          ]
+        },
+        "eagerness": "moderate"
+      }
+    ]
+  }
+  </script>
   @stack('head')
 </head>
 <body class="bg-slate-50 font-sans">

@@ -19,6 +19,7 @@ use App\Models\VehicleMaintenance;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -26,51 +27,55 @@ class TransportController extends Controller
 {
     public function index()
     {
-        $stats = [
-            'routes'   => TransportRoute::where('is_active', true)->count(),
-            'vehicles' => Vehicle::where('is_active', true)->count(),
-            'students' => TransportAllotment::where('is_active', true)->count(),
-        ];
+        $cachedData = Cache::remember('transport_index_stats_v1', 120, function () {
+            $stats = [
+                'routes'   => TransportRoute::where('is_active', true)->count(),
+                'vehicles' => Vehicle::where('is_active', true)->count(),
+                'students' => TransportAllotment::where('is_active', true)->count(),
+            ];
 
-        // Drivers / attendants
-        try {
-            $stats['drivers'] = DB::table('transport_drivers')->count();
-        } catch (\Exception $e) {
-            $stats['drivers'] = TransportAttendant::count();
-        }
+            try {
+                $stats['drivers'] = DB::table('transport_drivers')->count();
+            } catch (\Exception $e) {
+                $stats['drivers'] = TransportAttendant::count();
+            }
 
-        // Today's bus attendance
-        try {
-            $stats['bus_present'] = BusAttendance::whereDate('date', today())->where('status', 'present')->count();
-        } catch (\Exception $e) {
-            $stats['bus_present'] = 0;
-        }
+            try {
+                $stats['bus_present'] = BusAttendance::whereDate('date', today())->where('status', 'present')->count();
+            } catch (\Exception $e) {
+                $stats['bus_present'] = 0;
+            }
 
-        // Maintenance alerts: vehicles with overdue or due-this-week maintenance
-        $maintenanceAlerts = collect();
-        try {
-            $maintenanceAlerts = VehicleMaintenance::with('vehicle')
-                ->where('next_service_date', '<=', today()->addDays(7))
-                ->whereHas('vehicle', fn($q) => $q->where('is_active', true))
-                ->orderBy('next_service_date')
-                ->limit(5)
-                ->get();
-        } catch (\Exception $e) {}
+            $maintenanceAlerts = collect();
+            try {
+                $maintenanceAlerts = VehicleMaintenance::with('vehicle')
+                    ->where('next_service_date', '<=', today()->addDays(7))
+                    ->whereHas('vehicle', fn($q) => $q->where('is_active', true))
+                    ->orderBy('next_service_date')
+                    ->limit(5)
+                    ->get();
+            } catch (\Exception $e) {}
 
-        // Document expiry alerts (insurance/fitness within 30 days)
-        $docAlerts = collect();
-        try {
-            $docAlerts = Vehicle::where('is_active', true)
-                ->where(fn($q) => $q
-                    ->where('insurance_expiry', '<=', today()->addDays(30))
-                    ->orWhere('fitness_expiry', '<=', today()->addDays(30))
-                )
-                ->select('id', 'vehicle_number', 'insurance_expiry', 'fitness_expiry')
-                ->limit(5)
-                ->get();
-        } catch (\Exception $e) {}
+            $docAlerts = collect();
+            try {
+                $docAlerts = Vehicle::where('is_active', true)
+                    ->where(fn($q) => $q
+                        ->where('insurance_expiry', '<=', today()->addDays(30))
+                        ->orWhere('fitness_expiry', '<=', today()->addDays(30))
+                    )
+                    ->select('id', 'vehicle_number', 'insurance_expiry', 'fitness_expiry')
+                    ->limit(5)
+                    ->get();
+            } catch (\Exception $e) {}
 
-        // Live GPRS fleet
+            return compact('stats', 'maintenanceAlerts', 'docAlerts');
+        });
+
+        $stats = $cachedData['stats'];
+        $maintenanceAlerts = $cachedData['maintenanceAlerts'];
+        $docAlerts = $cachedData['docAlerts'];
+
+        // Live GPRS fleet (real-time)
         $gprsVehicles = collect();
         try {
             $gprsVehicles = Vehicle::where('is_active', true)
