@@ -68,291 +68,43 @@ class DashboardController extends Controller
         return $this->managementDashboard($currentYear);
     }
 
+    public static function clearCache(): void
+    {
+        try {
+            $currentYear = AcademicYear::current();
+            $yearId = $currentYear?->id ?? 0;
+            $today = today()->toDateString();
+            $month = now()->format('Y-m');
+
+            Cache::forget("dash_mod_students_{$yearId}");
+            Cache::forget("dash_mod_att_{$yearId}_{$today}");
+            Cache::forget("dash_mod_fees_{$yearId}_{$today}");
+            Cache::forget("dash_mod_rev_{$yearId}_{$month}");
+            Cache::forget("dash_mod_events_{$today}");
+            Cache::forget("dash_mod_notices_{$today}");
+            Cache::forget("dash_mod_circulars_{$today}");
+            Cache::forget("dash_mod_birthdays_{$today}");
+            Cache::forget("dash_mod_adm_{$yearId}_{$today}");
+
+            Cache::forget('mgmt_dashboard_v9_' . $yearId . '_' . $today);
+            Cache::forget('mgmt_dashboard_v8_' . $yearId . '_' . $today);
+            Cache::forget('mgmt_dashboard_v7_' . $yearId);
+            Cache::forget('mgmt_dashboard_v2_' . $yearId);
+            Cache::forget('mgmt_dashboard_v2_0');
+        } catch (\Exception $e) {}
+    }
+
     private function managementDashboard($currentYear)
     {
-        // ── Cached non-widget data (demographics, staff, classes, revenue analytics, alerts) ──
-        $cacheKey = 'mgmt_dashboard_v9_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString();
-
-        $secondary = Cache::remember($cacheKey, 300, function () use ($currentYear) {
-            $classStrength = DB::table('student_enrollments as se')
-                ->join('classes as c', 'c.id', '=', 'se.class_id')
-                ->where('se.status', 'active')
-                ->when($currentYear, fn($q) => $q->where('se.academic_year_id', $currentYear->id))
-                ->select('c.name as class_name', DB::raw('COUNT(*) as student_count'))
-                ->groupBy('c.id', 'c.name')->orderBy('c.name')->get();
-
-            $sectionDistribution = DB::table('student_enrollments as se')
-                ->leftJoin('sections as s', 's.id', '=', 'se.section_id')
-                ->where('se.status', 'active')
-                ->when($currentYear, fn($q) => $q->where('se.academic_year_id', $currentYear->id))
-                ->select(DB::raw("COALESCE(s.name, 'Unassigned') as section_name"), DB::raw('COUNT(*) as student_count'))
-                ->groupBy(DB::raw("COALESCE(s.name, 'Unassigned')"))
-                ->orderBy('section_name')
-                ->get();
-
-            $demographicsRow = DB::table('student_enrollments as se')
-                ->join('students as s', 's.id', '=', 'se.student_id')
-                ->where('se.status', 'active')
-                ->when($currentYear, fn($q) => $q->where('se.academic_year_id', $currentYear->id))
-                ->selectRaw("
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN s.gender = 'male' THEN 1 END) as boys,
-                    COUNT(CASE WHEN s.gender = 'female' THEN 1 END) as girls,
-                    COUNT(CASE WHEN s.student_type = 'day_scholar' THEN 1 END) as day_scholars,
-                    COUNT(CASE WHEN s.student_type = 'hosteller' THEN 1 END) as hostellers
-                ")
-                ->first();
-
-            $studentDemographics = [
-                'total'          => $demographicsRow->total ?? 0,
-                'boys'           => $demographicsRow->boys ?? 0,
-                'girls'          => $demographicsRow->girls ?? 0,
-                'day_scholars'   => $demographicsRow->day_scholars ?? 0,
-                'hostellers'     => $demographicsRow->hostellers ?? 0,
-                'new_this_month' => DB::table('students')->whereMonth('admission_date', now()->month)->whereYear('admission_date', now()->year)->count(),
-            ];
-
-            $staffRow = DB::table('employees')
-                ->where('is_active', true)
-                ->selectRaw("
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN employee_type = 'teaching' THEN 1 END) as teaching,
-                    COUNT(CASE WHEN employee_type != 'teaching' THEN 1 END) as non_teaching
-                ")
-                ->first();
-            $staffTotal       = $staffRow->total ?? 0;
-            $staffTeaching    = $staffRow->teaching ?? 0;
-            $staffNonTeaching = $staffRow->non_teaching ?? 0;
-            $staffPresent     = DB::table('staff_attendance')->whereDate('date', today())->where('status', 'present')->count();
-            $staffOnLeave     = DB::table('leave_requests')->where('status', 'approved')->whereDate('from_date', '<=', today())->whereDate('to_date', '>=', today())->count();
-
-            $staffSummary = [
-                'total'         => $staffTotal,
-                'teaching'      => $staffTeaching,
-                'non_teaching'  => $staffNonTeaching,
-                'present_today' => $staffPresent,
-                'on_leave_today'=> $staffOnLeave,
-                'absent_today'  => max($staffOnLeave, max(0, $staffTotal - $staffPresent)),
-            ];
-
-            $totalIncome = (float) DB::table('fee_payments')->where('is_cancelled', false)
-                ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))->sum('amount');
-            if ($totalIncome == 0) {
-                $totalIncome = (float) DB::table('fee_payments')->where('is_cancelled', false)->sum('amount');
-            }
-            $monthIncome = (float) DB::table('fee_payments')->where('is_cancelled', false)
-                ->whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->sum('amount');
-
-            $feeSummary = [
-                'collected_total' => $totalIncome,
-                'collected_month' => $monthIncome,
-            ];
-
-            $pendingAlerts = [
-                'admissions' => DB::table('enquiries')->whereIn('status', ['new', 'pending', 'pending_principal_approval'])->count(),
-                'leaves'     => DB::table('leave_requests')->where('status', 'pending')->count(),
-                'tc'         => DB::table('tc_requests')->where('status', 'pending')->count(),
-            ];
-
-            // ── Total Revenue Analytics: Monthly Income vs Expenses ──
-            $monthlyIncome = DB::table('fee_payments')
-                ->where('is_cancelled', false)
-                ->whereRaw("payment_date >= CURRENT_DATE - INTERVAL '5 months'")
-                ->selectRaw("TO_CHAR(payment_date, 'YYYY-MM') as month, SUM(amount) as total")
-                ->groupByRaw("TO_CHAR(payment_date, 'YYYY-MM')")
-                ->pluck('total', 'month');
-
-            $monthlyExpenses = DB::table('expenses')
-                ->where('approval_status', 'approved')
-                ->whereRaw("expense_date >= CURRENT_DATE - INTERVAL '5 months'")
-                ->selectRaw("TO_CHAR(expense_date, 'YYYY-MM') as month, SUM(amount) as total")
-                ->groupByRaw("TO_CHAR(expense_date, 'YYYY-MM')")
-                ->pluck('total', 'month');
-
-            $revenueAnalytics = collect();
-            for ($i = 5; $i >= 0; $i--) {
-                $mDate  = now()->subMonths($i);
-                $mKey   = $mDate->format('Y-m');
-                $mLabel = $mDate->format('F Y');
-                $mShort = $mDate->format('M Y');
-                $inc    = (float) ($monthlyIncome[$mKey] ?? 0);
-                $exp    = (float) ($monthlyExpenses[$mKey] ?? 0);
-                $net    = $inc - $exp;
-
-                $revenueAnalytics->push([
-                    'month'       => $mKey,
-                    'month_label' => $mLabel,
-                    'short_label' => $mShort,
-                    'income'      => $inc,
-                    'expense'     => $exp,
-                    'expenses'    => $exp,
-                    'net'         => $net,
-                ]);
-            }
-
-            $totalExpenses = (float) DB::table('expenses')->where('approval_status', 'approved')
-                ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))->sum('amount');
-            if ($totalExpenses == 0) {
-                $totalExpenses = (float) DB::table('expenses')->where('approval_status', 'approved')->sum('amount');
-            }
-            $totalDueFees  = (float) DB::table('fee_structures')
-                ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))->sum('amount');
-            if ($totalDueFees == 0) {
-                $totalDueFees  = (float) DB::table('fee_structures')->sum('amount');
-            }
-            $pendingFees   = (float) max(0, $totalDueFees - $totalIncome);
-            $netOperating  = (float) ($totalIncome - $totalExpenses);
-
-            // ── Notices (General & Academic) ──
-            $recentNotices = DB::table('notices')->where('is_published', true)
-                ->where('notice_type', '!=', 'circular')
-                ->latest('publish_date')->limit(6)
-                ->get(['id', 'title', 'notice_type', 'content', 'publish_date']);
-
-            // ── Circulars ──
-            $recentCirculars = DB::table('notices')->where('is_published', true)
-                ->where('notice_type', 'circular')
-                ->latest('publish_date')->limit(6)
-                ->get(['id', 'title', 'content', 'publish_date']);
-
-            // ── Events ──
-            $upcomingEvents = DB::table('events')->where('is_published', true)
-                ->where('event_date', '>=', today())->orderBy('event_date')->limit(6)
-                ->get(['id', 'name', 'event_type', 'event_date', 'description', 'venue'])
-                ->map(fn($e) => tap($e, fn($e) => $e->event_date = \Carbon\Carbon::parse($e->event_date)));
-
-            // ── Dynamic Date-Based Birthday Wishes (Students & Staff, ignoring birth year) ──
-            $currentMonth = now()->month;
-            $currentDay   = now()->day;
-
-            $studentBirthdays = DB::table('students as s')
-                ->leftJoin('student_enrollments as se', function ($join) use ($currentYear) {
-                    $join->on('se.student_id', '=', 's.id')
-                         ->where('se.status', '=', 'active');
-                    if ($currentYear) {
-                        $join->where('se.academic_year_id', '=', $currentYear->id);
-                    }
-                })
-                ->leftJoin('classes as c', 'c.id', '=', 'se.class_id')
-                ->leftJoin('sections as sec', 'sec.id', '=', 'se.section_id')
-                ->where('s.status', 'active')
-                ->whereNotNull('s.dob')
-                ->whereRaw('EXTRACT(MONTH FROM s.dob) = ?', [$currentMonth])
-                ->whereRaw('EXTRACT(DAY FROM s.dob) = ?', [$currentDay])
-                ->select([
-                    's.id',
-                    's.first_name',
-                    's.last_name',
-                    's.dob',
-                    'c.name as class_name',
-                    'sec.name as section_name',
-                ])
-                ->get()
-                ->map(function ($s) {
-                    $sub = ($s->class_name ? 'Class ' . $s->class_name : 'Student') . ($s->section_name ? ' • Sec ' . $s->section_name : '');
-                    return (object) [
-                        'id'          => $s->id,
-                        'name'        => trim($s->first_name . ' ' . $s->last_name),
-                        'type'        => 'student',
-                        'type_label'  => 'Student',
-                        'subtitle'    => $sub,
-                        'role_detail' => $sub,
-                        'dob'         => $s->dob,
-                    ];
-                });
-
-            $staffBirthdays = DB::table('employees as e')
-                ->where('e.is_active', true)
-                ->whereNull('e.deleted_at')
-                ->whereNotNull('e.dob')
-                ->whereRaw('EXTRACT(MONTH FROM e.dob) = ?', [$currentMonth])
-                ->whereRaw('EXTRACT(DAY FROM e.dob) = ?', [$currentDay])
-                ->select([
-                    'e.id',
-                    'e.first_name',
-                    'e.last_name',
-                    'e.dob',
-                    'e.designation',
-                    'e.department',
-                    'e.employee_type',
-                ])
-                ->get()
-                ->map(function ($e) {
-                    $roleLabel = ($e->employee_type === 'teaching') ? 'Teacher' : 'Staff';
-                    $sub = [];
-                    if (!empty($e->designation)) $sub[] = $e->designation;
-                    if (!empty($e->department))  $sub[] = $e->department;
-                    $subStr = !empty($sub) ? implode(' • ', $sub) : $roleLabel;
-                    return (object) [
-                        'id'          => $e->id,
-                        'name'        => trim($e->first_name . ' ' . $e->last_name),
-                        'type'        => 'staff',
-                        'type_label'  => $roleLabel,
-                        'subtitle'    => $subStr,
-                        'role_detail' => $subStr,
-                        'dob'         => $e->dob,
-                    ];
-                });
-
-            $todayBirthdays = $studentBirthdays->concat($staffBirthdays);
-
-            $todayAttendance = null;
-            $attStats = DB::table('attendance_records')
-                ->whereDate('date', today())
-                ->selectRaw("
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN status = 'present' THEN 1 END) as present,
-                    COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent,
-                    COUNT(CASE WHEN status = 'half_day' THEN 1 END) as half_day,
-                    COUNT(CASE WHEN status = 'late' THEN 1 END) as late
-                ")
-                ->first();
-
-            $todayAttStats = [
-                'total'      => $attStats->total ?? 0,
-                'present'    => $attStats->present ?? 0,
-                'absent'     => $attStats->absent ?? 0,
-                'half_day'   => $attStats->half_day ?? 0,
-                'late'       => $attStats->late ?? 0,
-                'percentage' => ($attStats && $attStats->total > 0)
-                    ? round(($attStats->present + $attStats->half_day) / $attStats->total * 100, 1)
-                    : null,
-            ];
-
-            if ($todayAttStats['percentage'] !== null) {
-                $todayAttendance = $todayAttStats['percentage'];
-            }
-
-            $recentAdmissions = DB::table('enquiries as e')
-                ->leftJoin('classes as c', 'c.id', '=', 'e.class_id')
-                ->orderByDesc('e.created_at')
-                ->limit(5)
-                ->select('e.id', 'e.student_name', 'c.name as class_applied', 'e.parent_mobile as phone', 'e.status', 'e.created_at')
-                ->get();
-
-            $sections = DB::table('sections')
-                ->orderBy('name')
-                ->pluck('name')
-                ->unique()
-                ->values();
-
-            return compact(
-                'classStrength', 'sectionDistribution', 'studentDemographics',
-                'staffSummary', 'feeSummary', 'pendingAlerts',
-                'revenueAnalytics', 'totalIncome', 'totalExpenses', 'netOperating', 'pendingFees',
-                'recentNotices', 'recentCirculars', 'upcomingEvents',
-                'todayBirthdays', 'todayAttendance', 'todayAttStats', 'recentAdmissions', 'sections'
-            );
-        });
-
         // ── Catalogs ──
         $singleValueCatalog = DashboardWidget::singleValueCatalog();
         $singleValueKeys    = array_keys($singleValueCatalog);
         $briefInfoCatalog   = DashboardWidget::briefInfoCatalog();
         $briefInfoKeys      = array_keys($briefInfoCatalog);
+        $defaultBriefKeys   = DashboardWidget::defaultBriefSources();
 
         // Ensure default brief info widgets exist in dashboard_widgets (atomic check & bulk insert once)
-        Cache::remember('brief_widgets_seeded_v3', 86400 * 7, function () use ($briefInfoCatalog) {
+        Cache::remember('brief_widgets_seeded_v4', 86400 * 7, function () use ($briefInfoCatalog, $defaultBriefKeys) {
             $existing = DashboardWidget::whereIn('source', array_keys($briefInfoCatalog))->pluck('source')->toArray();
             $missing  = array_diff(array_keys($briefInfoCatalog), $existing);
             if (!empty($missing)) {
@@ -366,7 +118,7 @@ class DashboardController extends Controller
                         'source'     => $src,
                         'icon_color' => 'from-indigo-500 to-blue-600',
                         'sort_order' => $order++,
-                        'is_active'  => true,
+                        'is_active'  => in_array($src, $defaultBriefKeys, true),
                         'is_default' => true,
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -377,9 +129,16 @@ class DashboardController extends Controller
             return true;
         });
 
-        // ── Fetch all active widgets in a single query ───────────────────────
+        // ── Fetch active widgets ─────────────────────────────────────────────
         $activeWidgets = DashboardWidget::active()->get();
 
+        $activeBriefWidgets = $activeWidgets
+            ->whereIn('source', $briefInfoKeys)
+            ->pluck('source')
+            ->values()
+            ->toArray();
+
+        // ── Resolve only active single-value KPI cards ───────────────────────
         $singleValueWidgets = $activeWidgets
             ->whereIn('source', $singleValueKeys)
             ->values()
@@ -395,12 +154,350 @@ class DashboardController extends Controller
                 return $widget;
             });
 
-        // ── Active Brief Information Widget Keys ──────
-        $activeBriefWidgets = $activeWidgets
-            ->whereIn('source', $briefInfoKeys)
-            ->pluck('source')
-            ->values()
-            ->toArray();
+        // ── Modular & Lazy Data Loading (Only query modules active on dashboard) ──
+
+        // 1. Students & Class/Section distribution
+        $needsStudentData = !empty(array_intersect([
+            'student_overview', 'student_demographics', 'class_distribution', 'section_distribution'
+        ], $activeBriefWidgets));
+
+        if ($needsStudentData) {
+            $studentData = Cache::remember('dash_mod_students_' . ($currentYear?->id ?? 0), 300, function () use ($currentYear) {
+                $classStrength = DB::table('student_enrollments as se')
+                    ->join('classes as c', 'c.id', '=', 'se.class_id')
+                    ->where('se.status', 'active')
+                    ->when($currentYear, fn($q) => $q->where('se.academic_year_id', $currentYear->id))
+                    ->select('c.name as class_name', DB::raw('COUNT(*) as student_count'))
+                    ->groupBy('c.id', 'c.name')->orderBy('c.name')->get();
+
+                $sectionDistribution = DB::table('student_enrollments as se')
+                    ->leftJoin('sections as s', 's.id', '=', 'se.section_id')
+                    ->where('se.status', 'active')
+                    ->when($currentYear, fn($q) => $q->where('se.academic_year_id', $currentYear->id))
+                    ->select(DB::raw("COALESCE(s.name, 'Unassigned') as section_name"), DB::raw('COUNT(*) as student_count'))
+                    ->groupBy(DB::raw("COALESCE(s.name, 'Unassigned')"))
+                    ->orderBy('section_name')
+                    ->get();
+
+                $demographicsRow = DB::table('student_enrollments as se')
+                    ->join('students as s', 's.id', '=', 'se.student_id')
+                    ->where('se.status', 'active')
+                    ->when($currentYear, fn($q) => $q->where('se.academic_year_id', $currentYear->id))
+                    ->selectRaw("
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN s.gender = 'male' THEN 1 END) as boys,
+                        COUNT(CASE WHEN s.gender = 'female' THEN 1 END) as girls,
+                        COUNT(CASE WHEN s.student_type = 'day_scholar' THEN 1 END) as day_scholars,
+                        COUNT(CASE WHEN s.student_type = 'hosteller' THEN 1 END) as hostellers
+                    ")
+                    ->first();
+
+                $studentDemographics = [
+                    'total'          => $demographicsRow->total ?? 0,
+                    'boys'           => $demographicsRow->boys ?? 0,
+                    'girls'          => $demographicsRow->girls ?? 0,
+                    'day_scholars'   => $demographicsRow->day_scholars ?? 0,
+                    'hostellers'     => $demographicsRow->hostellers ?? 0,
+                    'new_this_month' => DB::table('students')->whereMonth('admission_date', now()->month)->whereYear('admission_date', now()->year)->count(),
+                ];
+
+                $sections = DB::table('sections')->orderBy('name')->pluck('name')->unique()->values();
+
+                return compact('classStrength', 'sectionDistribution', 'studentDemographics', 'sections');
+            });
+            $classStrength       = $studentData['classStrength'];
+            $sectionDistribution = $studentData['sectionDistribution'];
+            $studentDemographics = $studentData['studentDemographics'];
+            $sections            = $studentData['sections'];
+        } else {
+            $classStrength       = collect();
+            $sectionDistribution = collect();
+            $studentDemographics = ['total' => 0, 'boys' => 0, 'girls' => 0, 'day_scholars' => 0, 'hostellers' => 0, 'new_this_month' => 0];
+            $sections            = collect();
+        }
+
+        // 2. Attendance & Staff Overview
+        $needsAttendance = in_array('attendance_overview', $activeBriefWidgets);
+
+        if ($needsAttendance) {
+            $attData = Cache::remember('dash_mod_att_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString(), 300, function () {
+                $staffRow = DB::table('employees')
+                    ->where('is_active', true)
+                    ->selectRaw("
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN employee_type = 'teaching' THEN 1 END) as teaching,
+                        COUNT(CASE WHEN employee_type != 'teaching' THEN 1 END) as non_teaching
+                    ")
+                    ->first();
+                $staffTotal       = $staffRow->total ?? 0;
+                $staffTeaching    = $staffRow->teaching ?? 0;
+                $staffNonTeaching = $staffRow->non_teaching ?? 0;
+                $staffPresent     = DB::table('staff_attendance')->whereDate('date', today())->where('status', 'present')->count();
+                $staffOnLeave     = DB::table('leave_requests')->where('status', 'approved')->whereDate('from_date', '<=', today())->whereDate('to_date', '>=', today())->count();
+
+                $staffSummary = [
+                    'total'         => $staffTotal,
+                    'teaching'      => $staffTeaching,
+                    'non_teaching'  => $staffNonTeaching,
+                    'present_today' => $staffPresent,
+                    'on_leave_today'=> $staffOnLeave,
+                    'absent_today'  => max($staffOnLeave, max(0, $staffTotal - $staffPresent)),
+                ];
+
+                $attStats = DB::table('attendance_records')
+                    ->whereDate('date', today())
+                    ->selectRaw("
+                        COUNT(*) as total,
+                        COUNT(CASE WHEN status = 'present' THEN 1 END) as present,
+                        COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent,
+                        COUNT(CASE WHEN status = 'half_day' THEN 1 END) as half_day,
+                        COUNT(CASE WHEN status = 'late' THEN 1 END) as late
+                    ")
+                    ->first();
+
+                $todayAttStats = [
+                    'total'      => $attStats->total ?? 0,
+                    'present'    => $attStats->present ?? 0,
+                    'absent'     => $attStats->absent ?? 0,
+                    'half_day'   => $attStats->half_day ?? 0,
+                    'late'       => $attStats->late ?? 0,
+                    'percentage' => ($attStats && $attStats->total > 0)
+                        ? round(($attStats->present + $attStats->half_day) / $attStats->total * 100, 1)
+                        : null,
+                ];
+                $todayAttendance = $todayAttStats['percentage'];
+
+                return compact('staffSummary', 'todayAttStats', 'todayAttendance');
+            });
+            $staffSummary    = $attData['staffSummary'];
+            $todayAttStats   = $attData['todayAttStats'];
+            $todayAttendance = $attData['todayAttendance'];
+        } else {
+            $staffSummary    = ['total' => 0, 'teaching' => 0, 'non_teaching' => 0, 'present_today' => 0, 'on_leave_today' => 0, 'absent_today' => 0];
+            $todayAttStats   = ['total' => 0, 'present' => 0, 'absent' => 0, 'half_day' => 0, 'late' => 0, 'percentage' => null];
+            $todayAttendance = null;
+        }
+
+        // 3. Fee Overview & Revenue Analytics
+        $needsFeeOverview     = in_array('fee_overview', $activeBriefWidgets);
+        $needsRevenueAnalytics = in_array('revenue_analytics', $activeBriefWidgets);
+
+        if ($needsFeeOverview || $needsRevenueAnalytics) {
+            $feeData = Cache::remember('dash_mod_fees_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString(), 300, function () use ($currentYear, $needsRevenueAnalytics) {
+                $totalIncome = (float) DB::table('fee_payments')->where('is_cancelled', false)
+                    ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))->sum('amount');
+                if ($totalIncome == 0) {
+                    $totalIncome = (float) DB::table('fee_payments')->where('is_cancelled', false)->sum('amount');
+                }
+                $monthIncome = (float) DB::table('fee_payments')->where('is_cancelled', false)
+                    ->whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->sum('amount');
+
+                $feeSummary = [
+                    'collected_total' => $totalIncome,
+                    'collected_month' => $monthIncome,
+                ];
+
+                $totalExpenses = (float) DB::table('expenses')->where('approval_status', 'approved')
+                    ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))->sum('amount');
+                if ($totalExpenses == 0) {
+                    $totalExpenses = (float) DB::table('expenses')->where('approval_status', 'approved')->sum('amount');
+                }
+                $totalDueFees  = (float) DB::table('fee_structures')
+                    ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))->sum('amount');
+                if ($totalDueFees == 0) {
+                    $totalDueFees  = (float) DB::table('fee_structures')->sum('amount');
+                }
+                $pendingFees   = (float) max(0, $totalDueFees - $totalIncome);
+                $netOperating  = (float) ($totalIncome - $totalExpenses);
+
+                $revenueAnalytics = collect();
+                if ($needsRevenueAnalytics) {
+                    $monthlyIncome = DB::table('fee_payments')
+                        ->where('is_cancelled', false)
+                        ->whereRaw("payment_date >= CURRENT_DATE - INTERVAL '5 months'")
+                        ->selectRaw("TO_CHAR(payment_date, 'YYYY-MM') as month, SUM(amount) as total")
+                        ->groupByRaw("TO_CHAR(payment_date, 'YYYY-MM')")
+                        ->pluck('total', 'month');
+
+                    $monthlyExpenses = DB::table('expenses')
+                        ->where('approval_status', 'approved')
+                        ->whereRaw("expense_date >= CURRENT_DATE - INTERVAL '5 months'")
+                        ->selectRaw("TO_CHAR(expense_date, 'YYYY-MM') as month, SUM(amount) as total")
+                        ->groupByRaw("TO_CHAR(expense_date, 'YYYY-MM')")
+                        ->pluck('total', 'month');
+
+                    for ($i = 5; $i >= 0; $i--) {
+                        $mDate  = now()->subMonths($i);
+                        $mKey   = $mDate->format('Y-m');
+                        $mLabel = $mDate->format('F Y');
+                        $mShort = $mDate->format('M Y');
+                        $inc    = (float) ($monthlyIncome[$mKey] ?? 0);
+                        $exp    = (float) ($monthlyExpenses[$mKey] ?? 0);
+                        $net    = $inc - $exp;
+
+                        $revenueAnalytics->push([
+                            'month'       => $mKey,
+                            'month_label' => $mLabel,
+                            'short_label' => $mShort,
+                            'income'      => $inc,
+                            'expense'     => $exp,
+                            'expenses'    => $exp,
+                            'net'         => $net,
+                        ]);
+                    }
+                }
+
+                return compact('feeSummary', 'totalIncome', 'totalExpenses', 'netOperating', 'pendingFees', 'revenueAnalytics');
+            });
+            $feeSummary       = $feeData['feeSummary'];
+            $totalIncome      = $feeData['totalIncome'];
+            $totalExpenses    = $feeData['totalExpenses'];
+            $netOperating     = $feeData['netOperating'];
+            $pendingFees      = $feeData['pendingFees'];
+            $revenueAnalytics = $feeData['revenueAnalytics'];
+        } else {
+            $feeSummary       = ['collected_total' => 0, 'collected_month' => 0];
+            $totalIncome      = 0;
+            $totalExpenses    = 0;
+            $netOperating     = 0;
+            $pendingFees      = 0;
+            $revenueAnalytics = collect();
+        }
+
+        // 4. Notices & Circulars
+        $needsNotices   = !empty(array_intersect(['school_notices', 'notices_active'], $activeBriefWidgets));
+        $needsCirculars = !empty(array_intersect(['circulars_orders', 'circulars_active'], $activeBriefWidgets));
+
+        if ($needsNotices) {
+            $recentNotices = Cache::remember('dash_mod_notices_' . today()->toDateString(), 600, function () {
+                return DB::table('notices')->where('is_published', true)
+                    ->where('notice_type', '!=', 'circular')
+                    ->latest('publish_date')->limit(6)
+                    ->get(['id', 'title', 'notice_type', 'content', 'publish_date']);
+            });
+        } else {
+            $recentNotices = collect();
+        }
+
+        if ($needsCirculars) {
+            $recentCirculars = Cache::remember('dash_mod_circulars_' . today()->toDateString(), 600, function () {
+                return DB::table('notices')->where('is_published', true)
+                    ->where('notice_type', 'circular')
+                    ->latest('publish_date')->limit(6)
+                    ->get(['id', 'title', 'content', 'publish_date']);
+            });
+        } else {
+            $recentCirculars = collect();
+        }
+
+        // 5. Events
+        $needsEvents = !empty(array_intersect(['upcoming_events', 'events_upcoming'], $activeBriefWidgets));
+
+        if ($needsEvents) {
+            $upcomingEvents = Cache::remember('dash_mod_events_' . today()->toDateString(), 600, function () {
+                return DB::table('events')->where('is_published', true)
+                    ->where('event_date', '>=', today())->orderBy('event_date')->limit(6)
+                    ->get(['id', 'name', 'event_type', 'event_date', 'description', 'venue'])
+                    ->map(fn($e) => tap($e, fn($e) => $e->event_date = \Carbon\Carbon::parse($e->event_date)));
+            });
+        } else {
+            $upcomingEvents = collect();
+        }
+
+        // 6. Birthday Wishes
+        $needsBirthdays = in_array('birthday_wishes', $activeBriefWidgets);
+
+        if ($needsBirthdays) {
+            $todayBirthdays = Cache::remember('dash_mod_birthdays_' . today()->toDateString(), 1800, function () use ($currentYear) {
+                $currentMonth = now()->month;
+                $currentDay   = now()->day;
+
+                $studentBirthdays = DB::table('students as s')
+                    ->leftJoin('student_enrollments as se', function ($join) use ($currentYear) {
+                        $join->on('se.student_id', '=', 's.id')
+                             ->where('se.status', '=', 'active');
+                        if ($currentYear) {
+                            $join->where('se.academic_year_id', '=', $currentYear->id);
+                        }
+                    })
+                    ->leftJoin('classes as c', 'c.id', '=', 'se.class_id')
+                    ->leftJoin('sections as sec', 'sec.id', '=', 'se.section_id')
+                    ->where('s.status', 'active')
+                    ->whereNotNull('s.dob')
+                    ->whereRaw('EXTRACT(MONTH FROM s.dob) = ?', [$currentMonth])
+                    ->whereRaw('EXTRACT(DAY FROM s.dob) = ?', [$currentDay])
+                    ->select(['s.id', 's.first_name', 's.last_name', 's.dob', 'c.name as class_name', 'sec.name as section_name'])
+                    ->get()
+                    ->map(function ($s) {
+                        $sub = ($s->class_name ? 'Class ' . $s->class_name : 'Student') . ($s->section_name ? ' • Sec ' . $s->section_name : '');
+                        return (object) [
+                            'id'          => $s->id,
+                            'name'        => trim($s->first_name . ' ' . $s->last_name),
+                            'type'        => 'student',
+                            'type_label'  => 'Student',
+                            'subtitle'    => $sub,
+                            'role_detail' => $sub,
+                            'dob'         => $s->dob,
+                        ];
+                    });
+
+                $staffBirthdays = DB::table('employees as e')
+                    ->where('e.is_active', true)
+                    ->whereNull('e.deleted_at')
+                    ->whereNotNull('e.dob')
+                    ->whereRaw('EXTRACT(MONTH FROM e.dob) = ?', [$currentMonth])
+                    ->whereRaw('EXTRACT(DAY FROM e.dob) = ?', [$currentDay])
+                    ->select(['e.id', 'e.first_name', 'e.last_name', 'e.dob', 'e.designation', 'e.department', 'e.employee_type'])
+                    ->get()
+                    ->map(function ($e) {
+                        $roleLabel = ($e->employee_type === 'teaching') ? 'Teacher' : 'Staff';
+                        $sub = [];
+                        if (!empty($e->designation)) $sub[] = $e->designation;
+                        if (!empty($e->department))  $sub[] = $e->department;
+                        $subStr = !empty($sub) ? implode(' • ', $sub) : $roleLabel;
+                        return (object) [
+                            'id'          => $e->id,
+                            'name'        => trim($e->first_name . ' ' . $e->last_name),
+                            'type'        => 'staff',
+                            'type_label'  => $roleLabel,
+                            'subtitle'    => $subStr,
+                            'role_detail' => $subStr,
+                            'dob'         => $e->dob,
+                        ];
+                    });
+
+                return $studentBirthdays->concat($staffBirthdays);
+            });
+        } else {
+            $todayBirthdays = collect();
+        }
+
+        // 7. Admissions Overview & Pending Alerts
+        $needsAdmissions = !empty(array_intersect(['admissions_overview', 'recent_admissions', 'pending_approvals'], $activeBriefWidgets));
+
+        if ($needsAdmissions) {
+            $admData = Cache::remember('dash_mod_adm_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString(), 300, function () {
+                $pendingAlerts = [
+                    'admissions' => DB::table('enquiries')->whereIn('status', ['new', 'pending', 'pending_principal_approval'])->count(),
+                    'leaves'     => DB::table('leave_requests')->where('status', 'pending')->count(),
+                    'tc'         => DB::table('tc_requests')->where('status', 'pending')->count(),
+                ];
+
+                $recentAdmissions = DB::table('enquiries as e')
+                    ->leftJoin('classes as c', 'c.id', '=', 'e.class_id')
+                    ->orderByDesc('e.created_at')
+                    ->limit(5)
+                    ->select('e.id', 'e.student_name', 'c.name as class_applied', 'e.parent_mobile as phone', 'e.status', 'e.created_at')
+                    ->get();
+
+                return compact('pendingAlerts', 'recentAdmissions');
+            });
+            $pendingAlerts    = $admData['pendingAlerts'];
+            $recentAdmissions = $admData['recentAdmissions'];
+        } else {
+            $pendingAlerts    = ['admissions' => 0, 'leaves' => 0, 'tc' => 0];
+            $recentAdmissions = collect();
+        }
 
         // ── All Active Widget Sources (for modal chip selection & duplicate prevention) ──
         $activeWidgetKeys = array_values(array_unique(array_merge(
@@ -408,20 +505,19 @@ class DashboardController extends Controller
             $activeBriefWidgets
         )));
 
-        $classes          = Classes::activeCached();
-        $colorOptions     = DashboardWidget::colorOptions();
-        $sourceCatalog    = DashboardWidget::sourceCatalog();
-        $sourceGroups     = DashboardWidget::sourceCatalogGrouped();
-        $singleValueGroups= DashboardWidget::singleValueCatalogGrouped();
-        $briefInfoGroups  = DashboardWidget::briefInfoCatalogGrouped();
-        $activeKpiKeys    = $singleValueWidgets->pluck('source')->toArray();
+        $classes            = Classes::activeCached();
+        $colorOptions       = DashboardWidget::colorOptions();
+        $sourceCatalog      = DashboardWidget::sourceCatalog();
+        $sourceGroups       = DashboardWidget::sourceCatalogGrouped();
+        $singleValueGroups  = DashboardWidget::singleValueCatalogGrouped();
+        $briefInfoGroups    = DashboardWidget::briefInfoCatalogGrouped();
+        $activeKpiKeys      = $singleValueWidgets->pluck('source')->toArray();
         $activeDetailedKeys = $activeBriefWidgets;
-        $academicYear     = $currentYear?->name ?? '—';
-        $existingSources  = $activeWidgetKeys;
-        $canManageWidgets = auth()->user()->hasAnyRole(['owner', 'admin', 'principal', 'vice_principal', 'it_admin', 'super_admin']);
-        $sections         = $secondary['sections'] ?? collect();
+        $academicYear       = $currentYear?->name ?? '—';
+        $existingSources    = $activeWidgetKeys;
+        $canManageWidgets   = auth()->user()->hasAnyRole(['owner', 'admin', 'principal', 'vice_principal', 'it_admin', 'super_admin']);
 
-        return view('dashboard.index', $secondary + [
+        return view('dashboard.index', [
             'dashboardType'       => 'management',
             'allWidgets'          => $singleValueWidgets,
             'singleValueWidgets'  => $singleValueWidgets,
@@ -438,9 +534,29 @@ class DashboardController extends Controller
             'sourceCatalog'       => $sourceCatalog,
             'sourceGroups'        => $sourceGroups,
             'academicYear'        => $academicYear,
-            'sections'            => $sections,
             'existingSources'     => $existingSources,
             'canManageWidgets'    => $canManageWidgets,
+
+            // Modular data
+            'classStrength'       => $classStrength,
+            'sectionDistribution' => $sectionDistribution,
+            'studentDemographics' => $studentDemographics,
+            'staffSummary'        => $staffSummary,
+            'feeSummary'          => $feeSummary,
+            'pendingAlerts'       => $pendingAlerts,
+            'revenueAnalytics'    => $revenueAnalytics,
+            'totalIncome'         => $totalIncome,
+            'totalExpenses'       => $totalExpenses,
+            'netOperating'        => $netOperating,
+            'pendingFees'         => $pendingFees,
+            'recentNotices'       => $recentNotices,
+            'recentCirculars'     => $recentCirculars,
+            'upcomingEvents'      => $upcomingEvents,
+            'todayBirthdays'      => $todayBirthdays,
+            'todayAttendance'     => $todayAttendance,
+            'todayAttStats'       => $todayAttStats,
+            'recentAdmissions'    => $recentAdmissions,
+            'sections'            => $sections,
         ]);
     }
 
@@ -873,10 +989,7 @@ class DashboardController extends Controller
             'created_by' => auth()->id(),
         ]);
 
-        // Bust the management dashboard cache so next load picks up changes
-        $currentYear = AcademicYear::current();
-        Cache::forget('mgmt_dashboard_v8_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString());
-        Cache::forget('mgmt_dashboard_v7_' . ($currentYear?->id ?? 0));
+        static::clearCache();
 
         return redirect()->route('dashboard')->with('success', "Dashboard card \"{$validated['name']}\" created.");
     }
@@ -946,9 +1059,7 @@ class DashboardController extends Controller
             'is_active'  => $request->boolean('is_active', $widget->is_active),
         ]);
 
-        $currentYear = AcademicYear::current();
-        Cache::forget('mgmt_dashboard_v8_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString());
-        Cache::forget('mgmt_dashboard_v7_' . ($currentYear?->id ?? 0));
+        static::clearCache();
 
         return redirect()->route('dashboard')->with('success', "Card \"{$widget->name}\" updated.");
     }
@@ -1111,10 +1222,7 @@ class DashboardController extends Controller
             }
         }
 
-        $currentYear = AcademicYear::current();
-        Cache::forget('mgmt_dashboard_v9_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString());
-        Cache::forget('mgmt_dashboard_v8_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString());
-        Cache::forget('mgmt_dashboard_v7_' . ($currentYear?->id ?? 0));
+        static::clearCache();
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
@@ -1146,9 +1254,7 @@ class DashboardController extends Controller
         // Safe removal: update is_active to false. Does NOT delete any actual ERP data.
         $widget->update(['is_active' => false]);
 
-        $currentYear = AcademicYear::current();
-        Cache::forget('mgmt_dashboard_v8_' . ($currentYear?->id ?? 0) . '_' . today()->toDateString());
-        Cache::forget('mgmt_dashboard_v7_' . ($currentYear?->id ?? 0));
+        static::clearCache();
 
         return redirect()->route('dashboard')->with('success', "Card \"{$name}\" removed from dashboard. You can re-add it anytime from \"+ Add Card\".");
     }
