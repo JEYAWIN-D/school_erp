@@ -276,8 +276,9 @@
                 <div class="flex items-center gap-2 flex-wrap">
                   <button type="button"
                           class="font-semibold text-white px-3.5 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 cursor-default text-xs"
-                          :style="'background:' + theme.primaryColor">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                          :style="'background-color: ' + (theme.primaryColor || '#8C2826') + ' !important; color: #ffffff !important;'"
+                          style="background-color: {{ $school?->primary_color ?: '#8C2826' }}; color: #ffffff;">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     <span>Primary Action</span>
                   </button>
                   <button type="button" class="btn-secondary btn-sm text-xs cursor-default">Cancel</button>
@@ -337,8 +338,14 @@
             </div>
 
             <div class="pt-2 text-center">
-              <button type="submit" class="btn btn-primary w-full shadow-xs" :style="'background:' + theme.primaryColor + '; border-color:' + theme.primaryColor">
-                Save &amp; Apply Globally
+              <button type="submit"
+                      class="w-full py-2.5 px-4 rounded-xl font-bold text-sm text-white shadow-md hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      :style="'background-color: ' + (theme.primaryColor || '#8C2826') + ' !important; border: 1px solid ' + (theme.primaryColor || '#8C2826') + ' !important; color: #ffffff !important;'"
+                      style="background-color: {{ $school?->primary_color ?: '#8C2826' }}; border: 1px solid {{ $school?->primary_color ?: '#8C2826' }}; color: #ffffff;">
+                <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Save &amp; Apply Globally</span>
               </button>
               <p class="text-[11px] text-slate-400 mt-2">Changes apply across all ERP modules after saving.</p>
             </div>
