@@ -79,7 +79,9 @@
 
   // After School Program (ASP) State — replaces Hostel per school requirement
   aspRequired: false,
-  aspFee: 15000,
+  aspTerm: '',         // 'term1' | 'term2' | 'both'
+  aspTermFee: 4000,    // per term ₹4,000 (Term I: Jul–Oct, Term II: Nov–Feb)
+  aspInfoOpen: false,  // toggle timetable preview
 
   // School Transport Facility State (Stopping, Km, Fee)
   transportRequired: false,
@@ -429,7 +431,9 @@
     return Number(this.activeFeeSchedule.admission_fee || 0);
   },
   get aspFeeTotal() {
-    return this.aspRequired ? Number(this.aspFee || 15000) : 0;
+    if (!this.aspRequired || !this.aspTerm) return 0;
+    if (this.aspTerm === 'both') return Number(this.aspTermFee || 4000) * 2;
+    return Number(this.aspTermFee || 4000);
   },
   get currentRoute() {
     if (!this.transportRequired || !this.selectedRouteId) return null;
@@ -2030,28 +2034,157 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {{-- 1. After School Program (ASP) — Replaces Hostel --}}
-        <div class="p-5 rounded-2xl border transition-all"
-             :class="aspRequired ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-100 shadow-xs' : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100/70'">
-          <div class="flex items-start gap-3.5">
-            <input type="checkbox" id="asp_check" name="is_asp" value="1" x-model="aspRequired"
-                   class="mt-1 w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer">
-            <div class="space-y-2 flex-1">
-              <label for="asp_check" class="cursor-pointer select-none block">
-                <span class="text-sm font-extrabold text-amber-950 block">After School Program (ASP)</span>
-                <span class="text-xs text-amber-800 font-medium block mt-0.5 leading-relaxed">
-                  Special academic tutoring, homework guidance, supervised athletic activities, and evening refreshments.
-                </span>
-              </label>
+        {{-- 1. After School Program (ASP) — Full Timetable + Term Selector --}}
+        <div class="rounded-2xl border-2 transition-all col-span-full"
+             :class="aspRequired ? 'border-amber-400 bg-amber-50/50 shadow-sm' : 'border-slate-200 bg-slate-50/50 hover:border-amber-300'"
+        >
+          <!-- Header Row -->
+          <div class="flex items-start justify-between gap-4 p-5">
+            <div class="flex items-start gap-3.5">
+              <input type="checkbox" id="asp_check" name="is_asp" value="1" x-model="aspRequired"
+                     class="mt-1.5 w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer flex-shrink-0">
+              <div>
+                <label for="asp_check" class="cursor-pointer select-none">
+                  <span class="text-sm font-extrabold text-amber-950 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+                    After School Program (ASP)
+                  </span>
+                  <span class="text-xs text-amber-800 font-medium block mt-0.5 leading-relaxed">
+                    Supervised afternoon activities — Chess, Athletic, Table Tennis, Skating, Volleyball, Throwball, Basketball &amp; Karate.
+                  </span>
+                </label>
 
-              <div x-show="aspRequired" x-transition class="pt-2 border-t border-amber-200/70 flex items-center justify-between gap-3">
-                <span class="text-xs font-bold text-amber-900">Annual ASP Fee:</span>
-                <div class="flex items-center gap-1">
-                  <span class="text-xs font-bold text-slate-500">₹</span>
-                  <input type="number" name="asp_fee" x-model.number="aspFee" min="0" step="500"
-                         class="w-28 px-3 py-1.5 rounded-xl border border-amber-300 bg-white font-bold text-xs text-amber-900 text-right focus:ring-amber-500 tabular-nums">
+                <!-- Pricing Pills -->
+                <div class="flex flex-wrap gap-2 mt-2">
+                  <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded-full px-2.5 py-0.5">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Term I: ₹4,000 &nbsp;·&nbsp; Jul – Oct
+                  </span>
+                  <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 rounded-full px-2.5 py-0.5">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Term II: ₹4,000 &nbsp;·&nbsp; Nov – Feb
+                  </span>
                 </div>
               </div>
+            </div>
+
+            <!-- Timetable toggle button -->
+            <button type="button" @click="aspInfoOpen = !aspInfoOpen"
+                    class="flex-shrink-0 text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-xl hover:bg-amber-200 transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span x-text="aspInfoOpen ? 'Hide Timetable' : 'View Timetable'"></span>
+            </button>
+          </div>
+
+          <!-- ASP Timetable (collapsible) -->
+          <div x-show="aspInfoOpen" x-transition class="px-5 pb-4">
+            <div class="rounded-xl border border-amber-200 overflow-hidden">
+              <div class="bg-amber-600 px-4 py-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0118 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+                <span class="text-xs font-extrabold text-white tracking-wide uppercase">ASP Activity Timetable</span>
+              </div>
+              <table class="w-full text-[11px] font-semibold">
+                <thead>
+                  <tr class="bg-amber-50">
+                    <th class="border border-amber-200 px-3 py-2 text-left text-amber-900 font-extrabold w-[22%]">Day</th>
+                    <th class="border border-amber-200 px-3 py-2 text-center text-amber-900 font-bold">Activity 1</th>
+                    <th class="border border-amber-200 px-3 py-2 text-center text-amber-900 font-bold">Activity 2</th>
+                    <th class="border border-amber-200 px-3 py-2 text-center text-amber-900 font-bold">Activity 3</th>
+                    <th class="border border-amber-200 px-3 py-2 text-center text-amber-900 font-bold">Activity 4</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @php
+                    $aspSchedule = [
+                      ['day' => 'Monday',    'acts' => ['Chess', 'Athletic', 'Table Tennis', 'Skating']],
+                      ['day' => 'Tuesday',   'acts' => ['Volley Ball', 'Throw Ball', 'Basket Ball', 'Karate']],
+                      ['day' => 'Wednesday', 'acts' => ['Chess', 'Athletic', 'Table Tennis', 'Skating']],
+                      ['day' => 'Thursday',  'acts' => ['Chess', 'Throw Ball', 'Basket Ball', 'Karate']],
+                      ['day' => 'Friday',    'acts' => ['Volley Ball', 'Athletic', 'Table Tennis', 'Skating']],
+                      ['day' => 'Saturday',  'acts' => ['Volley Ball', 'Throw Ball', 'Basket Ball', 'Karate']],
+                    ];
+                  @endphp
+                  @foreach($aspSchedule as $i => $row)
+                    <tr class="{{ $i % 2 === 0 ? 'bg-white' : 'bg-amber-50/40' }}">
+                      <td class="border border-amber-200 px-3 py-2 font-extrabold text-amber-900">{{ $row['day'] }}</td>
+                      @foreach($row['acts'] as $act)
+                        <td class="border border-amber-200 px-3 py-2 text-center text-slate-700">{{ $act }}</td>
+                      @endforeach
+                    </tr>
+                  @endforeach
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Term Selector + Fee (only when checked) -->
+          <div x-show="aspRequired" x-transition class="px-5 pb-5 pt-1">
+            <div class="border-t border-amber-200/70 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              <!-- Term selection -->
+              <div>
+                <label class="block text-[11px] font-extrabold text-amber-900 mb-2 uppercase tracking-wide">Select Term</label>
+                <div class="space-y-2">
+
+                  <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition"
+                         :class="aspTerm === 'term1' ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200' : 'border-slate-200 bg-white hover:border-amber-300'">
+                    <input type="radio" name="asp_term" value="term1" x-model="aspTerm"
+                           class="text-amber-600 focus:ring-amber-500">
+                    <div class="flex-1">
+                      <span class="text-xs font-extrabold text-amber-900 block">Term I &nbsp;— ₹4,000</span>
+                      <span class="text-[11px] text-amber-700">July, August, September, October</span>
+                    </div>
+                  </label>
+
+                  <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition"
+                         :class="aspTerm === 'term2' ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200' : 'border-slate-200 bg-white hover:border-amber-300'">
+                    <input type="radio" name="asp_term" value="term2" x-model="aspTerm"
+                           class="text-amber-600 focus:ring-amber-500">
+                    <div class="flex-1">
+                      <span class="text-xs font-extrabold text-amber-900 block">Term II &nbsp;— ₹4,000</span>
+                      <span class="text-[11px] text-amber-700">November, December, January, February</span>
+                    </div>
+                  </label>
+
+                  <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition"
+                         :class="aspTerm === 'both' ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200' : 'border-slate-200 bg-white hover:border-amber-300'">
+                    <input type="radio" name="asp_term" value="both" x-model="aspTerm"
+                           class="text-amber-600 focus:ring-amber-500">
+                    <div class="flex-1">
+                      <span class="text-xs font-extrabold text-amber-900 block">Both Terms &nbsp;— ₹8,000</span>
+                      <span class="text-[11px] text-amber-700">Full Academic Year (Jul – Feb)</span>
+                    </div>
+                  </label>
+
+                </div>
+              </div>
+
+              <!-- Fee Summary -->
+              <div class="flex flex-col justify-between gap-3">
+                <div>
+                  <label class="block text-[11px] font-extrabold text-amber-900 mb-2 uppercase tracking-wide">ASP Fee (₹)</label>
+                  <div class="p-4 rounded-xl bg-white border border-amber-300 flex items-center justify-between">
+                    <div>
+                      <span class="text-[11px] font-bold text-slate-500 block">Per Term Rate</span>
+                      <span class="text-lg font-extrabold text-amber-800 tabular-nums">₹ 4,000 / term</span>
+                    </div>
+                    <div class="text-right" x-show="aspTerm">
+                      <span class="text-[11px] font-bold text-slate-500 block">Total Payable</span>
+                      <span class="text-xl font-extrabold text-amber-700 tabular-nums" x-text="'₹ ' + aspFeeTotal.toLocaleString('en-IN')"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Hidden inputs for form submission -->
+                <input type="hidden" name="asp_fee" :value="aspFeeTotal">
+                <input type="hidden" name="asp_term" :value="aspTerm">
+
+                <div x-show="!aspTerm" class="text-[11px] text-amber-700 font-semibold flex items-center gap-1.5 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Please select a term to enrol in ASP.
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
