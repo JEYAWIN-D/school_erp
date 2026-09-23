@@ -55,6 +55,16 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // ── Custom Dashboard Widgets ────────────────────────────────
+    Route::prefix('dashboard/widgets')->name('dashboard.widget.')->group(function () {
+        Route::get('/preview',           [DashboardController::class, 'widgetPreview'])->name('preview');
+        Route::post('/',                 [DashboardController::class, 'widgetStore'])->name('store');
+        Route::post('/apply-settings',   [DashboardController::class, 'applySettings'])->name('apply-settings');
+        Route::post('/reorder',          [DashboardController::class, 'widgetReorder'])->name('reorder');
+        Route::delete('/{id}',           [DashboardController::class, 'widgetDestroy'])->name('destroy');
+    });
+    Route::post('/dashboard/widgets/apply-settings', [DashboardController::class, 'applySettings'])->name('dashboard.widgets.apply-settings');
+
     // ── Module 13 — Reports & Registers ───────────────────────
     Route::middleware('permission:view reports')->prefix('reports')->name('reports.')->group(function () {
         Route::get('/general-register',      [DashboardController::class, 'generalRegister'])->name('general-register');
@@ -1191,8 +1201,14 @@ Route::middleware(['auth'])->group(function () {
     });
     Route::get('/settings',                           [App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings',                          [App\Http\Controllers\Admin\SettingsController::class, 'save'])->name('settings.save');
+    Route::post('/settings/upload-logo',              [App\Http\Controllers\Admin\SettingsController::class, 'uploadLogo'])->name('settings.upload-logo');
+    Route::delete('/settings/delete-logo/{slot}',     [App\Http\Controllers\Admin\SettingsController::class, 'deleteLogo'])->name('settings.delete-logo');
+    Route::post('/settings/upload-seal',              [App\Http\Controllers\Admin\SettingsController::class, 'uploadSeal'])->name('settings.upload-seal');
+    Route::delete('/settings/delete-seal/{slot}',     [App\Http\Controllers\Admin\SettingsController::class, 'deleteSeal'])->name('settings.delete-seal');
+    Route::post('/settings/save-seal-label',          [App\Http\Controllers\Admin\SettingsController::class, 'saveSealLabel'])->name('settings.save-seal-label');
     Route::post('/settings/upload-signature',         [App\Http\Controllers\Admin\SettingsController::class, 'uploadSignature'])->name('settings.upload-signature');
     Route::post('/settings/upload-stamp',             [App\Http\Controllers\Admin\SettingsController::class, 'uploadStamp'])->name('settings.upload-stamp');
+    Route::post('/settings/reset-theme',              [App\Http\Controllers\Admin\SettingsController::class, 'resetTheme'])->name('settings.reset-theme');
     Route::delete('/settings/delete-signature',       [App\Http\Controllers\Admin\SettingsController::class, 'deleteSignature'])->name('settings.delete-signature');
     Route::delete('/settings/delete-stamp',           [App\Http\Controllers\Admin\SettingsController::class, 'deleteStamp'])->name('settings.delete-stamp');
     Route::get('/settings/notification-templates',    [App\Http\Controllers\Admin\SettingsController::class, 'notificationTemplates'])->name('settings.notification-templates');
