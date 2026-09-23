@@ -116,8 +116,8 @@
   {{-- ── Admission Applications Ledger Table / Cards ──────────────────── --}}
   @if($students->isEmpty())
     <div class="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-3">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 text-2xl">
-        📋
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+        <svg class="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
       </div>
       <h3 class="text-base font-bold text-slate-800">No Applications in this Queue</h3>
       <p class="text-xs text-slate-500 max-w-sm mx-auto">
@@ -185,8 +185,9 @@
               @php
                 $docCount = $s->documents->count();
               @endphp
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold {{ $docCount >= 3 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
-                📁 {{ $docCount }} Uploaded
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-bold {{ $docCount >= 3 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200' }}">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                <span>{{ $docCount }} Uploaded</span>
               </span>
               <a href="{{ route('students.visitor-card', $s->id) }}" target="_blank" class="block text-[11px] text-indigo-600 font-bold hover:underline mt-0.5">
                 Visitor Card Pass &rarr;

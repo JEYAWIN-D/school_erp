@@ -50,8 +50,9 @@
       &larr; Back to School Home
     </a>
     <div class="flex items-center gap-3">
-      <a href="{{ route('admissions.print-form', ['form' => 'enquiry']) }}" target="_blank" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 shadow-sm transition flex items-center gap-1">
-        📄 Print Blank Enquiry Form (PDF)
+      <a href="{{ route('admissions.print-form', ['form' => 'enquiry']) }}" target="_blank" class="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-600 shadow-sm transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        <span>Print Blank Enquiry Form (PDF)</span>
       </a>
       <a href="{{ route('login') }}" class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 font-bold hover:bg-blue-100 transition">
         Staff Login &rarr;
@@ -169,8 +170,9 @@
 
           {{-- Father Info --}}
           <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mb-4">
-            <h3 class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-              <span>👨</span> Father's Details
+            <h3 class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              <span>Father's Details</span>
             </h3>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -211,8 +213,9 @@
 
           {{-- Mother Info --}}
           <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-            <h3 class="text-xs font-bold text-pink-900 uppercase tracking-wider flex items-center gap-1.5">
-              <span>👩</span> Mother's Details
+            <h3 class="text-xs font-bold text-pink-900 uppercase tracking-wider flex items-center gap-2">
+              <svg class="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              <span>Mother's Details</span>
             </h3>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">

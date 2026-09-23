@@ -38,11 +38,13 @@
     </a>
 
     <div class="flex items-center gap-2">
-      <a href="{{ route('admissions.print-form', ['form' => 'admission']) }}" target="_blank" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition">
-        📄 Admission Form
+      <a href="{{ route('admissions.print-form', ['form' => 'admission']) }}" target="_blank" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-[#8C2826]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>Admission Form</span>
       </a>
-      <a href="{{ route('admissions.print-form', ['form' => 'grade11']) }}" target="_blank" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition">
-        🎓 Grade XI Form
+      <a href="{{ route('admissions.print-form', ['form' => 'grade11']) }}" target="_blank" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-[#8C2826]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+        <span>Grade XI Form</span>
       </a>
     </div>
   </div>
@@ -146,7 +148,9 @@
   <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-6">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <div class="flex items-center gap-2.5">
-        <span class="w-8 h-8 rounded-xl bg-rose-50 text-[#8C2826] flex items-center justify-center font-bold text-sm border border-rose-200">📖</span>
+        <span class="w-8 h-8 rounded-xl bg-rose-50 text-[#8C2826] flex items-center justify-center shrink-0 border border-rose-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </span>
         <div>
           <h3 class="font-black text-slate-900 text-base">Official Academic Fee Schedule (2026–2027)</h3>
           <p class="text-xs text-slate-500 font-medium">Class: <span class="font-bold text-[#8C2826]" x-text="currentClass.name"></span> &bull; 3 Terms Breakdown</p>
@@ -200,7 +204,8 @@
       <div x-show="currentFee.has_integrated" class="p-5 rounded-2xl bg-gradient-to-r from-amber-50/80 to-rose-50/80 border border-amber-200 space-y-3">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-extrabold text-slate-900 uppercase">🎓 Grade XI (Integrated) NEET / JEE Coaching Fee</span>
+            <svg class="w-4 h-4 text-[#8C2826]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+            <span class="text-sm font-extrabold text-slate-900 uppercase">Grade XI (Integrated) NEET / JEE Coaching Fee</span>
             <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#8C2826] text-white">Integrated</span>
           </div>
           <span class="text-base font-black font-mono text-[#8C2826]" x-text="formatMoney(currentFee.integrated_fee || 105000)"></span>
@@ -302,7 +307,9 @@
   <div class="bg-gradient-to-br from-[#8C2826] to-[#731E1C] rounded-2xl p-5 sm:p-6 text-white space-y-4 shadow-md">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center text-xl flex-shrink-0">🔗</div>
+        <div class="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        </div>
         <div>
           <h3 class="font-extrabold text-white text-sm">Online Payment Link</h3>
           <p class="text-rose-200 text-xs mt-0.5">Share via WhatsApp or SMS — parents pay digitally</p>
@@ -326,7 +333,8 @@
       </a>
       <a :href="'/pay/fee/' + currentClass.id" target="_blank"
          class="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/25 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition">
-        📱 Open Payment Page
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        <span>Open Payment Page</span>
       </a>
     </div>
   </div>
