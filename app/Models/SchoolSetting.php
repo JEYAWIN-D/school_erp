@@ -429,6 +429,11 @@ input[type=\"checkbox\"]:checked {
         return static::instance();
     }
 
+    public static function getSingleton(): ?self
+    {
+        return static::instance();
+    }
+
     // ════════════════════════════════════════════════════════════════════════════
     // CENTRALIZED SCHOOL LOGOS & INSTITUTIONAL SEALS GLOBAL API
     // Reusable anywhere across ERP: Reports, Certificates, Receipts, PDFs, Print
