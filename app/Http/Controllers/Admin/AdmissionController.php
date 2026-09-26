@@ -16,6 +16,7 @@ use App\Exports\ArrayExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -29,12 +30,15 @@ class AdmissionController extends Controller
 
     public function getFeeStructureData(): array
     {
-        $classes = Classes::with('sections')->active()->orderBy('numeric_value')->get();
         $academicYear = AcademicYear::current();
+        $yearId = (int) ($academicYear?->id ?? 0);
 
-        $enquiryCounts = Enquiry::selectRaw('class_id, count(*) as total')
-            ->groupBy('class_id')
-            ->pluck('total', 'class_id');
+        return Cache::remember("admission_fee_structure_data_{$yearId}", 3600, function () use ($academicYear) {
+            $classes = Classes::with('sections')->active()->orderBy('numeric_value')->get();
+
+            $enquiryCounts = Enquiry::selectRaw('class_id, count(*) as total')
+                ->groupBy('class_id')
+                ->pluck('total', 'class_id');
 
         // Official Fee Structure 2026-2027 matching school schedule
         $officialFees = [
@@ -316,7 +320,8 @@ class AdmissionController extends Controller
             ['id' => 'swimming',       'name' => 'Swimming',        'annual_fee' => 6000, 'label' => '₹6,000/yr'],
         ];
 
-        return compact('classes', 'academicYear', 'standardFees', 'activities');
+            return compact('classes', 'academicYear', 'standardFees', 'activities');
+        });
     }
 
     public function feeStructure(Request $request)
@@ -344,21 +349,23 @@ class AdmissionController extends Controller
         $feeData   = $this->getFeeStructureData();
         $classes   = $feeData['classes'];
 
-        $statsRow = DB::table('enquiries')->whereNull('deleted_at')->selectRaw("
-            COUNT(*) as total,
-            COUNT(CASE WHEN status = 'new' THEN 1 END) as new,
-            COUNT(CASE WHEN status = 'follow_up' THEN 1 END) as follow_up,
-            COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted,
-            COUNT(CASE WHEN status = 'lost' THEN 1 END) as lost
-        ")->first();
+        $stats = Cache::remember('admission_index_stats_v1', 60, function () {
+            $statsRow = DB::table('enquiries')->whereNull('deleted_at')->selectRaw("
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'new' THEN 1 END) as new,
+                COUNT(CASE WHEN status = 'follow_up' THEN 1 END) as follow_up,
+                COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted,
+                COUNT(CASE WHEN status = 'lost' THEN 1 END) as lost
+            ")->first();
 
-        $stats = [
-            'total'     => (int) ($statsRow->total ?? 0),
-            'new'       => (int) ($statsRow->new ?? 0),
-            'follow_up' => (int) ($statsRow->follow_up ?? 0),
-            'converted' => (int) ($statsRow->converted ?? 0),
-            'lost'      => (int) ($statsRow->lost ?? 0),
-        ];
+            return [
+                'total'     => (int) ($statsRow->total ?? 0),
+                'new'       => (int) ($statsRow->new ?? 0),
+                'follow_up' => (int) ($statsRow->follow_up ?? 0),
+                'converted' => (int) ($statsRow->converted ?? 0),
+                'lost'      => (int) ($statsRow->lost ?? 0),
+            ];
+        });
 
         return view('admissions.index', array_merge($feeData, compact('enquiries', 'classes', 'stats')));
     }

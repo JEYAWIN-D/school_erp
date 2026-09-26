@@ -134,34 +134,25 @@
 
             {{-- Color Presets --}}
             <div>
-              <label class="label text-xs">Curated Professional Presets</label>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-1.5">
+              <label class="label text-xs">Theme Color Options</label>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1.5">
                 @foreach($colorPresets as $key => $preset)
                 <button type="button"
                         @click="selectPreset('{{ $preset['hex'] }}')"
-                        class="p-2.5 rounded-xl border flex items-center gap-2.5 transition-all cursor-pointer text-left"
-                        :class="theme.primaryColor.toUpperCase() === '{{ strtoupper($preset['hex']) }}' ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'">
-                  <span class="w-5 h-5 rounded-full flex-shrink-0 shadow-2xs" style="background: {{ $preset['hex'] }}"></span>
-                  <div class="overflow-hidden">
-                    <p class="text-xs font-bold text-slate-700 truncate leading-tight">{{ $preset['label'] }}</p>
-                    <p class="text-[10px] text-slate-400 font-mono">{{ $preset['hex'] }}</p>
+                        class="p-3.5 rounded-xl border flex items-center gap-3 transition-all cursor-pointer text-left"
+                        :class="theme.primaryColor.toUpperCase() === '{{ strtoupper($preset['hex']) }}' ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/25 shadow-xs' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'">
+                  <span class="w-6 h-6 rounded-full flex-shrink-0 shadow-2xs border border-black/10" style="background: {{ $preset['hex'] }}"></span>
+                  <div class="overflow-hidden flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <p class="text-xs font-bold text-slate-800 truncate leading-tight">{{ $preset['label'] }}</p>
+                      @if(!empty($preset['is_default']))
+                        <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded">Default</span>
+                      @endif
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-mono mt-0.5">{{ $preset['hex'] }}</p>
                   </div>
                 </button>
                 @endforeach
-              </div>
-            </div>
-
-            {{-- Custom Color Picker --}}
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <p class="text-xs font-semibold text-slate-700">Custom Brand Color</p>
-                <p class="text-[11px] text-slate-400">Pick any custom HEX color matching your school's official identity</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="color" x-model="theme.primaryColor"
-                       class="h-9 w-12 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white">
-                <input type="text" x-model="theme.primaryColor" maxlength="7"
-                       class="input input-sm w-24 font-mono uppercase text-xs">
               </div>
             </div>
           </div>
@@ -285,8 +276,9 @@
                 <div class="flex items-center gap-2 flex-wrap">
                   <button type="button"
                           class="font-semibold text-white px-3.5 py-1.5 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 cursor-default text-xs"
-                          :style="'background:' + theme.primaryColor">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                          :style="'background-color: ' + (theme.primaryColor || '#8C2826') + ' !important; color: #ffffff !important;'"
+                          style="background-color: {{ $school?->primary_color ?: '#8C2826' }}; color: #ffffff;">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     <span>Primary Action</span>
                   </button>
                   <button type="button" class="btn-secondary btn-sm text-xs cursor-default">Cancel</button>
@@ -346,8 +338,14 @@
             </div>
 
             <div class="pt-2 text-center">
-              <button type="submit" class="btn btn-primary w-full shadow-xs" :style="'background:' + theme.primaryColor + '; border-color:' + theme.primaryColor">
-                Save &amp; Apply Globally
+              <button type="submit"
+                      class="w-full py-2.5 px-4 rounded-xl font-bold text-sm text-white shadow-md hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      :style="'background-color: ' + (theme.primaryColor || '#8C2826') + ' !important; border: 1px solid ' + (theme.primaryColor || '#8C2826') + ' !important; color: #ffffff !important;'"
+                      style="background-color: {{ $school?->primary_color ?: '#8C2826' }}; border: 1px solid {{ $school?->primary_color ?: '#8C2826' }}; color: #ffffff;">
+                <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Save &amp; Apply Globally</span>
               </button>
               <p class="text-[11px] text-slate-400 mt-2">Changes apply across all ERP modules after saving.</p>
             </div>
@@ -892,7 +890,7 @@ function settingsPage() {
   return {
     activeTab: '{{ request('tab', session('active_tab', 'appearance')) }}',
     theme: {
-      primaryColor: '{{ old('primary_color', $school?->primary_color ?? '#4F46E5') }}',
+      primaryColor: '{{ old('primary_color', in_array(strtoupper((string)($school?->primary_color)), ['#8C2826', '#2563EB', '#731E1C']) ? $school->primary_color : '#8C2826') }}',
       fontSize:     '{{ old('font_size', $school?->font_size ?? 'default') }}',
       fontFamily:   '{{ old('font_family', $school?->font_family ?? 'default') }}',
       uiDensity:    '{{ old('ui_density', $school?->ui_density ?? 'comfortable') }}',

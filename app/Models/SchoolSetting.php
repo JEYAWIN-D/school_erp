@@ -44,13 +44,9 @@ class SchoolSetting extends Model
     public static function colorPresets(): array
     {
         return [
-            'indigo' => ['label' => 'Royal Indigo (Default)', 'hex' => '#4F46E5'],
-            'blue'   => ['label' => 'Ocean Blue',             'hex' => '#2563EB'],
-            'green'  => ['label' => 'Emerald Green',          'hex' => '#16A34A'],
-            'teal'   => ['label' => 'Deep Teal',              'hex' => '#0D9488'],
-            'purple' => ['label' => 'Classic Purple',         'hex' => '#9333EA'],
-            'orange' => ['label' => 'Warm Orange',            'hex' => '#EA580C'],
-            'red'    => ['label' => 'Crimson Red',            'hex' => '#DC2626'],
+            'maroon'   => ['label' => 'Maroon',   'hex' => '#8C2826', 'is_default' => true],
+            'blue'     => ['label' => 'Blue',     'hex' => '#2563EB', 'is_default' => false],
+            'dark_red' => ['label' => 'Dark Red', 'hex' => '#731E1C', 'is_default' => false],
         ];
     }
 
@@ -115,9 +111,10 @@ class SchoolSetting extends Model
             $setting = null;
         }
 
-        $hex = $setting?->primary_color ?: '#4F46E5';
-        if (!preg_match('/^#[a-f0-9]{6}$/i', $hex)) {
-            $hex = '#4F46E5';
+        $hex = strtoupper((string)($setting?->primary_color ?: '#8C2826'));
+        $validColors = ['#8C2826', '#2563EB', '#731E1C'];
+        if (!in_array($hex, $validColors)) {
+            $hex = '#8C2826';
         }
 
         // RGB decomposition

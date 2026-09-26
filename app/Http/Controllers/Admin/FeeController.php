@@ -30,6 +30,17 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class FeeController extends Controller
 {
+    public static function clearStatsCache(): void
+    {
+        try {
+            Cache::forget('fee_overview_stats_v1_0_' . today()->toDateString());
+            $years = AcademicYear::pluck('id');
+            foreach ($years as $yId) {
+                Cache::forget("fee_overview_stats_v1_{$yId}_" . today()->toDateString());
+            }
+        } catch (\Throwable $e) {}
+    }
+
     public function index()
     {
         $currentYear = AcademicYear::current();
@@ -38,45 +49,57 @@ class FeeController extends Controller
         $currMonth = (int) now()->month;
         $currYear = (int) now()->year;
 
-        $feeAgg = DB::table('fee_payments')
-            ->where('is_cancelled', false)
-            ->selectRaw("
-                COALESCE(SUM(CASE WHEN payment_date::date = '{$todayStr}' THEN total_paid ELSE 0 END), 0) as today_collection,
-                COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM payment_date) = {$currMonth} AND EXTRACT(YEAR FROM payment_date) = {$currYear} THEN total_paid ELSE 0 END), 0) as month_collection,
-                COALESCE(SUM(CASE WHEN academic_year_id = {$yearId} THEN total_paid ELSE 0 END), 0) as year_collection
-            ")->first();
+        $stats = Cache::remember("fee_overview_stats_v1_{$yearId}_{$todayStr}", 300, function () use ($currentYear, $yearId, $todayStr, $currMonth, $currYear) {
+            $feeAgg = DB::table('fee_payments')
+                ->where('is_cancelled', false)
+                ->selectRaw("
+                    COALESCE(SUM(CASE WHEN payment_date::date = '{$todayStr}' THEN total_paid ELSE 0 END), 0) as today_collection,
+                    COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM payment_date) = {$currMonth} AND EXTRACT(YEAR FROM payment_date) = {$currYear} THEN total_paid ELSE 0 END), 0) as month_collection,
+                    COALESCE(SUM(CASE WHEN academic_year_id = {$yearId} THEN total_paid ELSE 0 END), 0) as year_collection
+                ")->first();
 
-        $todayCollection = (float) ($feeAgg->today_collection ?? 0);
-        $monthCollection = (float) ($feeAgg->month_collection ?? 0);
-        $yearCollection  = (float) ($feeAgg->year_collection ?? 0);
-        $yearDemand = StudentFeeCharge::when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
-            ->sum('amount');
-        $outstanding = max(0, $yearDemand - $yearCollection);
+            $todayCollection = (float) ($feeAgg->today_collection ?? 0);
+            $monthCollection = (float) ($feeAgg->month_collection ?? 0);
+            $yearCollection  = (float) ($feeAgg->year_collection ?? 0);
+            $yearDemand = StudentFeeCharge::when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
+                ->sum('amount');
+            $outstanding = max(0, $yearDemand - $yearCollection);
 
-        $defaultersCount = DB::table('students as s')
-            ->join('student_fee_charges as sfc', 'sfc.student_id', '=', 's.id')
-            ->leftJoin('fee_payments as fp', function ($j) {
-                $j->on('fp.student_id', '=', 's.id')->where('fp.is_cancelled', false);
-            })
-            ->where('s.status', 'active')
-            ->when($currentYear, fn($q) => $q->where('sfc.academic_year_id', $currentYear->id))
-            ->select('s.id')
-            ->groupBy('s.id')
-            ->havingRaw('SUM(sfc.amount) > COALESCE(SUM(fp.total_paid), 0)')
-            ->get()->count();
+            $defaultersCount = DB::table('students as s')
+                ->join('student_fee_charges as sfc', 'sfc.student_id', '=', 's.id')
+                ->leftJoin('fee_payments as fp', function ($j) {
+                    $j->on('fp.student_id', '=', 's.id')->where('fp.is_cancelled', false);
+                })
+                ->where('s.status', 'active')
+                ->when($currentYear, fn($q) => $q->where('sfc.academic_year_id', $currentYear->id))
+                ->select('s.id')
+                ->groupBy('s.id')
+                ->havingRaw('SUM(sfc.amount) > COALESCE(SUM(fp.total_paid), 0)')
+                ->get()->count();
 
-        $recentPayments = FeePayment::with(['student', 'feeHead'])
+            // Monthly collection trend (last 6 months)
+            $monthlyTrend = FeePayment::where('is_cancelled', false)
+                ->where('payment_date', '>=', now()->subMonths(5)->startOfMonth())
+                ->select(
+                    DB::raw("TO_CHAR(payment_date, 'YYYY-MM') as month"),
+                    DB::raw('SUM(total_paid) as total')
+                )
+                ->groupBy('month')->orderBy('month')->get();
+
+            return compact('todayCollection', 'monthCollection', 'yearCollection', 'yearDemand', 'outstanding', 'defaultersCount', 'monthlyTrend');
+        });
+
+        $todayCollection = $stats['todayCollection'];
+        $monthCollection = $stats['monthCollection'];
+        $yearCollection  = $stats['yearCollection'];
+        $yearDemand      = $stats['yearDemand'];
+        $outstanding     = $stats['outstanding'];
+        $defaultersCount = $stats['defaultersCount'];
+        $monthlyTrend    = $stats['monthlyTrend'];
+
+        $recentPayments = FeePayment::with(['student:id,first_name,last_name,admission_no', 'feeHead:id,name'])
             ->where('is_cancelled', false)
             ->latest('payment_date')->take(10)->get();
-
-        // Monthly collection trend (last 6 months)
-        $monthlyTrend = FeePayment::where('is_cancelled', false)
-            ->where('payment_date', '>=', now()->subMonths(5)->startOfMonth())
-            ->select(
-                DB::raw("TO_CHAR(payment_date, 'YYYY-MM') as month"),
-                DB::raw('SUM(total_paid) as total')
-            )
-            ->groupBy('month')->orderBy('month')->get();
 
         return view('fees.index', compact(
             'currentYear', 'todayCollection', 'monthCollection',

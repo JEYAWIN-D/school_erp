@@ -29,7 +29,9 @@ class AttendanceController extends Controller
         $classes     = Classes::with(['sections' => fn($q) => $q->where('is_active', true)->orderBy('name', 'asc')])->active()->get();
 
         // Section-wise attendance & stats for today (single DB query)
-        $todayRecords = AttendanceRecord::whereDate('date', today())->get();
+        $todayRecords = AttendanceRecord::whereDate('date', today())
+            ->select('class_id', 'section_id', 'status')
+            ->get();
 
         $present = $todayRecords->whereIn('status', ['present', 'late', 'half_day'])->count();
         $absent  = $todayRecords->where('status', 'absent')->count();

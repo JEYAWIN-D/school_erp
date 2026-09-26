@@ -42,7 +42,7 @@ class SettingsController extends Controller
             'email'              => 'nullable|email|max:200',
             'phone'              => 'nullable|string|max:20',
             'pincode'            => 'nullable|string|max:10',
-            'primary_color'      => ['nullable', 'string', 'regex:/^#[a-fA-F0-9]{6}$/'],
+            'primary_color'      => ['nullable', 'string', 'in:#8C2826,#2563EB,#731E1C,#8c2826,#2563eb,#731e1c'],
             'font_size'          => 'nullable|string|in:small,default,large,xlarge',
             'font_family'        => 'nullable|string|in:default,poppins,plus-jakarta,system',
             'theme_mode'          => 'nullable|string|in:light,dark,system',
@@ -75,7 +75,7 @@ class SettingsController extends Controller
         $school = SchoolSetting::first();
         if ($school) {
             $school->update([
-                'primary_color'      => '#4F46E5',
+                'primary_color'      => '#8C2826',
                 'font_size'          => 'default',
                 'font_family'        => 'default',
                 'theme_mode'          => 'light',

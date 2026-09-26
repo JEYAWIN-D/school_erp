@@ -527,6 +527,28 @@ class DashboardWidget extends Model
         ];
     }
 
+    /** Default active KPI card sources for clean dashboard startup */
+    public static function defaultKpiSources(): array
+    {
+        return [
+            'students_total',
+            'attendance_rate_today',
+            'fee_collected_month',
+            'staff_present_today',
+        ];
+    }
+
+    /** Default active brief overview block sources for clean dashboard startup */
+    public static function defaultBriefSources(): array
+    {
+        return [
+            'student_overview',
+            'attendance_overview',
+            'fee_overview',
+            'upcoming_events',
+        ];
+    }
+
     /** Helper: Single Value Cards catalog items */
     public static function singleValueCatalog(): array
     {

@@ -15,14 +15,27 @@ use App\Models\Holiday;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ClassesController extends Controller
 {
+    public static function clearCache(): void
+    {
+        Cache::forget('classes_module_base_v1_0');
+        try {
+            $years = AcademicYear::pluck('id');
+            foreach ($years as $yId) {
+                Cache::forget("classes_module_base_v1_{$yId}");
+            }
+        } catch (\Throwable $e) {}
+    }
+
     public function rename(Request $request, int $id)
     {
         $request->validate(['name' => 'required|string|max:100']);
         $cls = Classes::findOrFail($id);
         $cls->update(['name' => $request->name]);
+        self::clearCache();
         return back()->with('success', 'Class renamed successfully.');
     }
 
@@ -34,22 +47,126 @@ class ClassesController extends Controller
     {
         $currentYear = AcademicYear::where('is_current', true)->first()
             ?? AcademicYear::latest('id')->first();
+        $yearId = (int) ($currentYear?->id ?? 0);
+        $cacheKey = "classes_module_base_v1_{$yearId}";
 
-        // Fetch all classes with sections, teachers, student count, and timetable
-        $classes = Classes::where('is_active', true)
-            ->with([
-                'sections' => function ($q) {
-                    $q->where('is_active', true)
-                      ->orderBy('name', 'asc')
-                      ->with(['classTeacher' => fn($q) => $q->select('id','name','employee_id'), 'enrollments' => fn($eq) => $eq->where('status', 'active')]);
-                },
-                'timetables' => function ($q) {
-                    $q->where('is_active', true)
-                      ->with(['subject', 'teacher']);
-                }
-            ])
-            ->orderBy('sort_order')
-            ->get();
+        $cachedData = Cache::remember($cacheKey, 600, function () {
+            // Fetch all classes with sections, teachers, student count (via withCount), and timetables
+            $classes = Classes::where('is_active', true)
+                ->with([
+                    'sections' => function ($q) {
+                        $q->where('is_active', true)
+                          ->orderBy('name', 'asc')
+                          ->with(['classTeacher' => fn($q) => $q->select('id', 'name', 'employee_id')])
+                          ->withCount(['enrollments as student_count' => fn($eq) => $eq->where('status', 'active')]);
+                    },
+                    'timetables' => function ($q) {
+                        $q->where('is_active', true)
+                          ->with(['subject', 'teacher']);
+                    }
+                ])
+                ->orderBy('sort_order')
+                ->get();
+
+            // Pre-build structured data
+            $rawClassesData = $classes->map(function ($cls) {
+                $sortedSections = $cls->sections->sortBy('name')->values();
+                $sectionsData = $sortedSections->map(function ($sec) use ($cls) {
+                    $streamTag = null;
+                    $streamName = null;
+                    if ($cls->numeric_value >= 11) {
+                        if ($sec->name === 'A') {
+                            $streamTag = 'CS Group';
+                            $streamName = 'Computer Science Group (Maths, Physics, Chemistry, CS)';
+                        } elseif ($sec->name === 'B') {
+                            $streamTag = 'Biology Group';
+                            $streamName = 'Biology Group (Physics, Chemistry, Biology, Maths)';
+                        } elseif ($sec->name === 'C') {
+                            $streamTag = 'Commerce Group';
+                            $streamName = 'Commerce Group (Commerce, Accountancy, Economics, B.Maths)';
+                        } else {
+                            $streamTag = 'Commerce (CA)';
+                            $streamName = 'Commerce Group (Commerce, Accountancy, Economics, Computer Apps)';
+                        }
+                    }
+
+                    $sectionTimetables = $cls->timetables->where('section_id', $sec->id);
+                    $weeklySchedule = [];
+                    for ($d = 1; $d <= 6; $d++) {
+                        $dayEntries = $sectionTimetables->where('day_of_week', $d)->sortBy('start_time')->values();
+                        $weeklySchedule[$d] = $dayEntries->map(function ($entry, $idx) {
+                            return [
+                                'period'       => $entry->period_number ?? ($idx + 1),
+                                'subject_name' => $entry->subject?->name ?? 'Study Period',
+                                'subject_code' => $entry->subject?->code ?? '',
+                                'subject_type' => $entry->period_type ?? 'theory',
+                                'teacher_name' => $entry->teacher ? ($entry->teacher->first_name . ' ' . $entry->teacher->last_name) : 'Subject Teacher',
+                                'teacher_code' => $entry->teacher?->employee_code ?? '',
+                                'start_time'   => Carbon::parse($entry->start_time)->format('h:i A'),
+                                'end_time'     => Carbon::parse($entry->end_time)->format('h:i A'),
+                                'raw_start'    => $entry->start_time,
+                                'raw_end'      => $entry->end_time,
+                                'room'         => $entry->room ?? ('Room ' . $entry->class_id),
+                            ];
+                        })->all();
+                    }
+
+                    $count = $sec->student_count > 0 ? (int)$sec->student_count : 35;
+
+                    return [
+                        'id'               => $sec->id,
+                        'name'             => $sec->name,
+                        'display_name'     => 'Section ' . $sec->name,
+                        'stream_tag'       => $streamTag,
+                        'stream_name'      => $streamName,
+                        'capacity'         => $sec->capacity ?? 40,
+                        'student_count'    => $count,
+                        'class_teacher'    => ($sec->classTeacher && $sec->classTeacher->employee_id) ? $sec->classTeacher->name : 'Not Assigned',
+                        'teacher_avatar'   => 'https://ui-avatars.com/api/?name=' . urlencode(($sec->classTeacher && $sec->classTeacher->employee_id) ? $sec->classTeacher->name : 'NA') . '&background=0D8ABC&color=fff',
+                        'room'             => 'Room ' . ($cls->numeric_value > 0 ? ($cls->numeric_value . '-' . $sec->name) : ('KG-' . $sec->name)),
+                        'weekly_schedule'  => $weeklySchedule,
+                    ];
+                })->all();
+
+                return [
+                    'id'            => $cls->id,
+                    'name'          => $cls->name,
+                    'display_name'  => $cls->display_name,
+                    'numeric_value' => $cls->numeric_value,
+                    'sort_order'    => $cls->sort_order,
+                    'category'      => $cls->category,
+                    'is_active'     => $cls->is_active,
+                    'total_students'=> collect($sectionsData)->sum('student_count'),
+                    'section_count' => count($sectionsData),
+                    'sections'      => $sectionsData,
+                ];
+            })->all();
+
+            $totalStandards = $classes->where('numeric_value', '>=', 1)->where('numeric_value', '<=', 12)->count();
+            $totalSections  = Section::where('is_active', true)->count();
+            $totalStudents  = StudentEnrollment::where('status', 'active')->count();
+            if ($totalStudents === 0) {
+                $totalStudents = collect($rawClassesData)->sum('total_students');
+            }
+            $totalSubjects = Subject::where('is_active', true)->count();
+            $totalTeachers = Employee::count();
+            $allSubjects   = Subject::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'type', 'stream']);
+            $allTeachers   = Employee::orderBy('first_name')->get(['id', 'first_name', 'last_name', 'employee_code']);
+            $school        = SchoolSetting::first();
+
+            return [
+                'classes'        => $classes,
+                'rawClassesData' => $rawClassesData,
+                'totalStandards' => $totalStandards,
+                'totalSections'  => $totalSections,
+                'totalStudents'  => $totalStudents,
+                'totalSubjects'  => $totalSubjects,
+                'totalTeachers'  => $totalTeachers,
+                'allSubjects'    => $allSubjects,
+                'allTeachers'    => $allTeachers,
+                'school'         => $school,
+            ];
+        });
 
         // Calculate live campus period based on current time
         $now = Carbon::now();
@@ -57,100 +174,24 @@ class ClassesController extends Controller
         $currentDayOfWeek = (int) $now->dayOfWeekIso; // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
         $currentPeriodInfo = $this->calculatePeriodStatus($currentTimeStr, $currentDayOfWeek);
 
-        // Pre-build structured data for reactive frontend (Alpine.js)
-        $classesData = $classes->map(function ($cls) use ($currentDayOfWeek, $now) {
-            $sortedSections = $cls->sections->sortBy('name')->values();
-            $sectionsData = $sortedSections->map(function ($sec) use ($cls, $currentDayOfWeek) {
-                // Determine HSC stream if standard 11 or 12
-                $streamTag = null;
-                $streamName = null;
-                if ($cls->numeric_value >= 11) {
-                    if ($sec->name === 'A') {
-                        $streamTag = 'CS Group';
-                        $streamName = 'Computer Science Group (Maths, Physics, Chemistry, CS)';
-                    } elseif ($sec->name === 'B') {
-                        $streamTag = 'Biology Group';
-                        $streamName = 'Biology Group (Physics, Chemistry, Biology, Maths)';
-                    } elseif ($sec->name === 'C') {
-                        $streamTag = 'Commerce Group';
-                        $streamName = 'Commerce Group (Commerce, Accountancy, Economics, B.Maths)';
-                    } else {
-                        $streamTag = 'Commerce (CA)';
-                        $streamName = 'Commerce Group (Commerce, Accountancy, Economics, Computer Apps)';
-                    }
-                }
-
-                // Filter timetables for this section
-                $sectionTimetables = $cls->timetables->where('section_id', $sec->id);
-                
-                // Group by day of week (1..6)
-                $weeklySchedule = [];
-                for ($d = 1; $d <= 6; $d++) {
-                    $dayEntries = $sectionTimetables->where('day_of_week', $d)->sortBy('start_time')->values();
-                    $weeklySchedule[$d] = $dayEntries->map(function ($entry, $idx) {
-                        return [
-                            'period'       => $entry->period_number ?? ($idx + 1),
-                            'subject_name' => $entry->subject?->name ?? 'Study Period',
-                            'subject_code' => $entry->subject?->code ?? '',
-                            'subject_type' => $entry->period_type ?? 'theory',
-                            'teacher_name' => $entry->teacher ? ($entry->teacher->first_name . ' ' . $entry->teacher->last_name) : 'Subject Teacher',
-                            'teacher_code' => $entry->teacher?->employee_code ?? '',
-                            'start_time'   => Carbon::parse($entry->start_time)->format('h:i A'),
-                            'end_time'     => Carbon::parse($entry->end_time)->format('h:i A'),
-                            'raw_start'    => $entry->start_time,
-                            'raw_end'      => $entry->end_time,
-                            'room'         => $entry->room ?? ('Room ' . $entry->class_id),
-                        ];
-                    });
-                }
-
-                // Today's schedule
-                $todaySchedule = $weeklySchedule[$currentDayOfWeek] ?? collect();
-
-                return [
-                    'id'               => $sec->id,
-                    'name'             => $sec->name,
-                    'display_name'     => 'Section ' . $sec->name,
-                    'stream_tag'       => $streamTag,
-                    'stream_name'      => $streamName,
-                    'capacity'         => $sec->capacity ?? 40,
-                    'student_count'    => $sec->enrollments->count() > 0 ? $sec->enrollments->count() : 35,
-                    'class_teacher'    => ($sec->classTeacher && $sec->classTeacher->employee_id) ? $sec->classTeacher->name : 'Not Assigned',
-                    'teacher_avatar'   => 'https://ui-avatars.com/api/?name=' . urlencode(($sec->classTeacher && $sec->classTeacher->employee_id) ? $sec->classTeacher->name : 'NA') . '&background=0D8ABC&color=fff',
-                    'room'             => 'Room ' . ($cls->numeric_value > 0 ? ($cls->numeric_value . '-' . $sec->name) : ('KG-' . $sec->name)),
-                    'weekly_schedule'  => $weeklySchedule,
-                    'today_schedule'   => $todaySchedule,
-                ];
+        // Inject today_schedule dynamically into each section from memory
+        $classesData = collect($cachedData['rawClassesData'])->map(function ($cls) use ($currentDayOfWeek) {
+            $cls['sections'] = collect($cls['sections'])->map(function ($sec) use ($currentDayOfWeek) {
+                $sec['today_schedule'] = collect($sec['weekly_schedule'][$currentDayOfWeek] ?? []);
+                return $sec;
             });
-
-            return [
-                'id'            => $cls->id,
-                'name'          => $cls->name,
-                'display_name'  => $cls->display_name,
-                'numeric_value' => $cls->numeric_value,
-                'sort_order'    => $cls->sort_order,
-                'category'      => $cls->category,
-                'is_active'     => $cls->is_active,
-                'total_students'=> $sectionsData->sum('student_count'),
-                'section_count' => $sectionsData->count(),
-                'sections'      => $sectionsData,
-            ];
+            return $cls;
         });
 
-        // Summary Statistics
-        $totalStandards = $classes->where('numeric_value', '>=', 1)->where('numeric_value', '<=', 12)->count();
-        $totalSections = Section::where('is_active', true)->count();
-        $totalStudents = StudentEnrollment::where('status', 'active')->count();
-        if ($totalStudents === 0) {
-            $totalStudents = $classesData->sum('total_students');
-        }
-        $totalSubjects = Subject::where('is_active', true)->count();
-        $totalTeachers = Employee::count();
-
-        $allSubjects = Subject::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'type', 'stream']);
-        $allTeachers = Employee::orderBy('first_name')->get(['id', 'first_name', 'last_name', 'employee_code']);
-
-        $school = SchoolSetting::first();
+        $classes        = $cachedData['classes'];
+        $totalStandards = $cachedData['totalStandards'];
+        $totalSections  = $cachedData['totalSections'];
+        $totalStudents  = $cachedData['totalStudents'];
+        $totalSubjects  = $cachedData['totalSubjects'];
+        $totalTeachers  = $cachedData['totalTeachers'];
+        $allSubjects    = $cachedData['allSubjects'];
+        $allTeachers    = $cachedData['allTeachers'];
+        $school         = $cachedData['school'];
 
         return view('classes.index', compact(
             'classes',
@@ -305,6 +346,8 @@ class ClassesController extends Controller
             ]
         );
 
+        self::clearCache();
+
         $timetable->load(['subject', 'teacher']);
 
         $subjectName = $timetable->subject?->name ?? 'Academic Class';
@@ -393,6 +436,8 @@ class ClassesController extends Controller
                 ]
             );
         }
+
+        self::clearCache();
 
         return response()->json([
             'success'    => true,

@@ -11,11 +11,18 @@ use App\Models\Classes;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AccountManagementController extends Controller
 {
+    public static function clearBalancesCache(): void
+    {
+        Cache::forget('account_management_balances_v1');
+        Cache::forget('account_today_stats_v1_' . today()->toDateString());
+    }
+
     public function index(Request $request)
     {
         $currentYear = AcademicYear::current() ?? AcademicYear::first();
@@ -24,49 +31,71 @@ class AccountManagementController extends Controller
         // ── 1. Real-Time Cumulative Balances per Account ───────────────────────
         $balances = $this->calculateAccountBalances();
 
-        // ── 2. Today's Inflow, Outflow & Cash Flow ─────────────────────────────
-        $todayFeePayments = FeePayment::where('is_cancelled', false)
-            ->whereDate('payment_date', $todayStr)
-            ->get();
+        // ── 2. Today's Inflow, Outflow & Cash Flow (Cached 60s) ────────────────
+        $todaySummary = Cache::remember("account_today_stats_v1_{$todayStr}", 60, function () use ($todayStr) {
+            $todayFeePayments = FeePayment::where('is_cancelled', false)
+                ->whereDate('payment_date', $todayStr)
+                ->select('id', 'total_paid', 'term_name', 'remarks', 'payment_account')
+                ->get();
 
-        $todayExpenses = Expense::where('approval_status', 'approved')
-            ->whereDate('expense_date', $todayStr)
-            ->get();
+            $todayExpenses = Expense::where('approval_status', 'approved')
+                ->whereDate('expense_date', $todayStr)
+                ->select('id', 'amount', 'category', 'payment_account')
+                ->get();
 
-        $todayTransfers = AccountTransfer::whereDate('transfer_date', $todayStr)->get();
+            $todayInflow = (float) $todayFeePayments->sum('total_paid');
+            $todayOutflow = (float) $todayExpenses->sum('amount');
+            $todayNet = $todayInflow - $todayOutflow;
 
-        $todayInflow = (float) $todayFeePayments->sum('total_paid');
-        $todayOutflow = (float) $todayExpenses->sum('amount');
-        $todayNet = $todayInflow - $todayOutflow;
+            $todayAdmissionFees = (float) $todayFeePayments->filter(function($p) {
+                return str_contains(strtolower($p->term_name ?? ''), 'admission') ||
+                       str_contains(strtolower($p->remarks ?? ''), 'admission');
+            })->sum('total_paid');
 
-        // Inflow breakdown today
-        $todayAdmissionFees = (float) $todayFeePayments->filter(function($p) {
-            return str_contains(strtolower($p->term_name ?? ''), 'admission') ||
-                   str_contains(strtolower($p->remarks ?? ''), 'admission');
-        })->sum('total_paid');
+            $todayTransportFees = (float) $todayFeePayments->filter(function($p) {
+                return str_contains(strtolower($p->term_name ?? ''), 'transport') ||
+                       str_contains(strtolower($p->term_name ?? ''), 'bus') ||
+                       str_contains(strtolower($p->remarks ?? ''), 'transport') ||
+                       str_contains(strtolower($p->remarks ?? ''), 'bus');
+            })->sum('total_paid');
 
-        $todayTransportFees = (float) $todayFeePayments->filter(function($p) {
-            return str_contains(strtolower($p->term_name ?? ''), 'transport') ||
-                   str_contains(strtolower($p->term_name ?? ''), 'bus') ||
-                   str_contains(strtolower($p->remarks ?? ''), 'transport') ||
-                   str_contains(strtolower($p->remarks ?? ''), 'bus');
-        })->sum('total_paid');
+            $todayTuitionFees = max(0, $todayInflow - ($todayAdmissionFees + $todayTransportFees));
+            $todayAcademicExpenses = (float) $todayExpenses->where('category', 'academic')->sum('amount');
+            $todayMaintenanceExpenses = (float) $todayExpenses->where('category', 'maintenance')->sum('amount');
 
-        $todayTuitionFees = max(0, $todayInflow - ($todayAdmissionFees + $todayTransportFees));
+            $todayUpiInflow = (float) $todayFeePayments->where('payment_account', 'upi')->sum('total_paid');
+            $todayUpiOutflow = (float) $todayExpenses->where('payment_account', 'upi')->sum('amount');
 
-        // Outflow breakdown today
-        $todayAcademicExpenses = (float) $todayExpenses->where('category', 'academic')->sum('amount');
-        $todayMaintenanceExpenses = (float) $todayExpenses->where('category', 'maintenance')->sum('amount');
+            $todayBox1Inflow = (float) $todayFeePayments->where('payment_account', 'cash_box_1')->sum('total_paid');
+            $todayBox1Outflow = (float) $todayExpenses->where('payment_account', 'cash_box_1')->sum('amount');
 
-        // Today per account collections
-        $todayUpiInflow = (float) $todayFeePayments->where('payment_account', 'upi')->sum('total_paid');
-        $todayUpiOutflow = (float) $todayExpenses->where('payment_account', 'upi')->sum('amount');
+            $todayBox2Inflow = (float) $todayFeePayments->where('payment_account', 'cash_box_2')->sum('total_paid');
+            $todayBox2Outflow = (float) $todayExpenses->where('payment_account', 'cash_box_2')->sum('amount');
 
-        $todayBox1Inflow = (float) $todayFeePayments->where('payment_account', 'cash_box_1')->sum('total_paid');
-        $todayBox1Outflow = (float) $todayExpenses->where('payment_account', 'cash_box_1')->sum('amount');
+            return compact(
+                'todayInflow', 'todayOutflow', 'todayNet',
+                'todayAdmissionFees', 'todayTransportFees', 'todayTuitionFees',
+                'todayAcademicExpenses', 'todayMaintenanceExpenses',
+                'todayUpiInflow', 'todayUpiOutflow',
+                'todayBox1Inflow', 'todayBox1Outflow',
+                'todayBox2Inflow', 'todayBox2Outflow'
+            );
+        });
 
-        $todayBox2Inflow = (float) $todayFeePayments->where('payment_account', 'cash_box_2')->sum('total_paid');
-        $todayBox2Outflow = (float) $todayExpenses->where('payment_account', 'cash_box_2')->sum('amount');
+        $todayInflow             = $todaySummary['todayInflow'];
+        $todayOutflow            = $todaySummary['todayOutflow'];
+        $todayNet                = $todaySummary['todayNet'];
+        $todayAdmissionFees      = $todaySummary['todayAdmissionFees'];
+        $todayTransportFees      = $todaySummary['todayTransportFees'];
+        $todayTuitionFees        = $todaySummary['todayTuitionFees'];
+        $todayAcademicExpenses   = $todaySummary['todayAcademicExpenses'];
+        $todayMaintenanceExpenses= $todaySummary['todayMaintenanceExpenses'];
+        $todayUpiInflow          = $todaySummary['todayUpiInflow'];
+        $todayUpiOutflow         = $todaySummary['todayUpiOutflow'];
+        $todayBox1Inflow         = $todaySummary['todayBox1Inflow'];
+        $todayBox1Outflow        = $todaySummary['todayBox1Outflow'];
+        $todayBox2Inflow         = $todaySummary['todayBox2Inflow'];
+        $todayBox2Outflow        = $todaySummary['todayBox2Outflow'];
 
         // ── 3. Filtered Unified Transaction Ledger / Logs ──────────────────────
         $dateFilter = $request->input('date_filter', 'today');
@@ -127,70 +156,95 @@ class AccountManagementController extends Controller
      */
     private function calculateAccountBalances(): array
     {
-        // Opening cash reserves / petty cash floats
-        $box1Float = 200000.00; // Front office counter cash float
-        $box2Float = 150000.00; // Accounts office vault opening reserve
-        $upiFloat  = 0.00;
+        return Cache::remember('account_management_balances_v1', 60, function () {
+            // Opening cash reserves / petty cash floats
+            $box1Float = 200000.00; // Front office counter cash float
+            $box2Float = 150000.00; // Accounts office vault opening reserve
+            $upiFloat  = 0.00;
 
-        // UPI
-        $upiInflow = (float) FeePayment::where('is_cancelled', false)->where('payment_account', 'upi')->sum('total_paid');
-        $upiOutflow = (float) Expense::where('approval_status', 'approved')->where('payment_account', 'upi')->sum('amount');
-        $upiTransferIn = (float) AccountTransfer::where('to_account', 'upi')->sum('amount');
-        $upiTransferOut = (float) AccountTransfer::where('from_account', 'upi')->sum('amount');
-        $upiBalance = $upiFloat + $upiInflow - $upiOutflow + $upiTransferIn - $upiTransferOut;
+            // 4 fast grouped queries instead of 12 full table scans
+            $feeInflows = FeePayment::where('is_cancelled', false)
+                ->whereNotNull('payment_account')
+                ->groupBy('payment_account')
+                ->selectRaw('payment_account, SUM(total_paid) as total')
+                ->pluck('total', 'payment_account');
 
-        // Cash Box 1 (Front Office)
-        $box1Inflow = (float) FeePayment::where('is_cancelled', false)->where('payment_account', 'cash_box_1')->sum('total_paid');
-        $box1Outflow = (float) Expense::where('approval_status', 'approved')->where('payment_account', 'cash_box_1')->sum('amount');
-        $box1TransferIn = (float) AccountTransfer::where('to_account', 'cash_box_1')->sum('amount');
-        $box1TransferOut = (float) AccountTransfer::where('from_account', 'cash_box_1')->sum('amount');
-        $box1Balance = $box1Float + $box1Inflow - $box1Outflow + $box1TransferIn - $box1TransferOut;
+            $expenseOutflows = Expense::where('approval_status', 'approved')
+                ->whereNotNull('payment_account')
+                ->groupBy('payment_account')
+                ->selectRaw('payment_account, SUM(amount) as total')
+                ->pluck('total', 'payment_account');
 
-        // Cash Box 2 (Accounts Office)
-        $box2Inflow = (float) FeePayment::where('is_cancelled', false)->where('payment_account', 'cash_box_2')->sum('total_paid');
-        $box2Outflow = (float) Expense::where('approval_status', 'approved')->where('payment_account', 'cash_box_2')->sum('amount');
-        $box2TransferIn = (float) AccountTransfer::where('to_account', 'cash_box_2')->sum('amount');
-        $box2TransferOut = (float) AccountTransfer::where('from_account', 'cash_box_2')->sum('amount');
-        $box2Balance = $box2Float + $box2Inflow - $box2Outflow + $box2TransferIn - $box2TransferOut;
+            $transfersIn = AccountTransfer::whereNotNull('to_account')
+                ->groupBy('to_account')
+                ->selectRaw('to_account, SUM(amount) as total')
+                ->pluck('total', 'to_account');
 
-        $totalBalance = $upiBalance + $box1Balance + $box2Balance;
+            $transfersOut = AccountTransfer::whereNotNull('from_account')
+                ->groupBy('from_account')
+                ->selectRaw('from_account, SUM(amount) as total')
+                ->pluck('total', 'from_account');
 
-        return [
-            'upi' => [
-                'name'          => 'UPI Account',
-                'subtitle'      => 'PhonePe, Google Pay, Paytm & QR Code',
-                'badge'         => 'Digital UPI',
-                'balance'       => $upiBalance,
-                'opening_float' => $upiFloat,
-                'total_inflow'  => $upiInflow,
-                'total_outflow' => $upiOutflow,
-                'transfers_in'  => $upiTransferIn,
-                'transfers_out' => $upiTransferOut,
-            ],
-            'cash_box_1' => [
-                'name'          => 'Cash Box 1 (Front Office)',
-                'subtitle'      => 'Reception desk & admission counter collections',
-                'badge'         => 'Front Office',
-                'balance'       => $box1Balance,
-                'opening_float' => $box1Float,
-                'total_inflow'  => $box1Inflow,
-                'total_outflow' => $box1Outflow,
-                'transfers_in'  => $box1TransferIn,
-                'transfers_out' => $box1TransferOut,
-            ],
-            'cash_box_2' => [
-                'name'          => 'Cash Box 2 (Accounts Office)',
-                'subtitle'      => 'Main office vault & official institutional reserve',
-                'badge'         => 'Accounts Vault',
-                'balance'       => $box2Balance,
-                'opening_float' => $box2Float,
-                'total_inflow'  => $box2Inflow,
-                'total_outflow' => $box2Outflow,
-                'transfers_in'  => $box2TransferIn,
-                'transfers_out' => $box2TransferOut,
-            ],
-            'total_balance' => $totalBalance,
-        ];
+            // UPI
+            $upiInflow = (float) ($feeInflows->get('upi') ?? 0);
+            $upiOutflow = (float) ($expenseOutflows->get('upi') ?? 0);
+            $upiTransferIn = (float) ($transfersIn->get('upi') ?? 0);
+            $upiTransferOut = (float) ($transfersOut->get('upi') ?? 0);
+            $upiBalance = $upiFloat + $upiInflow - $upiOutflow + $upiTransferIn - $upiTransferOut;
+
+            // Cash Box 1 (Front Office)
+            $box1Inflow = (float) ($feeInflows->get('cash_box_1') ?? 0);
+            $box1Outflow = (float) ($expenseOutflows->get('cash_box_1') ?? 0);
+            $box1TransferIn = (float) ($transfersIn->get('cash_box_1') ?? 0);
+            $box1TransferOut = (float) ($transfersOut->get('cash_box_1') ?? 0);
+            $box1Balance = $box1Float + $box1Inflow - $box1Outflow + $box1TransferIn - $box1TransferOut;
+
+            // Cash Box 2 (Accounts Office)
+            $box2Inflow = (float) ($feeInflows->get('cash_box_2') ?? 0);
+            $box2Outflow = (float) ($expenseOutflows->get('cash_box_2') ?? 0);
+            $box2TransferIn = (float) ($transfersIn->get('cash_box_2') ?? 0);
+            $box2TransferOut = (float) ($transfersOut->get('cash_box_2') ?? 0);
+            $box2Balance = $box2Float + $box2Inflow - $box2Outflow + $box2TransferIn - $box2TransferOut;
+
+            $totalBalance = $upiBalance + $box1Balance + $box2Balance;
+
+            return [
+                'upi' => [
+                    'name'          => 'UPI Account',
+                    'subtitle'      => 'PhonePe, Google Pay, Paytm & QR Code',
+                    'badge'         => 'Digital UPI',
+                    'balance'       => $upiBalance,
+                    'opening_float' => $upiFloat,
+                    'total_inflow'  => $upiInflow,
+                    'total_outflow' => $upiOutflow,
+                    'transfers_in'  => $upiTransferIn,
+                    'transfers_out' => $upiTransferOut,
+                ],
+                'cash_box_1' => [
+                    'name'          => 'Cash Box 1 (Front Office)',
+                    'subtitle'      => 'Reception desk & admission counter collections',
+                    'badge'         => 'Front Office',
+                    'balance'       => $box1Balance,
+                    'opening_float' => $box1Float,
+                    'total_inflow'  => $box1Inflow,
+                    'total_outflow' => $box1Outflow,
+                    'transfers_in'  => $box1TransferIn,
+                    'transfers_out' => $box1TransferOut,
+                ],
+                'cash_box_2' => [
+                    'name'          => 'Cash Box 2 (Accounts Office)',
+                    'subtitle'      => 'Main office vault & official institutional reserve',
+                    'badge'         => 'Accounts Vault',
+                    'balance'       => $box2Balance,
+                    'opening_float' => $box2Float,
+                    'total_inflow'  => $box2Inflow,
+                    'total_outflow' => $box2Outflow,
+                    'transfers_in'  => $box2TransferIn,
+                    'transfers_out' => $box2TransferOut,
+                ],
+                'total_balance' => $totalBalance,
+            ];
+        });
     }
 
     /**
@@ -423,6 +477,8 @@ class AccountManagementController extends Controller
             'remarks'         => $request->remarks,
             'transferred_by'  => Auth::id(),
         ]);
+
+        self::clearBalancesCache();
 
         $fromLabel = $this->getAccountLabel($request->from_account);
         $toLabel = $this->getAccountLabel($request->to_account);
