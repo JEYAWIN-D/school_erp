@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\StaffAttendance;
+use App\Models\StaffPermissionSession;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\StaffEvent;
@@ -36,7 +37,8 @@ class HrController extends Controller
 {
     public function index(Request $request)
     {
-        $today = $request->get('date', today()->toDateString());
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today = Carbon::now($tz)->toDateString();
 
         // 1. Total active staff
         $activeEmployees = Employee::with(['department', 'designation'])->where('is_active', true)->get();
@@ -385,8 +387,16 @@ class HrController extends Controller
 
     public function markAttendance(Request $request)
     {
-        $date = $request->get('date', today()->toDateString());
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today = Carbon::now($tz)->toDateString();
+        $date = $request->get('date', $today);
         $category = $request->get('category', 'all');
+
+        // Prevent selecting or accessing future dates for marking attendance
+        if ($date > $today) {
+            return redirect()->route('hr.attendance.mark', ['date' => $today, 'category' => $category])
+                ->with('error', 'Attendance cannot be marked for a future date.');
+        }
 
         // Auto-fill permission in-time if school dispersal reached
         \App\Console\Commands\AutoFillPermissionInTime::executeAutoFill($date);
@@ -397,7 +407,8 @@ class HrController extends Controller
         }
         $employees = $empQuery->orderBy('first_name')->get();
 
-        $attendances = StaffAttendance::whereDate('date', $date)
+        $attendances = StaffAttendance::with('permissionSessions')
+            ->whereDate('date', $date)
             ->whereIn('employee_id', $employees->pluck('id'))
             ->get()
             ->keyBy('employee_id');
@@ -420,113 +431,183 @@ class HrController extends Controller
             ['key' => 'nanny',        'label' => 'Nannies (Naani)',    'count' => Employee::where('is_active', true)->whereIn('employee_type', ['nanny', 'naani'])->count()],
         ];
 
-        return view('hr.attendance-mark', compact('employees', 'attendances', 'approvedLeaves', 'date', 'category', 'categories'));
+        return view('hr.attendance-mark', compact('employees', 'attendances', 'approvedLeaves', 'date', 'today', 'category', 'categories'));
     }
 
     public function saveAttendanceMark(Request $request)
     {
         @set_time_limit(120);
 
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today = Carbon::now($tz)->toDateString();
+
         $validated = $request->validate([
-            'date'                  => 'required|date',
+            'date'                  => "required|date|before_or_equal:{$today}",
             'category'              => 'nullable|string',
             'attendance'            => 'required|array',
             'attendance.*.status'   => 'required|in:present,absent,half_day,on_duty,paid_off,permission',
             'attendance.*.out_time' => 'nullable|string',
             'attendance.*.in_time'  => 'nullable|string',
+            'attendance.*.sessions' => 'nullable|array',
+        ], [
+            'date.before_or_equal' => 'Attendance cannot be marked for a future date.',
         ]);
 
         $date = $validated['date'];
+        if ($date > $today) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['date' => 'Attendance cannot be marked for a future date.'])
+                ->with('error', 'Attendance cannot be marked for a future date.');
+        }
+
         $attendanceData = $validated['attendance'];
 
-        // Enforce Permission validation rules: Out Time is compulsory
+        // Enforce Permission validation rules:
+        // Out Time is compulsory, In Time >= Out Time, and no overlapping sessions on same day
+        $parsedPermissions = [];
+
         foreach ($attendanceData as $empId => $att) {
             $status = $att['status'] ?? '';
             if ($status === 'permission') {
-                $rawOut = trim($att['out_time'] ?? '');
-                if ($rawOut === '') {
+                $sessionsList = [];
+
+                if (!empty($att['sessions']) && is_array($att['sessions'])) {
+                    foreach ($att['sessions'] as $s) {
+                        $sOut = trim($s['out_time'] ?? '');
+                        $sIn  = trim($s['in_time'] ?? '');
+                        if ($sOut !== '' || $sIn !== '') {
+                            $sessionsList[] = ['out_time' => $sOut, 'in_time' => $sIn];
+                        }
+                    }
+                }
+
+                // Fallback to top-level out_time / in_time if sessions array was empty
+                if (empty($sessionsList)) {
+                    $rawOut = trim($att['out_time'] ?? '');
+                    $rawIn  = trim($att['in_time'] ?? '');
+                    if ($rawOut !== '') {
+                        $sessionsList[] = ['out_time' => $rawOut, 'in_time' => $rawIn];
+                    }
+                }
+
+                if (empty($sessionsList)) {
                     return redirect()->back()
                         ->withInput()
                         ->withErrors(['attendance' => 'Out time is required for Permission attendance.']);
                 }
 
-                $rawIn = trim($att['in_time'] ?? '');
-                if ($rawIn !== '') {
+                // Validate each session and format
+                $formattedSessions = [];
+                foreach ($sessionsList as $idx => $s) {
+                    $sOut = trim($s['out_time']);
+                    $sIn  = trim($s['in_time']);
+
+                    if ($sOut === '') {
+                        return redirect()->back()
+                            ->withInput()
+                            ->withErrors(['attendance' => 'Out time is required for all permission sessions.']);
+                    }
+
                     try {
-                        $outTimeObj = Carbon::parse($rawOut);
-                        $inTimeObj  = Carbon::parse($rawIn);
-                        if ($inTimeObj->lt($outTimeObj)) {
+                        $outObj = Carbon::parse($sOut);
+                        $inObj  = $sIn !== '' ? Carbon::parse($sIn) : null;
+
+                        if ($inObj && $inObj->lt($outObj)) {
                             return redirect()->back()
                                 ->withInput()
                                 ->withErrors(['attendance' => 'In time cannot be earlier than Out time for Permission attendance.']);
                         }
+
+                        $formattedSessions[] = [
+                            'out_time' => $outObj->format('H:i:s'),
+                            'in_time'  => $inObj ? $inObj->format('H:i:s') : null,
+                        ];
                     } catch (\Exception $e) {
                         return redirect()->back()
                             ->withInput()
                             ->withErrors(['attendance' => 'Invalid time format entered for Permission attendance.']);
                     }
                 }
+
+                // Sort sessions chronologically by out_time
+                usort($formattedSessions, fn($a, $b) => strcmp($a['out_time'], $b['out_time']));
+
+                // Check for overlapping session intervals
+                $count = count($formattedSessions);
+                for ($i = 1; $i < $count; $i++) {
+                    $prev = $formattedSessions[$i - 1];
+                    $curr = $formattedSessions[$i];
+                    if ($prev['in_time'] && $curr['out_time'] < $prev['in_time']) {
+                        return redirect()->back()
+                            ->withInput()
+                            ->withErrors(['attendance' => "Permission sessions cannot overlap in time ({$prev['out_time']} to {$prev['in_time']} overlaps with {$curr['out_time']})."]);
+                    }
+                }
+
+                $parsedPermissions[$empId] = $formattedSessions;
             }
         }
 
-        $now = now();
-        $records = [];
-        foreach ($attendanceData as $empId => $att) {
-            $status = $att['status'];
-            $isPermission = ($status === 'permission');
+        DB::transaction(function () use ($attendanceData, $parsedPermissions, $date) {
+            $now = now();
+            foreach ($attendanceData as $empId => $att) {
+                $status = $att['status'];
+                $isPermission = ($status === 'permission');
 
-            $outTime = null;
-            $inTime = null;
-            $isAutoFilled = false;
+                $outTime = null;
+                $inTime = null;
+                $isAutoFilled = false;
 
-            if ($isPermission) {
-                $rawOut = trim($att['out_time'] ?? '');
-                $rawIn  = trim($att['in_time'] ?? '');
-
-                if ($rawOut !== '') {
-                    $outTime = Carbon::parse($rawOut)->format('H:i:s');
+                if ($isPermission && isset($parsedPermissions[$empId])) {
+                    $sessions = $parsedPermissions[$empId];
+                    $outTime = $sessions[0]['out_time'] ?? null;
+                    $lastSess = end($sessions);
+                    $inTime = $lastSess['in_time'] ?? null;
                 }
-                if ($rawIn !== '') {
-                    $inTime = Carbon::parse($rawIn)->format('H:i:s');
-                    $isAutoFilled = false; // Explicitly entered by administrator
-                }
-            }
 
-            $records[] = [
-                'employee_id'         => (int) $empId,
-                'date'                => $date,
-                'status'              => $status,
-                'check_out'           => $outTime,
-                'check_in'            => $inTime,
-                'is_permission'       => $isPermission,
-                'in_time_auto_filled' => $isAutoFilled,
-                'created_at'          => $now,
-                'updated_at'          => $now,
-            ];
-        }
-
-        if (!empty($records)) {
-            foreach (array_chunk($records, 200) as $chunk) {
-                StaffAttendance::upsert(
-                    $chunk,
-                    ['employee_id', 'date'],
-                    ['status', 'check_out', 'check_in', 'is_permission', 'in_time_auto_filled', 'updated_at']
+                // Single daily attendance record per employee per date
+                $attendance = StaffAttendance::updateOrCreate(
+                    [
+                        'employee_id' => (int) $empId,
+                        'date'        => $date,
+                    ],
+                    [
+                        'status'              => $status,
+                        'check_out'           => $outTime,
+                        'check_in'            => $inTime,
+                        'is_permission'       => $isPermission,
+                        'in_time_auto_filled' => $isAutoFilled,
+                        'updated_at'          => $now,
+                    ]
                 );
+
+                if ($isPermission && isset($parsedPermissions[$empId])) {
+                    // Sync child permission sessions
+                    StaffPermissionSession::where('staff_attendance_id', $attendance->id)->delete();
+                    foreach ($parsedPermissions[$empId] as $idx => $sess) {
+                        StaffPermissionSession::create([
+                            'staff_attendance_id' => $attendance->id,
+                            'session_order'       => $idx + 1,
+                            'out_time'            => $sess['out_time'],
+                            'in_time'             => $sess['in_time'],
+                            'in_time_auto_filled' => false,
+                        ]);
+                    }
+                } elseif (!$isPermission) {
+                    // If changed from permission to another status, clear child sessions
+                    StaffPermissionSession::where('staff_attendance_id', $attendance->id)->delete();
+                }
             }
-        }
+        });
 
         // Run auto-fill in case this record is for today after dispersal or a past date
         \App\Console\Commands\AutoFillPermissionInTime::executeAutoFill($date);
 
         DashboardController::clearCache();
 
-        $redirectParams = [];
-        if ($date !== today()->toDateString()) {
-            $redirectParams['date'] = $date;
-        }
-
-        return redirect()->route('hr.index', $redirectParams)
-            ->with('success', 'Staff attendance updated successfully. All records saved.');
+        return redirect()->route('hr.index')
+            ->with('success', 'Attendance marked successfully.');
     }
 
     public function viewAttendance(Request $request)
@@ -589,8 +670,9 @@ class HrController extends Controller
         }
         $employees = $empQuery->orderBy('first_name')->get();
 
-        // Calculate working days in period (excluding Sundays)
-        $periodDates = collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday());
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $todayDate = Carbon::now($tz)->toDateString();
+        $periodDates = collect(CarbonPeriod::create($startDate, min($todayDate, $endDate)))->filter(fn($d) => !$d->isSunday());
         $totalWorkingDays = max(1, $periodDates->count());
 
         // Fetch attendance records for this period
@@ -616,7 +698,7 @@ class HrController extends Controller
 
             $effectivePresent = $presentCount + ($halfDayCount * 0.5);
             $empWorkingDays = $totalWorkingDays;
-            $rate = $empWorkingDays > 0 ? round(($effectivePresent / $empWorkingDays) * 100) : 0;
+            $rate = $empWorkingDays > 0 ? number_format(round(($effectivePresent / $empWorkingDays) * 100, 2), 2) : '0.00';
 
             $totalPresentAll += $presentCount;
             $totalAbsentAll += $absentCount;
@@ -686,11 +768,12 @@ class HrController extends Controller
             abort(404);
         }
 
-        $date = $request->get('date', today()->toDateString());
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $date = $request->get('date', Carbon::now($tz)->toDateString());
         $category = $request->get('category', 'all');
         $search = trim($request->get('search', ''));
 
-        $attendanceQuery = StaffAttendance::with(['employee.department', 'employee.designation'])
+        $attendanceQuery = StaffAttendance::with(['employee.department', 'employee.designation', 'permissionSessions'])
             ->whereDate('date', $date)
             ->where('status', $status)
             ->whereHas('employee', function($q) use ($category, $search) {
@@ -745,19 +828,35 @@ class HrController extends Controller
     public function updatePermissionInTime(Request $request)
     {
         $validated = $request->validate([
-            'attendance_id' => 'required|integer|exists:staff_attendance,id',
+            'session_id'    => 'nullable|integer|exists:staff_permission_sessions,id',
+            'attendance_id' => 'nullable|integer|exists:staff_attendance,id',
             'in_time'       => 'required|string',
         ], [
             'in_time.required' => 'Return In Time is required.',
         ]);
 
-        $record = StaffAttendance::with('employee')->findOrFail($validated['attendance_id']);
+        $session = null;
+        if (!empty($validated['session_id'])) {
+            $session = StaffPermissionSession::with('staffAttendance.employee')->findOrFail($validated['session_id']);
+            $record  = $session->staffAttendance;
+        } else {
+            $record = StaffAttendance::with(['employee', 'permissionSessions'])->findOrFail($validated['attendance_id']);
+            $session = $record->permissionSessions->whereNull('in_time')->first() ?? $record->permissionSessions->last();
+        }
 
         if ($record->status !== 'permission') {
             return back()->with('error', 'Only Permission attendance records can have return In Time updated.');
         }
 
-        if (empty($record->check_out)) {
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today = Carbon::now($tz)->toDateString();
+        $attDate = Carbon::parse($record->date)->toDateString();
+        if ($attDate > $today) {
+            return back()->with('error', 'Attendance cannot be marked for a future date.');
+        }
+
+        $refOut = $session ? $session->out_time : $record->check_out;
+        if (empty($refOut)) {
             return back()->with('error', 'Cannot enter In Time because this permission record has no Out Time.');
         }
 
@@ -768,7 +867,7 @@ class HrController extends Controller
 
         try {
             $inTimeCarbon = Carbon::parse($rawIn);
-            $outTimeCarbon = Carbon::parse($record->check_out);
+            $outTimeCarbon = Carbon::parse($refOut);
 
             // In time cannot be earlier than out time
             if ($inTimeCarbon->lt($outTimeCarbon)) {
@@ -780,7 +879,23 @@ class HrController extends Controller
             return back()->with('error', 'Invalid In Time format.');
         }
 
-        // Update EXISTING record only - duplicate prevention
+        // Update EXISTING session only - duplicate prevention
+        if ($session) {
+            $session->update([
+                'in_time'             => $inTimeFormatted,
+                'in_time_auto_filled' => false,
+            ]);
+        } else {
+            $session = StaffPermissionSession::create([
+                'staff_attendance_id' => $record->id,
+                'session_order'       => 1,
+                'out_time'            => $refOut,
+                'in_time'             => $inTimeFormatted,
+                'in_time_auto_filled' => false,
+            ]);
+        }
+
+        // Keep parent record in sync
         $record->update([
             'check_in'            => $inTimeFormatted,
             'in_time_auto_filled' => false,
@@ -791,6 +906,80 @@ class HrController extends Controller
 
         $empName = $record->employee?->full_name ?? 'Staff member';
         return back()->with('success', "Return In-Time recorded successfully for {$empName}.");
+    }
+
+    public function addPermissionSession(Request $request)
+    {
+        $validated = $request->validate([
+            'attendance_id' => 'required|integer|exists:staff_attendance,id',
+            'out_time'      => 'required|string',
+            'in_time'       => 'nullable|string',
+        ], [
+            'out_time.required' => 'Out Time is required for a new Permission session.',
+        ]);
+
+        $record = StaffAttendance::with(['employee', 'permissionSessions'])->findOrFail($validated['attendance_id']);
+
+        if ($record->status !== 'permission') {
+            return back()->with('error', 'Only Permission attendance records can have permission sessions added.');
+        }
+
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today = Carbon::now($tz)->toDateString();
+        $attDate = Carbon::parse($record->date)->toDateString();
+        if ($attDate > $today) {
+            return back()->with('error', 'Attendance cannot be marked for a future date.');
+        }
+
+        $rawOut = trim($validated['out_time']);
+        $rawIn  = trim($validated['in_time'] ?? '');
+
+        try {
+            $outCarbon = Carbon::parse($rawOut);
+            $inCarbon  = $rawIn !== '' ? Carbon::parse($rawIn) : null;
+
+            if ($inCarbon && $inCarbon->lt($outCarbon)) {
+                return back()->with('error', 'In time cannot be earlier than Out time.');
+            }
+
+            $outFormatted = $outCarbon->format('H:i:s');
+            $inFormatted  = $inCarbon ? $inCarbon->format('H:i:s') : null;
+
+            // Check for overlapping session times
+            foreach ($record->permissionSessions as $existingSess) {
+                $eOut = $existingSess->out_time;
+                $eIn  = $existingSess->in_time;
+                if ($eIn) {
+                    if ($outFormatted < $eIn && ($inFormatted === null || $inFormatted > $eOut)) {
+                        return back()->with('error', "New session overlaps with an existing session ({$existingSess->timing_display}).");
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Invalid time format entered.');
+        }
+
+        $order = ($record->permissionSessions()->max('session_order') ?? 0) + 1;
+
+        StaffPermissionSession::create([
+            'staff_attendance_id' => $record->id,
+            'session_order'       => $order,
+            'out_time'            => $outFormatted,
+            'in_time'             => $inFormatted,
+            'in_time_auto_filled' => false,
+        ]);
+
+        // Keep parent record in sync
+        $record->update([
+            'check_out'     => $record->permissionSessions()->min('out_time') ?? $outFormatted,
+            'check_in'      => $inFormatted ?? $record->check_in,
+            'is_permission' => true,
+        ]);
+
+        DashboardController::clearCache();
+
+        $empName = $record->employee?->full_name ?? 'Staff member';
+        return back()->with('success', "New permission session added for {$empName}.");
     }
 
     public function viewStaffAttendanceDetail(Request $request, int $id)
@@ -845,12 +1034,15 @@ class HrController extends Controller
         }
 
         // Attendance records for this employee in period
-        $history = StaffAttendance::where('employee_id', $employee->id)
+        $history = StaffAttendance::with('permissionSessions')
+            ->where('employee_id', $employee->id)
             ->whereBetween('date', [$startDate, $endDate])
             ->orderBy('date', 'desc')
             ->get();
 
-        $workingDays = collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday())->count();
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $todayDate = Carbon::now($tz)->toDateString();
+        $workingDays = collect(CarbonPeriod::create($startDate, min($todayDate, $endDate)))->filter(fn($d) => !$d->isSunday())->count();
         $workingDays = max(1, $workingDays);
 
         $presentCount    = $history->whereIn('status', ['present', 'late'])->count();
@@ -859,10 +1051,47 @@ class HrController extends Controller
         $halfDayCount    = $history->where('status', 'half_day')->count();
         $onDutyCount     = $history->where('status', 'on_duty')->count();
         $paidOffCount    = $history->where('status', 'paid_off')->count();
-        $permissionCount = $history->where('status', 'permission')->count();
+
+        $permissionRecords = $history->filter(fn($r) => $r->status === 'permission' || $r->is_permission || $r->permissionSessions->isNotEmpty());
+        $permissionDaysCount = $permissionRecords->count();
+        $permissionSessionsCount = $permissionRecords->sum(fn($r) => $r->permissionSessions->count() > 0 ? $r->permissionSessions->count() : 1);
+        $permissionCount = $permissionDaysCount;
+
+        $allPermissionSessions = collect();
+        foreach ($permissionRecords as $rec) {
+            if ($rec->permissionSessions->isNotEmpty()) {
+                foreach ($rec->permissionSessions as $sess) {
+                    $allPermissionSessions->push((object)[
+                        'date'                => $rec->date,
+                        'session_order'       => $sess->session_order,
+                        'out_time'            => $sess->out_time,
+                        'in_time'             => $sess->in_time,
+                        'in_time_auto_filled' => $sess->in_time_auto_filled,
+                        'formatted_out_time'  => $sess->formatted_out_time,
+                        'formatted_in_time'   => $sess->formatted_in_time,
+                        'timing_display'      => $sess->timing_display,
+                    ]);
+                }
+            } elseif (!empty($rec->check_out)) {
+                $allPermissionSessions->push((object)[
+                    'date'                => $rec->date,
+                    'session_order'       => 1,
+                    'out_time'            => $rec->check_out,
+                    'in_time'             => $rec->check_in,
+                    'in_time_auto_filled' => (bool)$rec->in_time_auto_filled,
+                    'formatted_out_time'  => \Carbon\Carbon::parse($rec->check_out)->format('h:i A'),
+                    'formatted_in_time'   => $rec->check_in ? \Carbon\Carbon::parse($rec->check_in)->format('h:i A') : null,
+                    'timing_display'      => (\Carbon\Carbon::parse($rec->check_out)->format('h:i A')) . ' - ' . ($rec->check_in ? \Carbon\Carbon::parse($rec->check_in)->format('h:i A') : 'Not Entered'),
+                ]);
+            }
+        }
+        $allPermissionSessions = $allPermissionSessions->sortBy([
+            ['date', 'desc'],
+            ['out_time', 'asc'],
+        ])->values();
 
         $effectivePresent = $presentCount + ($halfDayCount * 0.5);
-        $attendancePercentage = $workingDays > 0 ? round(($effectivePresent / $workingDays) * 100) : 0;
+        $attendancePercentage = $workingDays > 0 ? number_format(round(($effectivePresent / $workingDays) * 100, 2), 2) : '0.00';
 
         // Leave summary from LeaveType and approved LeaveRequest
         $totalAllowedLeave = (int) LeaveType::sum('days_allowed');
@@ -876,7 +1105,8 @@ class HrController extends Controller
             'employee', 'history', 'periodType', 'periodLabel', 'date', 'month',
             'termId', 'yearId', 'academicYears', 'academicTerms', 'workingDays',
             'presentCount', 'absentCount', 'leaveCount', 'halfDayCount',
-            'onDutyCount', 'paidOffCount', 'permissionCount',
+            'onDutyCount', 'paidOffCount', 'permissionCount', 'permissionDaysCount', 'permissionSessionsCount',
+            'allPermissionSessions',
             'attendancePercentage', 'totalAllowedLeave', 'approvedLeaveTaken', 'leaveRemaining'
         ));
     }
@@ -946,10 +1176,13 @@ class HrController extends Controller
         }
         $employees = $empQuery->orderBy('first_name')->get();
 
-        $workingDays = collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday())->count();
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $todayDate = Carbon::now($tz)->toDateString();
+        $workingDays = collect(CarbonPeriod::create($startDate, min($todayDate, $endDate)))->filter(fn($d) => !$d->isSunday())->count();
         $workingDays = max(1, $workingDays);
 
-        $attendanceRecords = StaffAttendance::whereBetween('date', [$startDate, $endDate])
+        $attendanceRecords = StaffAttendance::with('permissionSessions')
+            ->whereBetween('date', [$startDate, $endDate])
             ->whereIn('employee_id', $employees->pluck('id'))
             ->get()
             ->groupBy('employee_id');
@@ -958,6 +1191,11 @@ class HrController extends Controller
         $totalPresentSum = 0;
         $totalAbsentSum = 0;
         $totalLeaveSum = 0;
+        $totalHalfDaySum = 0;
+        $totalOnDutySum = 0;
+        $totalPaidOffSum = 0;
+        $totalPermissionDaysSum = 0;
+        $totalPermissionSessionsSum = 0;
 
         $presentStaffCount = 0;
         $absentStaffCount  = 0;
@@ -976,10 +1214,16 @@ class HrController extends Controller
 
         foreach ($employees as $emp) {
             $recs = $attendanceRecords->get($emp->id, collect());
-            $p = $recs->whereIn('status', ['present', 'late'])->count();
-            $a = $recs->where('status', 'absent')->count();
-            $l = $recs->whereIn('status', ['leave', 'on_leave'])->count();
-            $h = $recs->where('status', 'half_day')->count();
+            $p  = $recs->whereIn('status', ['present', 'late'])->count();
+            $a  = $recs->where('status', 'absent')->count();
+            $h  = $recs->where('status', 'half_day')->count();
+            $od = $recs->where('status', 'on_duty')->count();
+            $po = $recs->where('status', 'paid_off')->count();
+            $l  = $recs->whereIn('status', ['leave', 'on_leave'])->count();
+
+            $permRecs = $recs->filter(fn($r) => $r->status === 'permission' || $r->is_permission || $r->permissionSessions->isNotEmpty());
+            $permDays = $permRecs->count();
+            $permSessions = $permRecs->sum(fn($r) => $r->permissionSessions->count() > 0 ? $r->permissionSessions->count() : 1);
 
             if ($p > 0) {
                 $presentStaffCount++;
@@ -992,31 +1236,44 @@ class HrController extends Controller
             }
 
             $eff = $p + ($h * 0.5);
-            $pct = $workingDays > 0 ? round(($eff / $workingDays) * 100) : 0;
+            $pct = $workingDays > 0 ? round(($eff / $workingDays) * 100, 2) : 0;
 
             $totalPresentSum += $p;
-            $totalAbsentSum += $a;
-            $totalLeaveSum += $l;
+            $totalAbsentSum  += $a;
+            $totalLeaveSum   += $l;
+            $totalHalfDaySum += $h;
+            $totalOnDutySum  += $od;
+            $totalPaidOffSum += $po;
+            $totalPermissionDaysSum += $permDays;
+            $totalPermissionSessionsSum += $permSessions;
 
             $overallRows[] = [
-                'employee'   => $emp,
-                'category'   => $emp->category_label,
-                'present'    => $p,
-                'absent'     => $a,
-                'leave'      => $l,
-                'percentage' => $pct,
+                'employee'            => $emp,
+                'category'            => $emp->category_label,
+                'present'             => $p,
+                'absent'              => $a,
+                'half_day'            => $h,
+                'on_duty'             => $od,
+                'paid_off'            => $po,
+                'permission'          => $permDays,
+                'permission_sessions' => $permSessions,
+                'leave'               => $l,
+                'percentage'          => number_format($pct, 2),
+                'raw_percentage'      => $pct,
             ];
         }
 
-        $avgPercentage = count($overallRows) > 0 ? round(collect($overallRows)->avg('percentage')) : 0;
+        $avgPercentage = count($overallRows) > 0 ? number_format(collect($overallRows)->avg('raw_percentage'), 2) : '0.00';
 
         // Data for Individual Report
         $individualHistory = collect();
         $individualSummary = null;
         $leaveSummaryBreakdown = [];
+        $allPermissionSessions = collect();
 
         if ($selectedStaff) {
-            $individualHistory = StaffAttendance::where('employee_id', $selectedStaff->id)
+            $individualHistory = StaffAttendance::with('permissionSessions')
+                ->where('employee_id', $selectedStaff->id)
                 ->whereBetween('date', [$startDate, $endDate])
                 ->orderBy('date', 'asc')
                 ->get();
@@ -1027,6 +1284,45 @@ class HrController extends Controller
             $h = $individualHistory->where('status', 'half_day')->count();
             $eff = $p + ($h * 0.5);
             $pct = $workingDays > 0 ? round(($eff / $workingDays) * 100, 2) : 0;
+
+            // Dual Permission calculations:
+            // 1. Permission Days = distinct dates containing Permission sessions
+            // 2. Permission Sessions = total Permission sessions
+            $permissionRecords = $individualHistory->filter(fn($r) => $r->status === 'permission' || $r->is_permission || $r->permissionSessions->isNotEmpty());
+            $permissionDaysCount = $permissionRecords->count();
+            $permissionSessionsCount = $permissionRecords->sum(fn($r) => $r->permissionSessions->count() > 0 ? $r->permissionSessions->count() : 1);
+
+            foreach ($permissionRecords as $rec) {
+                if ($rec->permissionSessions->isNotEmpty()) {
+                    foreach ($rec->permissionSessions as $sess) {
+                        $allPermissionSessions->push((object)[
+                            'date'                => $rec->date,
+                            'session_order'       => $sess->session_order,
+                            'out_time'            => $sess->out_time,
+                            'in_time'             => $sess->in_time,
+                            'in_time_auto_filled' => $sess->in_time_auto_filled,
+                            'formatted_out_time'  => $sess->formatted_out_time,
+                            'formatted_in_time'   => $sess->formatted_in_time,
+                            'timing_display'      => $sess->timing_display,
+                        ]);
+                    }
+                } elseif (!empty($rec->check_out)) {
+                    $allPermissionSessions->push((object)[
+                        'date'                => $rec->date,
+                        'session_order'       => 1,
+                        'out_time'            => $rec->check_out,
+                        'in_time'             => $rec->check_in,
+                        'in_time_auto_filled' => (bool)$rec->in_time_auto_filled,
+                        'formatted_out_time'  => \Carbon\Carbon::parse($rec->check_out)->format('h:i A'),
+                        'formatted_in_time'   => $rec->check_in ? \Carbon\Carbon::parse($rec->check_in)->format('h:i A') : null,
+                        'timing_display'      => (\Carbon\Carbon::parse($rec->check_out)->format('h:i A')) . ' - ' . ($rec->check_in ? \Carbon\Carbon::parse($rec->check_in)->format('h:i A') : 'Not Entered'),
+                    ]);
+                }
+            }
+            $allPermissionSessions = $allPermissionSessions->sortBy([
+                ['date', 'asc'],
+                ['out_time', 'asc'],
+            ])->values();
 
             // Leave breakdown per leave type
             $activeLeaveTypes = LeaveType::orderBy('name')->get();
@@ -1056,17 +1352,21 @@ class HrController extends Controller
             }
 
             $individualSummary = [
-                'working_days' => $workingDays,
-                'present'      => $p,
-                'absent'       => $a,
-                'leave'        => $l,
-                'half_day'     => $h,
-                'on_duty'      => $individualHistory->where('status', 'on_duty')->count(),
-                'paid_off'     => $individualHistory->where('status', 'paid_off')->count(),
-                'permission'   => $individualHistory->where('status', 'permission')->count(),
-                'percentage'   => $pct,
-                'leave_taken'  => $totalTakenLeave,
-                'total_allowed'=> $totalAllocatedLeave,
+                'working_days'        => $workingDays,
+                'present'             => $p,
+                'absent'              => $a,
+                'leave'               => $l,
+                'half_day'            => $h,
+                'on_duty'             => $individualHistory->where('status', 'on_duty')->count(),
+                'paid_off'            => $individualHistory->where('status', 'paid_off')->count(),
+                'permission'          => $permissionDaysCount,
+                'permission_days'     => $permissionDaysCount,
+                'permission_sessions' => $permissionSessionsCount,
+                'percentage'          => number_format($pct, 2),
+                'raw_percentage'      => $pct,
+                'effective_present'   => $eff,
+                'leave_taken'         => $totalTakenLeave,
+                'total_allowed'       => $totalAllocatedLeave,
             ];
         }
 
@@ -1088,7 +1388,7 @@ class HrController extends Controller
             'selectedCategoryLabel', 'allActiveStaff', 'selectedStaff', 'overallRows', 'avgPercentage',
             'presentStaffCount', 'absentStaffCount', 'leaveStaffCount',
             'totalPresentSum', 'totalAbsentSum', 'totalLeaveSum', 'workingDays',
-            'individualHistory', 'individualSummary', 'leaveSummaryBreakdown',
+            'individualHistory', 'individualSummary', 'leaveSummaryBreakdown', 'allPermissionSessions',
             'school', 'academicYearName', 'date', 'month', 'termId',
             'yearId', 'academicYears', 'academicTerms'
         ));
@@ -1148,22 +1448,31 @@ class HrController extends Controller
                 }
             }
 
-            fputcsv($handle, ['Staff ID', 'Staff Name', 'Category', 'Department', 'Designation', 'Present Days', 'Absent Days', 'Leave Days', 'Attendance %']);
+            fputcsv($handle, ['Staff ID', 'Staff Name', 'Category', 'Department', 'Designation', 'Present', 'Absent', 'Half Day', 'On Duty', 'Paid Off', 'Permission', 'Leave', 'Attendance %']);
 
-            $workingDays = max(1, collect(CarbonPeriod::create($startDate, min(today()->toDateString(), $endDate)))->filter(fn($d) => !$d->isSunday())->count());
+            $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+            $todayDate = Carbon::now($tz)->toDateString();
+            $workingDays = max(1, collect(CarbonPeriod::create($startDate, min($todayDate, $endDate)))->filter(fn($d) => !$d->isSunday())->count());
 
-            $attendances = StaffAttendance::whereBetween('date', [$startDate, $endDate])
+            $attendances = StaffAttendance::with('permissionSessions')
+                ->whereBetween('date', [$startDate, $endDate])
                 ->whereIn('employee_id', $employees->pluck('id'))
                 ->get()
                 ->groupBy('employee_id');
 
             foreach ($employees as $emp) {
                 $recs = $attendances->get($emp->id, collect());
-                $p = $recs->whereIn('status', ['present', 'late'])->count();
-                $a = $recs->where('status', 'absent')->count();
-                $l = $recs->whereIn('status', ['leave', 'on_leave'])->count();
-                $h = $recs->where('status', 'half_day')->count();
-                $pct = round((($p + ($h * 0.5)) / $workingDays) * 100);
+                $p  = $recs->whereIn('status', ['present', 'late'])->count();
+                $a  = $recs->where('status', 'absent')->count();
+                $h  = $recs->where('status', 'half_day')->count();
+                $od = $recs->where('status', 'on_duty')->count();
+                $po = $recs->where('status', 'paid_off')->count();
+                $l  = $recs->whereIn('status', ['leave', 'on_leave'])->count();
+
+                $permRecs = $recs->filter(fn($r) => $r->status === 'permission' || $r->is_permission || $r->permissionSessions->isNotEmpty());
+                $permDays = $permRecs->count();
+
+                $pct = round((($p + ($h * 0.5)) / $workingDays) * 100, 2);
 
                 fputcsv($handle, [
                     $emp->employee_code,
@@ -1173,8 +1482,12 @@ class HrController extends Controller
                     $emp->designation_name,
                     $p,
                     $a,
+                    $h,
+                    $od,
+                    $po,
+                    $permDays,
                     $l,
-                    $pct . '%',
+                    number_format($pct, 2) . '%',
                 ]);
             }
             fclose($handle);
@@ -1527,17 +1840,33 @@ class HrController extends Controller
         $attOvertimeDuration = $otHrs > 0 ? "{$otHrs}h {$otMins}m" : ($totalOtMins > 0 ? "{$otMins}m" : '0m');
 
         $effectivePresent = $attPresent + $attLate + ($attHalfDay * 0.5) + $attOvertime;
-        $attendancePercentage = $attTotalDays > 0 ? min(100, round(($effectivePresent / $attTotalDays) * 100, 1)) : null;
+
+        $tz = SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today = Carbon::now($tz)->toDateString();
+        $cMonthStart = Carbon::now($tz)->startOfMonth()->toDateString();
+        $cMonthEnd = Carbon::now($tz)->endOfMonth()->toDateString();
+        $cPeriod = collect(CarbonPeriod::create($cMonthStart, min($today, $cMonthEnd)))->filter(fn($d) => !$d->isSunday());
+        $currentMonthWorkingDays = max(1, $cPeriod->count());
+
+        $currentMonthRecords = $allAttRecords->whereBetween('date', [$cMonthStart, $cMonthEnd]);
+        $cmPresent = $currentMonthRecords->whereIn('status', ['present', 'late'])->count();
+        $cmHalfDay = $currentMonthRecords->where('status', 'half_day')->count();
+        $cmEffectivePresent = $cmPresent + ($cmHalfDay * 0.5);
+        $attendancePercentage = $currentMonthWorkingDays > 0 ? number_format(round(($cmEffectivePresent / $currentMonthWorkingDays) * 100, 2), 2) : '0.00';
         $recentAttendance = $allAttRecords->take(30);
 
         // Monthly Attendance Breakdown (Collection grouped)
         $monthlyAttendance = $allAttRecords
             ->groupBy(fn($r) => \Carbon\Carbon::parse($r->date)->format('Y-m'))
             ->take(6)
-            ->map(function ($records, $monthKey) {
+            ->map(function ($records, $monthKey) use ($today) {
                 [$yr, $mo] = explode('-', $monthKey);
-                $period = \Carbon\CarbonPeriod::create("$yr-$mo-01", "last day of $yr-$mo");
+                $mStart = "$yr-$mo-01";
+                $mEnd = Carbon::parse($mStart)->endOfMonth()->toDateString();
+                $effectiveEnd = min($today, $mEnd);
+                $period = CarbonPeriod::create($mStart, $effectiveEnd);
                 $workingDays = collect($period)->filter(fn($d) => !$d->isSunday())->count();
+                $workingDays = max(1, $workingDays);
 
                 $presentCount  = $records->whereIn('status', ['present', 'late'])->count();
                 $halfDayCount  = $records->where('status', 'half_day')->count();
@@ -1556,7 +1885,8 @@ class HrController extends Controller
                 $otDuration = $h > 0 ? "{$h}h {$m}m" : ($otMins > 0 ? "{$m}m" : '—');
 
                 $monthName = \Carbon\Carbon::parse($records->first()->date)->format('M Y');
-                $pct = $workingDays > 0 ? min(100, round((($presentCount + ($halfDayCount * 0.5) + $overtimeCount) / $workingDays) * 100, 1)) : 0;
+                $eff = $presentCount + ($halfDayCount * 0.5);
+                $pct = $workingDays > 0 ? number_format(round(($eff / $workingDays) * 100, 2), 2) : '0.00';
 
                 return (object)[
                     'month_key'         => $monthKey,
@@ -1586,7 +1916,7 @@ class HrController extends Controller
             'employee', 'linkedUser', 'staffRoles', 'payroll', 'qualifications',
             'experiences', 'empDocuments', 'certifications',
             'attPresent', 'attLate', 'attHalfDay', 'attAbsent', 'attLeave', 'attOvertime', 'attOvertimeDuration', 'attTotalDays',
-            'effectivePresent', 'attendancePercentage', 'recentAttendance', 'monthlyAttendance',
+            'effectivePresent', 'cmEffectivePresent', 'currentMonthWorkingDays', 'attendancePercentage', 'recentAttendance', 'monthlyAttendance',
             'leaveRequests', 'approvedLeaveDays', 'pendingLeaveCount', 'rejectedLeaveCount'
         ));
     }

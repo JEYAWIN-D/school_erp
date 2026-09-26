@@ -624,6 +624,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/attendance/paid-off',            [HrController::class, 'viewPaidOffAttendance'])->name('attendance.paid-off');
         Route::get('/attendance/permission',          [HrController::class, 'viewPermissionAttendance'])->name('attendance.permission');
         Route::post('/attendance/permission/update-in-time', [HrController::class, 'updatePermissionInTime'])->name('attendance.permission.update-in-time');
+        Route::post('/attendance/permission/add-session', [HrController::class, 'addPermissionSession'])->name('attendance.permission.add-session');
         Route::get('/attendance/staff/{id}',          [HrController::class, 'viewStaffAttendanceDetail'])->name('attendance.staff-detail');
 
         Route::get('/reports',                        [HrController::class, 'reports'])->name('reports');

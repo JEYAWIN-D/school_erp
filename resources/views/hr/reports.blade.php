@@ -206,15 +206,19 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs">
+        <table class="w-full text-left text-xs min-w-[900px]">
           <thead>
             <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
               <th class="py-3 px-4">Staff ID</th>
               <th class="py-3 px-4">Employee</th>
               <th class="py-3 px-4">Category</th>
-              <th class="py-3 px-4 text-center">Present</th>
-              <th class="py-3 px-4 text-center">Absent</th>
-              <th class="py-3 px-4 text-center">Leave</th>
+              <th class="py-3 px-3 text-center">Present</th>
+              <th class="py-3 px-3 text-center">Absent</th>
+              <th class="py-3 px-3 text-center">Half Day</th>
+              <th class="py-3 px-3 text-center">On Duty</th>
+              <th class="py-3 px-3 text-center">Paid Off</th>
+              <th class="py-3 px-3 text-center">Permission</th>
+              <th class="py-3 px-3 text-center">Leave</th>
               <th class="py-3 px-4 text-center">Attendance %</th>
               <th class="py-3 px-4 text-right">Action</th>
             </tr>
@@ -223,29 +227,33 @@
             @forelse($overallRows as $row)
               @php $emp = $row['employee']; @endphp
               <tr class="hover:bg-slate-50/70 transition-colors">
-                <td class="py-3 px-4 font-mono font-bold text-slate-600">{{ $emp->employee_code }}</td>
-                <td class="py-3 px-4 font-bold text-slate-800">
-                  {{ $emp->full_name }}
-                  <span class="block text-[11px] font-normal text-slate-400">{{ $emp->designation_name }} &bull; {{ $emp->department_name }}</span>
+                <td class="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">{{ $emp->employee_code }}</td>
+                <td class="py-3.5 px-4 font-bold text-slate-800">
+                  <span class="block truncate max-w-[180px]">{{ $emp->full_name }}</span>
+                  <span class="block text-[11px] font-normal text-slate-400 truncate max-w-[180px]">{{ $emp->designation_name }} &bull; {{ $emp->department_name }}</span>
                 </td>
-                <td class="py-3 px-4">
+                <td class="py-3.5 px-4 whitespace-nowrap">
                   <span class="text-[11px] font-semibold text-slate-600">{{ $row['category'] }}</span>
                 </td>
-                <td class="py-3 px-4 text-center font-mono font-bold text-emerald-600">{{ $row['present'] }}</td>
-                <td class="py-3 px-4 text-center font-mono font-bold text-rose-600">{{ $row['absent'] }}</td>
-                <td class="py-3 px-4 text-center font-mono font-bold text-amber-600">{{ $row['leave'] }}</td>
-                <td class="py-3 px-4 text-center">
+                <td class="py-3.5 px-3 text-center font-mono font-bold text-emerald-600">{{ $row['present'] }}</td>
+                <td class="py-3.5 px-3 text-center font-mono font-bold text-rose-600">{{ $row['absent'] }}</td>
+                <td class="py-3.5 px-3 text-center font-mono font-bold text-blue-600">{{ $row['half_day'] }}</td>
+                <td class="py-3.5 px-3 text-center font-mono font-bold text-sky-600">{{ $row['on_duty'] }}</td>
+                <td class="py-3.5 px-3 text-center font-mono font-bold text-purple-600">{{ $row['paid_off'] }}</td>
+                <td class="py-3.5 px-3 text-center font-mono font-bold text-amber-600">{{ $row['permission'] }}</td>
+                <td class="py-3.5 px-3 text-center font-mono font-bold text-amber-600">{{ $row['leave'] }}</td>
+                <td class="py-3.5 px-4 text-center whitespace-nowrap">
                   <div class="flex items-center justify-center gap-2">
-                    <div class="w-16 bg-slate-100 rounded-full h-1.5 overflow-hidden hidden sm:block">
-                      <div class="h-1.5 rounded-full {{ $row['percentage'] >= 75 ? 'bg-emerald-500' : ($row['percentage'] >= 50 ? 'bg-amber-500' : 'bg-rose-500') }}"
-                           style="width: {{ min(100, $row['percentage']) }}%"></div>
+                    <div class="w-14 bg-slate-100 rounded-full h-1.5 overflow-hidden hidden sm:block">
+                      <div class="h-1.5 rounded-full {{ (float)$row['percentage'] >= 75 ? 'bg-emerald-500' : ((float)$row['percentage'] >= 50 ? 'bg-amber-500' : 'bg-rose-500') }}"
+                           style="width: {{ min(100, (float)$row['percentage']) }}%"></div>
                     </div>
                     <span class="font-mono font-bold text-xs {{ $row['percentage'] >= 75 ? 'text-emerald-700' : ($row['percentage'] >= 50 ? 'text-amber-700' : 'text-rose-700') }}">
                       {{ $row['percentage'] }}%
                     </span>
                   </div>
                 </td>
-                <td class="py-3 px-4 text-right">
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
                   <a href="{{ route('hr.reports', ['mode' => 'individual', 'employee_id' => $emp->id, 'period_type' => $periodType, 'date' => $date, 'month' => $month, 'term_id' => $termId, 'year_id' => $yearId]) }}"
                      class="btn btn-secondary btn-xs font-bold text-purple-600 hover:text-purple-700 hover:border-purple-300">
                     Individual View &rarr;
@@ -254,7 +262,7 @@
               </tr>
             @empty
               <tr>
-                <td colspan="8" class="text-center py-10 text-slate-400 text-xs">
+                <td colspan="12" class="text-center py-10 text-slate-400 text-xs">
                   No staff members found matching the selected filter.
                 </td>
               </tr>
@@ -372,27 +380,27 @@
                   <td class="py-1 text-right font-mono font-bold text-rose-700">{{ $individualSummary['absent'] }}</td>
                 </tr>
                 <tr>
-                  <td class="py-1 text-slate-600 font-medium">Half Day</td>
+                  <td class="py-1 text-slate-600 font-medium">Half Days</td>
                   <td class="py-1 text-right font-mono font-bold text-blue-700">{{ $individualSummary['half_day'] }}</td>
                 </tr>
-                @if(($individualSummary['on_duty'] ?? 0) > 0)
-                  <tr>
-                    <td class="py-1 text-slate-600 font-medium">On Duty</td>
-                    <td class="py-1 text-right font-mono font-bold text-sky-700">{{ $individualSummary['on_duty'] }}</td>
-                  </tr>
-                @endif
+                <tr>
+                  <td class="py-1 text-slate-600 font-medium">On Duty</td>
+                  <td class="py-1 text-right font-mono font-bold text-sky-700">{{ $individualSummary['on_duty'] }}</td>
+                </tr>
                 @if(($individualSummary['paid_off'] ?? 0) > 0)
                   <tr>
                     <td class="py-1 text-slate-600 font-medium">Paid Off</td>
                     <td class="py-1 text-right font-mono font-bold text-purple-700">{{ $individualSummary['paid_off'] }}</td>
                   </tr>
                 @endif
-                @if(($individualSummary['permission'] ?? 0) > 0)
-                  <tr>
-                    <td class="py-1 text-slate-600 font-medium">Permission</td>
-                    <td class="py-1 text-right font-mono font-bold text-amber-700">{{ $individualSummary['permission'] }}</td>
-                  </tr>
-                @endif
+                <tr>
+                  <td class="py-1 text-slate-600 font-medium">Permission (Days)</td>
+                  <td class="py-1 text-right font-mono font-bold text-amber-700">{{ $individualSummary['permission_days'] ?? $individualSummary['permission'] }}</td>
+                </tr>
+                <tr>
+                  <td class="py-1 text-slate-600 font-medium">Permission (Sessions)</td>
+                  <td class="py-1 text-right font-mono font-bold text-amber-700">{{ $individualSummary['permission_sessions'] ?? $individualSummary['permission'] }}</td>
+                </tr>
                 <tr>
                   <td class="py-1 text-slate-600 font-medium">Approved Leave (In Period)</td>
                   <td class="py-1 text-right font-mono font-bold text-amber-700">{{ $individualSummary['leave'] }}</td>
@@ -449,6 +457,67 @@
 
         </div>
 
+        {{-- 3B. Dedicated Permission Details Section (Shown when permissions exist) --}}
+        @if(isset($allPermissionSessions) && $allPermissionSessions->isNotEmpty())
+          <div class="report-section mb-5">
+            <div class="border border-amber-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <div class="bg-amber-50/80 px-3.5 py-2 border-b border-amber-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <svg class="w-3.5 h-3.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <h3 class="text-[11px] font-black uppercase tracking-wider text-amber-900">Permission Details</h3>
+                </div>
+                <span class="text-[10px] font-mono font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                  {{ $allPermissionSessions->count() }} {{ Str::plural('Session', $allPermissionSessions->count()) }} ({{ $individualSummary['permission_days'] ?? 1 }} {{ Str::plural('Day', $individualSummary['permission_days'] ?? 1) }})
+                </span>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="bg-amber-50/30 border-b border-amber-100 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+                      <th class="py-2 px-3.5 w-1/4">Date</th>
+                      <th class="py-2 px-3.5 w-1/4">Session</th>
+                      <th class="py-2 px-3.5 w-1/4">Out Time</th>
+                      <th class="py-2 px-3.5 w-1/4">In Time</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-medium">
+                    @foreach($allPermissionSessions as $pSess)
+                      @php $pDate = \Carbon\Carbon::parse($pSess->date); @endphp
+                      <tr class="hover:bg-amber-50/20">
+                        <td class="py-2 px-3.5 font-mono font-bold text-slate-900">
+                          {{ $pDate->format('d-m-Y') }}
+                          <span class="text-[10px] font-normal text-slate-400 block">{{ $pDate->format('l') }}</span>
+                        </td>
+                        <td class="py-2 px-3.5">
+                          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                            Permission {{ $pSess->session_order }}
+                          </span>
+                        </td>
+                        <td class="py-2 px-3.5 font-mono font-bold text-slate-800">
+                          {{ $pSess->formatted_out_time ?? '—' }}
+                        </td>
+                        <td class="py-2 px-3.5 font-mono">
+                          @if(!empty($pSess->formatted_in_time))
+                            <span class="font-bold text-emerald-700">{{ $pSess->formatted_in_time }}</span>
+                            @if($pSess->in_time_auto_filled)
+                              <span class="ml-1 text-[9px] font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-1 py-0.2 rounded" title="Auto-filled at school dispersal">Dispersal</span>
+                            @endif
+                          @else
+                            <span class="text-amber-600 font-semibold italic">Not Entered</span>
+                          @endif
+                        </td>
+                      </tr>
+                    @endforeach
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        @endif
+
         {{-- 4. Attendance History (DATE, DAY, STATUS ONLY — No Check-In, Check-Out, Remarks) --}}
         <div class="report-section mb-6">
           <div class="border border-slate-200 rounded-xl overflow-hidden">
@@ -473,9 +542,9 @@
                       $statusLower = strtolower($att->status ?? '');
                     @endphp
                     <tr class="{{ $cDate->isSunday() ? 'bg-slate-50/70 text-slate-400' : '' }}">
-                      <td class="py-1.5 px-3.5 font-mono font-bold text-slate-900">{{ $cDate->format('d-m-Y') }}</td>
-                      <td class="py-1.5 px-3.5 text-slate-600">{{ $cDate->format('l') }}</td>
-                      <td class="py-1.5 px-3.5">
+                      <td class="py-2 px-3.5 font-mono font-bold text-slate-900">{{ $cDate->format('d-m-Y') }}</td>
+                      <td class="py-2 px-3.5 text-slate-600">{{ $cDate->format('l') }}</td>
+                      <td class="py-2 px-3.5">
                         @if(in_array($statusLower, ['present', 'late']))
                           <span class="status-badge status-present font-bold text-emerald-800">
                             {{ ucfirst($statusLower) }}
@@ -497,9 +566,46 @@
                             Paid Off
                           </span>
                         @elseif($statusLower === 'permission')
-                          <span class="status-badge font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
-                            Permission
-                          </span>
+                          <div class="space-y-1">
+                            <span class="status-badge font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded inline-block">
+                              Permission
+                            </span>
+                            @php
+                              $sessions = $att->permissionSessions;
+                            @endphp
+                            @if($sessions && $sessions->isNotEmpty())
+                              <div class="mt-1 space-y-0.5">
+                                @foreach($sessions as $sess)
+                                  <div class="text-[10px] font-mono text-slate-600 flex items-center gap-1">
+                                    <span class="text-amber-700 font-semibold">{{ $sessions->count() > 1 ? 'Permission ' . $sess->session_order . ':' : '' }}</span>
+                                    <span class="font-bold text-slate-800">{{ $sess->formatted_out_time }}</span>
+                                    <span>&rarr;</span>
+                                    @if($sess->formatted_in_time)
+                                      <span class="font-bold text-emerald-700">{{ $sess->formatted_in_time }}</span>
+                                      @if($sess->in_time_auto_filled)
+                                        <span class="text-[9px] text-slate-400 font-normal">(Dispersal)</span>
+                                      @endif
+                                    @else
+                                      <span class="text-amber-600 italic font-semibold">Not Entered</span>
+                                    @endif
+                                  </div>
+                                @endforeach
+                              </div>
+                            @elseif($att->check_out)
+                              <div class="mt-1 text-[10px] font-mono text-slate-600 flex items-center gap-1">
+                                <span class="font-bold text-slate-800">{{ \Carbon\Carbon::parse($att->check_out)->format('h:i A') }}</span>
+                                <span>&rarr;</span>
+                                @if($att->check_in)
+                                  <span class="font-bold text-emerald-700">{{ \Carbon\Carbon::parse($att->check_in)->format('h:i A') }}</span>
+                                  @if($att->in_time_auto_filled)
+                                    <span class="text-[9px] text-slate-400 font-normal">(Dispersal)</span>
+                                  @endif
+                                @else
+                                  <span class="text-amber-600 italic font-semibold">Not Entered</span>
+                                @endif
+                              </div>
+                            @endif
+                          </div>
                         @elseif(in_array($statusLower, ['leave', 'on_leave']))
                           <span class="status-badge status-leave font-bold text-amber-800">
                             Approved Leave

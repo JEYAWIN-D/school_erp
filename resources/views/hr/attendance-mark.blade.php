@@ -36,8 +36,11 @@
         {{-- Date Picker --}}
         <div>
           <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Date</label>
-          <input type="date" name="date" value="{{ $date }}" onchange="document.getElementById('filterForm').submit()"
-                 class="input input-sm border-slate-200 rounded-xl font-bold text-xs bg-slate-50 text-slate-800 focus:bg-white">
+          <input type="date" name="date" value="{{ $date }}" max="{{ $today ?? today()->toDateString() }}" onchange="document.getElementById('filterForm').submit()"
+                 class="input input-sm border-slate-200 rounded-xl font-bold text-xs bg-slate-50 text-slate-800 focus:bg-white @error('date') border-rose-500 @enderror">
+          @error('date')
+            <p class="text-[11px] font-bold text-rose-600 mt-1">{{ $message }}</p>
+          @enderror
         </div>
 
         {{-- Staff Category --}}
@@ -156,40 +159,80 @@
 
                 {{-- Attendance Status & Permission Time Fields --}}
                 <td class="py-3.5 px-4 text-left">
-                  <div class="flex flex-wrap items-center gap-2.5">
-                    <select name="attendance[{{ $emp->id }}][status]"
-                            id="status-select-{{ $emp->id }}"
-                            data-emp-id="{{ $emp->id }}"
-                            class="attendance-status-select select select-xs text-xs font-bold rounded-lg border-slate-200 py-1 px-3 w-36 transition-colors"
-                            onchange="handleStatusChange(this, '{{ $emp->id }}')">
-                      <option value="present" @selected($status === 'present')>Present</option>
-                      <option value="absent" @selected($status === 'absent')>Absent</option>
-                      <option value="half_day" @selected($status === 'half_day')>Half Day</option>
-                      <option value="on_duty" @selected($status === 'on_duty')>On Duty</option>
-                      <option value="paid_off" @selected($status === 'paid_off')>Paid Off</option>
-                      <option value="permission" @selected($status === 'permission')>Permission</option>
-                    </select>
+                  @php
+                    $existingSessions = ($existing && $existing->permissionSessions && $existing->permissionSessions->isNotEmpty())
+                      ? $existing->permissionSessions->sortBy('session_order')->values()
+                      : collect();
+
+                    if ($existingSessions->isEmpty()) {
+                      $existingSessions = collect([
+                        (object)[
+                          'session_order' => 1,
+                          'out_time' => ($existing && $existing->check_out) ? \Carbon\Carbon::parse($existing->check_out)->format('H:i') : '',
+                          'in_time'  => ($existing && $existing->check_in)  ? \Carbon\Carbon::parse($existing->check_in)->format('H:i') : '',
+                        ]
+                      ]);
+                    }
+                  @endphp
+
+                  <div class="flex flex-col gap-2">
+                    <div class="flex items-center gap-2.5">
+                      <select name="attendance[{{ $emp->id }}][status]"
+                              id="status-select-{{ $emp->id }}"
+                              data-emp-id="{{ $emp->id }}"
+                              class="attendance-status-select select select-xs text-xs font-bold rounded-lg border-slate-200 py-1 px-3 w-36 transition-colors"
+                              onchange="handleStatusChange(this, '{{ $emp->id }}')">
+                        <option value="present" @selected($status === 'present')>Present</option>
+                        <option value="absent" @selected($status === 'absent')>Absent</option>
+                        <option value="half_day" @selected($status === 'half_day')>Half Day</option>
+                        <option value="on_duty" @selected($status === 'on_duty')>On Duty</option>
+                        <option value="paid_off" @selected($status === 'paid_off')>Paid Off</option>
+                        <option value="permission" @selected($status === 'permission')>Permission</option>
+                      </select>
+                    </div>
 
                     {{-- Permission Inline Time Fields (Visible ONLY when status is Permission) --}}
                     <div id="permission-fields-{{ $emp->id }}"
-                         class="permission-time-box items-center gap-2 {{ $status === 'permission' ? 'flex' : 'hidden' }}">
-                      <div class="flex items-center gap-1">
-                        <label for="out-time-{{ $emp->id }}" class="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Out Time:</label>
-                        <input type="time"
-                               name="attendance[{{ $emp->id }}][out_time]"
-                               id="out-time-{{ $emp->id }}"
-                               value="{{ $outTime }}"
-                               class="permission-out-input input input-xs font-mono font-semibold text-xs border-slate-200 rounded-lg w-28 bg-slate-50 focus:bg-white text-slate-800"
-                               {{ $status === 'permission' ? 'required' : '' }}>
+                         class="permission-time-box flex-col gap-1.5 {{ $status === 'permission' ? 'flex' : 'hidden' }}">
+                      <div id="permission-sessions-container-{{ $emp->id }}" class="flex flex-col gap-1.5" data-emp-id="{{ $emp->id }}">
+                        @foreach($existingSessions as $sIdx => $sess)
+                          @php
+                            $sOut = $sess->out_time ? \Carbon\Carbon::parse($sess->out_time)->format('H:i') : '';
+                            $sIn  = $sess->in_time  ? \Carbon\Carbon::parse($sess->in_time)->format('H:i') : '';
+                          @endphp
+                          <div class="permission-session-row flex items-center gap-2 bg-amber-50/70 border border-amber-200/80 rounded-lg px-2.5 py-1 text-xs">
+                            <span class="text-[10px] font-bold text-amber-900 session-badge">#{{ $loop->iteration }}</span>
+                            <div class="flex items-center gap-1">
+                              <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Out:</label>
+                              <input type="time"
+                                     name="attendance[{{ $emp->id }}][sessions][{{ $sIdx }}][out_time]"
+                                     value="{{ $sOut }}"
+                                     class="permission-out-input input input-xs font-mono font-semibold text-xs border-slate-200 rounded w-36 min-w-[136px] px-2 bg-white text-slate-800"
+                                     {{ $status === 'permission' ? 'required' : '' }}>
+                            </div>
+                            <div class="flex items-center gap-1">
+                              <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">In:</label>
+                              <input type="time"
+                                     name="attendance[{{ $emp->id }}][sessions][{{ $sIdx }}][in_time]"
+                                     value="{{ $sIn }}"
+                                     placeholder="Optional"
+                                     class="permission-in-input input input-xs font-mono font-semibold text-xs border-slate-200 rounded w-36 min-w-[136px] px-2 bg-white text-slate-800">
+                            </div>
+                            <button type="button"
+                                    onclick="removePermissionSessionRow(this, '{{ $emp->id }}')"
+                                    class="remove-session-btn btn btn-ghost btn-xs text-rose-500 hover:bg-rose-100 p-0.5 h-6 w-6 min-h-0 rounded {{ $existingSessions->count() > 1 ? '' : 'hidden' }}"
+                                    title="Remove Session">✕</button>
+                          </div>
+                        @endforeach
                       </div>
-                      <div class="flex items-center gap-1">
-                        <label for="in-time-{{ $emp->id }}" class="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">In Time:</label>
-                        <input type="time"
-                               name="attendance[{{ $emp->id }}][in_time]"
-                               id="in-time-{{ $emp->id }}"
-                               value="{{ $inTime }}"
-                               placeholder="Optional"
-                               class="permission-in-input input input-xs font-mono font-semibold text-xs border-slate-200 rounded-lg w-28 bg-slate-50 focus:bg-white text-slate-800">
+
+                      <div class="flex items-center justify-start mt-0.5">
+                        <button type="button"
+                                onclick="addPermissionSessionRow('{{ $emp->id }}')"
+                                class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100/60 hover:bg-amber-100 border border-amber-200 rounded-md px-2 py-0.5 transition cursor-pointer">
+                          <svg class="w-3 h-3 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                          Add Session
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -229,22 +272,84 @@
 function handleStatusChange(sel, empId) {
   updateStatusColor(sel);
   const container = document.getElementById('permission-fields-' + empId);
-  const outInput = document.getElementById('out-time-' + empId);
   if (container) {
+    const outInputs = container.querySelectorAll('.permission-out-input');
     if (sel.value === 'permission') {
       container.classList.remove('hidden');
       container.classList.add('flex');
-      if (outInput) {
-        outInput.setAttribute('required', 'required');
-      }
+      outInputs.forEach(i => i.setAttribute('required', 'required'));
     } else {
       container.classList.remove('flex');
       container.classList.add('hidden');
-      if (outInput) {
-        outInput.removeAttribute('required');
-      }
+      outInputs.forEach(i => i.removeAttribute('required'));
     }
   }
+}
+
+function addPermissionSessionRow(empId) {
+  const container = document.getElementById('permission-sessions-container-' + empId);
+  if (!container) return;
+  const rows = container.querySelectorAll('.permission-session-row');
+  const nextIdx = rows.length;
+
+  const div = document.createElement('div');
+  div.className = 'permission-session-row flex items-center gap-2 bg-amber-50/70 border border-amber-200/80 rounded-lg px-2.5 py-1 text-xs';
+  div.innerHTML = `
+    <span class="text-[10px] font-bold text-amber-900 session-badge">#${nextIdx + 1}</span>
+    <div class="flex items-center gap-1">
+      <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">Out:</label>
+      <input type="time"
+             name="attendance[${empId}][sessions][${nextIdx}][out_time]"
+             class="permission-out-input input input-xs font-mono font-semibold text-xs border-slate-200 rounded w-36 min-w-[136px] px-2 bg-white text-slate-800"
+             required>
+    </div>
+    <div class="flex items-center gap-1">
+      <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">In:</label>
+      <input type="time"
+             name="attendance[${empId}][sessions][${nextIdx}][in_time]"
+             placeholder="Optional"
+             class="permission-in-input input input-xs font-mono font-semibold text-xs border-slate-200 rounded w-36 min-w-[136px] px-2 bg-white text-slate-800">
+    </div>
+    <button type="button"
+            onclick="removePermissionSessionRow(this, '${empId}')"
+            class="remove-session-btn btn btn-ghost btn-xs text-rose-500 hover:bg-rose-100 p-0.5 h-6 w-6 min-h-0 rounded"
+            title="Remove Session">✕</button>
+  `;
+  container.appendChild(div);
+  updateRemoveButtons(container);
+}
+
+function removePermissionSessionRow(btn, empId) {
+  const container = document.getElementById('permission-sessions-container-' + empId);
+  if (!container) return;
+  const row = btn.closest('.permission-session-row');
+  if (row) {
+    row.remove();
+  }
+  const rows = container.querySelectorAll('.permission-session-row');
+  rows.forEach((r, idx) => {
+    const badge = r.querySelector('.session-badge');
+    if (badge) badge.textContent = '#' + (idx + 1);
+    const outInput = r.querySelector('.permission-out-input');
+    if (outInput) outInput.name = `attendance[${empId}][sessions][${idx}][out_time]`;
+    const inInput = r.querySelector('.permission-in-input');
+    if (inInput) inInput.name = `attendance[${empId}][sessions][${idx}][in_time]`;
+  });
+  updateRemoveButtons(container);
+}
+
+function updateRemoveButtons(container) {
+  const rows = container.querySelectorAll('.permission-session-row');
+  rows.forEach(r => {
+    const rmBtn = r.querySelector('.remove-session-btn');
+    if (rmBtn) {
+      if (rows.length > 1) {
+        rmBtn.classList.remove('hidden');
+      } else {
+        rmBtn.classList.add('hidden');
+      }
+    }
+  });
 }
 
 function updateStatusColor(sel) {
@@ -300,12 +405,17 @@ document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.attendance-status-select').forEach(sel => {
         if (sel.value === 'permission') {
           const empId = sel.dataset.empId;
-          const outInput = document.getElementById('out-time-' + empId);
-          if (!outInput || !outInput.value.trim()) {
-            missingOutTime = true;
-            if (!firstMissingInput && outInput) {
-              firstMissingInput = outInput;
-            }
+          const container = document.getElementById('permission-fields-' + empId);
+          if (container) {
+            const outInputs = container.querySelectorAll('.permission-out-input');
+            outInputs.forEach(input => {
+              if (!input.value.trim()) {
+                missingOutTime = true;
+                if (!firstMissingInput) {
+                  firstMissingInput = input;
+                }
+              }
+            });
           }
         }
       });

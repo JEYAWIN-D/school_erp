@@ -53,22 +53,72 @@ class AutoFillPermissionInTime extends Command
             $today = today()->toDateString();
             $nowHi = now()->format('H:i');
 
-            $query = StaffAttendance::where('status', 'permission')
+            $sessionQuery = \App\Models\StaffPermissionSession::whereNull('in_time')
+                ->whereNotNull('out_time')
+                ->whereHas('staffAttendance', function ($q) use ($specificDate, $today, $nowHi, $dispersalHi) {
+                    $q->where(function ($sq) {
+                        $sq->where('status', 'permission')
+                           ->orWhere('is_permission', true);
+                    });
+
+                    if ($specificDate) {
+                        $q->whereDate('date', $specificDate);
+                    } else {
+                        $q->where(function ($sub) use ($today, $nowHi, $dispersalHi) {
+                            $sub->whereDate('date', '<', $today);
+                            if ($nowHi >= $dispersalHi) {
+                                $sub->orWhereDate('date', $today);
+                            }
+                        });
+                    }
+                });
+
+            if ($specificDate) {
+                if ($specificDate === $today && $nowHi < $dispersalHi) {
+                    return 0; // Dispersal not yet reached for today
+                } elseif ($specificDate > $today) {
+                    return 0; // Future date
+                }
+            }
+
+            $sessions = $sessionQuery->with('staffAttendance')->get();
+            $updated = 0;
+
+            foreach ($sessions as $session) {
+                // Only auto-fill if in_time is genuinely null (never overwrite manual in-time)
+                if (is_null($session->in_time)) {
+                    $session->update([
+                        'in_time'             => $dispersalTime,
+                        'in_time_auto_filled' => true,
+                    ]);
+
+                    // Sync legacy columns on parent daily attendance record if needed
+                    $parent = $session->staffAttendance;
+                    if ($parent && (is_null($parent->check_in) || $parent->in_time_auto_filled)) {
+                        $parent->update([
+                            'check_in'            => $dispersalTime,
+                            'in_time_auto_filled' => true,
+                            'is_permission'       => true,
+                        ]);
+                    }
+
+                    $updated++;
+                }
+            }
+
+            // Also check any legacy standalone staff_attendance records without sessions
+            $legacyQuery = StaffAttendance::where('status', 'permission')
                 ->whereNotNull('check_out')
                 ->whereNull('check_in');
 
             if ($specificDate) {
-                // If specific date requested
-                if ($specificDate < $today) {
-                    $query->whereDate('date', $specificDate);
-                } elseif ($specificDate === $today && $nowHi >= $dispersalHi) {
-                    $query->whereDate('date', $specificDate);
+                if ($specificDate < $today || ($specificDate === $today && $nowHi >= $dispersalHi)) {
+                    $legacyQuery->whereDate('date', $specificDate);
                 } else {
-                    return 0; // Dispersal not yet reached for today, or future date
+                    $legacyQuery = null;
                 }
             } else {
-                // Process past dates OR today if now >= dispersal time
-                $query->where(function ($q) use ($today, $nowHi, $dispersalHi) {
+                $legacyQuery->where(function ($q) use ($today, $nowHi, $dispersalHi) {
                     $q->whereDate('date', '<', $today);
                     if ($nowHi >= $dispersalHi) {
                         $q->orWhereDate('date', $today);
@@ -76,16 +126,19 @@ class AutoFillPermissionInTime extends Command
                 });
             }
 
-            $records = $query->get();
-            $updated = 0;
-
-            foreach ($records as $record) {
-                $record->update([
-                    'check_in'            => $dispersalTime,
-                    'in_time_auto_filled' => true,
-                    'is_permission'       => true,
-                ]);
-                $updated++;
+            if ($legacyQuery) {
+                foreach ($legacyQuery->get() as $rec) {
+                    $rec->update([
+                        'check_in'            => $dispersalTime,
+                        'in_time_auto_filled' => true,
+                        'is_permission'       => true,
+                    ]);
+                    // Create session record if none exists
+                    \App\Models\StaffPermissionSession::firstOrCreate(
+                        ['staff_attendance_id' => $rec->id, 'out_time' => $rec->check_out],
+                        ['in_time' => $dispersalTime, 'in_time_auto_filled' => true, 'session_order' => 1]
+                    );
+                }
             }
 
             return $updated;

@@ -234,9 +234,10 @@
               <th class="py-3 px-3">Staff ID</th>
               <th class="py-3 px-3">Category</th>
               @if($status === 'permission')
-                <th class="py-3 px-4 text-center">Out Time</th>
+                <th class="py-3 px-4 text-center">Sessions & Out Time</th>
                 <th class="py-3 px-4 text-center">In Time</th>
                 <th class="py-3 px-4 text-center">Status</th>
+                <th class="py-3 px-4 text-center">Action</th>
               @else
                 <th class="py-3 px-3">Date</th>
                 <th class="py-3 px-4 text-center">Status</th>
@@ -277,81 +278,113 @@
                 </td>
 
                 @if($status === 'permission')
-                  {{-- Out Time --}}
+                  @php
+                    $pSessions = $rec->permissionSessions;
+                    if ($pSessions->isEmpty() && !empty($rec->check_out)) {
+                      $pSessions = collect([(object)[
+                        'id'                  => null,
+                        'session_order'       => 1,
+                        'formatted_out_time'  => \Carbon\Carbon::parse($rec->check_out)->format('h:i A'),
+                        'formatted_in_time'   => $rec->check_in ? \Carbon\Carbon::parse($rec->check_in)->format('h:i A') : null,
+                        'in_time'             => $rec->check_in,
+                        'in_time_auto_filled' => (bool)$rec->in_time_auto_filled,
+                      ]]);
+                    }
+                  @endphp
+
+                  {{-- Sessions & Out Time --}}
                   <td class="py-3 px-4 text-center">
-                    @if(!empty($rec->check_out))
-                      <span class="inline-flex items-center gap-1 font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
-                        <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                        {{ \Carbon\Carbon::parse($rec->check_out)->format('h:i A') }}
-                      </span>
-                    @else
-                      <span class="text-slate-400 italic font-medium">—</span>
-                    @endif
+                    <div class="flex flex-col items-center gap-1.5">
+                      @forelse($pSessions as $s)
+                        <div class="inline-flex items-center gap-1.5 font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                          <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-1 rounded">#{{ $s->session_order }}</span>
+                          <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                          </svg>
+                          {{ $s->formatted_out_time ?? '—' }}
+                        </div>
+                      @empty
+                        <span class="text-slate-400 italic font-medium">—</span>
+                      @endforelse
+                    </div>
                   </td>
 
                   {{-- In Time (Manual Enter workflow or Displayed Completed/Auto-filled) --}}
                   <td class="py-3 px-4 text-center">
-                    @if(!empty($rec->check_in))
-                      {{-- Already has In Time: display completed time without Enter In Time button --}}
-                      <div class="inline-flex flex-col items-center gap-0.5">
-                        <span class="inline-flex items-center gap-1 font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs">
-                          <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                          </svg>
-                          {{ \Carbon\Carbon::parse($rec->check_in)->format('h:i A') }}
-                        </span>
-                        @if($rec->in_time_auto_filled)
-                          <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200" title="Auto-filled at school dispersal">
-                            Auto-filled
-                          </span>
-                        @endif
-                      </div>
-                    @else
-                      {{-- Blank In Time: provide Enter In Time workflow --}}
-                      <div x-data="{ editing: false, inTimeVal: '' }" class="inline-flex flex-col items-center">
-                        <div x-show="!editing" class="flex items-center gap-2">
-                          <span class="text-slate-400 italic text-xs font-semibold">Not Entered</span>
-                          <button type="button"
-                                  @click="editing = true; $nextTick(() => $refs.inTimeInput.focus())"
-                                  class="btn btn-xs rounded-lg font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 shadow-2xs cursor-pointer">
-                            <svg class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            Enter In Time
-                          </button>
-                        </div>
-
-                        {{-- Inline Form for In Time --}}
-                        <div x-show="editing" style="display: none;" class="bg-amber-50/80 p-1.5 rounded-xl border border-amber-200">
-                          <form method="POST" action="{{ route('hr.attendance.permission.update-in-time') }}" class="flex items-center gap-1.5">
-                            @csrf
-                            <input type="hidden" name="attendance_id" value="{{ $rec->id }}">
-                            <div class="flex items-center gap-1">
-                              <label class="text-[10px] font-bold uppercase text-amber-800">In Time:</label>
-                              <input type="time"
-                                     name="in_time"
-                                     x-ref="inTimeInput"
-                                     x-model="inTimeVal"
-                                     required
-                                     class="input input-xs border-amber-300 rounded-lg text-xs font-mono font-bold text-slate-800 bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 w-28">
+                    <div class="flex flex-col items-center gap-1.5">
+                      @forelse($pSessions as $s)
+                        @if(!empty($s->in_time))
+                          {{-- Already has In Time --}}
+                          <div class="inline-flex flex-col items-center gap-0.5">
+                            <span class="inline-flex items-center gap-1 font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs">
+                              <span class="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1 rounded">#{{ $s->session_order }}</span>
+                              <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                              </svg>
+                              {{ $s->formatted_in_time ?? \Carbon\Carbon::parse($s->in_time)->format('h:i A') }}
+                            </span>
+                            @if($s->in_time_auto_filled)
+                              <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200" title="Auto-filled at school dispersal">
+                                Auto-filled
+                              </span>
+                            @endif
+                          </div>
+                        @else
+                          {{-- Blank In Time: provide Enter In Time workflow --}}
+                          <div x-data="{ editing: false, inTimeVal: '' }" class="inline-flex flex-col items-center">
+                            <div x-show="!editing" class="flex items-center gap-1.5">
+                              <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-1 rounded">#{{ $s->session_order }}</span>
+                              <span class="text-slate-400 italic text-xs font-semibold">Not Entered</span>
+                              <button type="button"
+                                      @click="editing = true; $nextTick(() => $refs.inTimeInput.focus())"
+                                      class="btn btn-xs rounded-lg font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                                <svg class="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Enter In Time
+                              </button>
                             </div>
-                            <button type="submit" class="btn btn-xs btn-primary text-[11px] font-bold px-2 py-0.5 shadow-2xs">
-                              Save
-                            </button>
-                            <button type="button" @click="editing = false" class="btn btn-xs btn-ghost text-[11px] font-semibold text-slate-500 px-1.5">
-                              Cancel
-                            </button>
-                          </form>
-                        </div>
-                      </div>
-                    @endif
+
+                            {{-- Inline Form for In Time --}}
+                            <div x-show="editing" style="display: none;" class="bg-amber-50/80 p-1.5 rounded-xl border border-amber-200 mt-1">
+                              <form method="POST" action="{{ route('hr.attendance.permission.update-in-time') }}" class="flex items-center gap-1.5">
+                                @csrf
+                                @if(!empty($s->id))
+                                  <input type="hidden" name="session_id" value="{{ $s->id }}">
+                                @else
+                                  <input type="hidden" name="attendance_id" value="{{ $rec->id }}">
+                                @endif
+                                <div class="flex items-center gap-1">
+                                  <label class="text-[10px] font-bold uppercase text-amber-800">In Time:</label>
+                                  <input type="time"
+                                         name="in_time"
+                                         x-ref="inTimeInput"
+                                         x-model="inTimeVal"
+                                         required
+                                         class="input input-xs border-amber-300 rounded-lg text-xs font-mono font-bold text-slate-800 bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 w-36 min-w-[136px] px-2">
+                                </div>
+                                <button type="submit" class="btn btn-xs btn-primary text-[11px] font-bold px-2 py-0.5 shadow-2xs">
+                                  Save
+                                </button>
+                                <button type="button" @click="editing = false" class="btn btn-xs btn-ghost text-[11px] font-semibold text-slate-500 px-1.5">
+                                  Cancel
+                                </button>
+                              </form>
+                            </div>
+                          </div>
+                        @endif
+                      @empty
+                        <span class="text-slate-400 italic text-xs font-semibold">Not Entered</span>
+                      @endforelse
+                    </div>
                   </td>
 
                   {{-- Status --}}
                   <td class="py-3 px-4 text-center">
-                    @if(!empty($rec->check_in))
+                    @php
+                      $allCompleted = $pSessions->isNotEmpty() && $pSessions->every(fn($s) => !empty($s->in_time));
+                    @endphp
+                    @if($allCompleted)
                       <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -364,6 +397,45 @@
                         On Permission
                       </span>
                     @endif
+                  </td>
+
+                  {{-- Action (+ Add Permission) --}}
+                  <td class="py-3 px-4 text-center">
+                    <div x-data="{ adding: false, outVal: '', inVal: '' }" class="relative inline-block text-left">
+                      <button type="button"
+                              @click="adding = !adding"
+                              class="btn btn-xs rounded-lg font-bold bg-amber-100/70 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1 shadow-2xs cursor-pointer">
+                        <svg class="w-3 h-3 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        + Add Permission
+                      </button>
+
+                      {{-- Popover Form --}}
+                      <div x-show="adding"
+                           @click.away="adding = false"
+                           style="display: none;"
+                           class="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-amber-200 p-3 z-50 text-left">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                          <h4 class="text-xs font-bold text-slate-800">Add Permission Session</h4>
+                          <button type="button" @click="adding = false" class="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
+                        </div>
+                        <form method="POST" action="{{ route('hr.attendance.permission.add-session') }}" class="space-y-2.5">
+                          @csrf
+                          <input type="hidden" name="attendance_id" value="{{ $rec->id }}">
+                          <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">Out Time *</label>
+                            <input type="time" name="out_time" x-model="outVal" required class="input input-xs w-full font-mono text-xs border-slate-200 rounded">
+                          </div>
+                          <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">In Time (Optional)</label>
+                            <input type="time" name="in_time" x-model="inVal" class="input input-xs w-full font-mono text-xs border-slate-200 rounded">
+                          </div>
+                          <div class="flex items-center justify-end gap-2 pt-1">
+                            <button type="button" @click="adding = false" class="btn btn-ghost btn-xs text-xs">Cancel</button>
+                            <button type="submit" class="btn btn-primary btn-xs text-xs font-bold">Save Session</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
                   </td>
                 @else
                   {{-- Date for other statuses --}}

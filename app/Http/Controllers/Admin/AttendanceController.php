@@ -485,7 +485,15 @@ class AttendanceController extends Controller
     public function staffAttendance(Request $request)
     {
         $departments = Department::where('is_active', true)->orderBy('name')->get();
-        $date        = $request->date ?? today()->toDateString();
+        $tz          = \App\Models\SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today       = \Carbon\Carbon::now($tz)->toDateString();
+        $date        = $request->date ?? $today;
+
+        if ($date > $today) {
+            return redirect()->route('attendance.staff', ['date' => $today])
+                ->with('error', 'Attendance cannot be marked for a future date.');
+        }
+
         $deptId      = $request->department_id;
         $category    = $request->category ?? 'all';
 
@@ -571,7 +579,7 @@ class AttendanceController extends Controller
         $stats = compact('totalStaff', 'checkedIn', 'checkedOut', 'onTime', 'late', 'halfDay', 'permissions', 'absent', 'overtime', 'leave', 'holidayCount', 'dayAttendanceRate');
 
         return view('attendance.staff-attendance', compact(
-            'departments', 'employees', 'attendances', 'date', 'deptId', 'category', 'categories', 'recentTaps', 'stats', 'isSunday', 'isHoliday', 'holidayName', 'monthStats'
+            'departments', 'employees', 'attendances', 'date', 'today', 'deptId', 'category', 'categories', 'recentTaps', 'stats', 'isSunday', 'isHoliday', 'holidayName', 'monthStats'
         ));
     }
 
@@ -617,6 +625,16 @@ class AttendanceController extends Controller
         $now = now()->setTimezone($tz);
         $currentTime = $request->filled('punch_time') ? $request->punch_time : $now->format('H:i');
         $targetDate  = $request->filled('date') ? $request->date : $now->toDateString();
+
+        if ($targetDate > $now->toDateString()) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attendance cannot be marked for a future date.',
+                ], 422);
+            }
+            return back()->with('error', 'Attendance cannot be marked for a future date.');
+        }
 
         $carbonTarget = \Carbon\Carbon::parse($targetDate);
         $isSunday     = $carbonTarget->isSunday();
@@ -760,7 +778,16 @@ class AttendanceController extends Controller
     {
         @set_time_limit(120);
 
-        $date = $request->date ?? today()->toDateString();
+        $tz = \App\Models\SchoolSetting::first()?->timezone ?: config('app.timezone', 'Asia/Kolkata');
+        $today = \Carbon\Carbon::now($tz)->toDateString();
+        $date = $request->date ?? $today;
+
+        if ($date > $today) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Attendance cannot be marked for a future date.');
+        }
+
         $carbonDate = \Carbon\Carbon::parse($date);
         $isSunday = $carbonDate->isSunday();
         $holiday = \App\Models\Holiday::whereDate('date', $date)->first();
@@ -890,7 +917,13 @@ class AttendanceController extends Controller
             $attendanceMap[$r->employee_id][$dateStr] = $r;
         }
 
-        $workingDaysCount = $days->filter(fn($d) => !$d->isSunday() && !isset($holidays[$d->toDateString()]))->count();
+        $todayStr = today()->toDateString();
+        $isCurrentMonth = ($yr == now()->year && $mo == now()->month);
+        $workingDaysCount = $days->filter(function($d) use ($isCurrentMonth, $todayStr) {
+            if ($isCurrentMonth && $d->toDateString() > $todayStr) return false;
+            return !$d->isSunday();
+        })->count();
+        $workingDaysCount = max(1, $workingDaysCount);
 
         $categories = [
             ['key' => 'all',          'label' => 'All Staff'],
@@ -1197,8 +1230,13 @@ class AttendanceController extends Controller
         $report = collect();
 
         if ($request->filled('action') || $request->filled('month')) {
-            $period = \Carbon\CarbonPeriod::create("$yr-$mo-01", "last day of $yr-$mo");
+            $isCurrentMonth = ($yr == now()->year && $mo == now()->month);
+            $monthStart = "$yr-$mo-01";
+            $monthEnd = \Carbon\Carbon::parse($monthStart)->endOfMonth()->toDateString();
+            $effectiveEnd = $isCurrentMonth ? min(today()->toDateString(), $monthEnd) : $monthEnd;
+            $period = \Carbon\CarbonPeriod::create($monthStart, $effectiveEnd);
             $workingDays = collect($period)->filter(fn($d) => !in_array($d->dayOfWeek, [0]))->count(); // exclude Sunday
+            $workingDays = max(1, $workingDays);
 
             $records = StaffAttendance::whereYear('date', $yr)
                 ->whereMonth('date', $mo)
@@ -1227,7 +1265,7 @@ class AttendanceController extends Controller
                 $overtimeDuration = $otHrs > 0 ? "{$otHrs}h {$otMins}m" : ($overtimeMins > 0 ? "{$otMins}m" : '—');
 
                 $effectivePresent = $present + ($halfDay * 0.5) + $overtime;
-                $percentage = $workingDays > 0 ? min(100, round(($effectivePresent / $workingDays) * 100, 1)) : 0;
+                $percentage = $workingDays > 0 ? number_format(round(($effectivePresent / $workingDays) * 100, 2), 2) : '0.00';
 
                 $report->push([
                     'employee'          => $emp,
@@ -1382,10 +1420,14 @@ class AttendanceController extends Controller
         $holidays = \App\Models\Holiday::whereBetween('date', [$start->toDateString(), $end->toDateString()])
             ->pluck('date')->map(fn($d) => \Carbon\Carbon::parse($d)->toDateString())->toArray();
 
-        $standardWorkingDays = collect($monthDays)->filter(function ($d) use ($holidays) {
+        $todayDate = today()->toDateString();
+        $isCurrentMonth = ($yr == now()->year && $mo == now()->month);
+        $standardWorkingDays = collect($monthDays)->filter(function ($d) use ($holidays, $isCurrentMonth, $todayDate) {
+            if ($isCurrentMonth && $d > $todayDate) return false;
             $c = \Carbon\Carbon::parse($d);
             return !$c->isSunday() && !in_array($d, $holidays);
         })->count();
+        $standardWorkingDays = max(1, $standardWorkingDays);
 
         $rows = [];
         foreach ($employees as $idx => $emp) {
@@ -1414,7 +1456,7 @@ class AttendanceController extends Controller
             $totalAttended = $presentCount + $lateCount + ($halfDayCount * 0.5) + $permissionCount + $overtimeCount;
             $effectiveWorking = max(1, $standardWorkingDays);
             $absentCount = max(0, $standardWorkingDays - ($presentCount + $lateCount + $halfDayCount + $permissionCount + $leaveCount));
-            $pct = round(($totalAttended / $effectiveWorking) * 100, 1);
+            $pct = number_format(round(($totalAttended / $effectiveWorking) * 100, 2), 2);
 
             $rows[] = [
                 'Sl No'                 => $idx + 1,

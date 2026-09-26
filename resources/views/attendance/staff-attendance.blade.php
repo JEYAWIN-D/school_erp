@@ -304,7 +304,7 @@
       <div class="flex flex-wrap items-center gap-3">
         <div>
           <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Date</label>
-          <input type="date" name="date" value="{{ $date }}" onchange="this.form.submit()"
+          <input type="date" name="date" value="{{ $date }}" max="{{ $today ?? today()->toDateString() }}" onchange="this.form.submit()"
                  class="input input-sm border-slate-200 rounded-xl font-bold text-xs bg-slate-50 text-slate-800">
         </div>
 

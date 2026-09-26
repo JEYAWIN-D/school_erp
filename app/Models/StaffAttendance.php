@@ -17,4 +17,8 @@ class StaffAttendance extends Model {
         'permission_hours' => 'float',
     ];
     public function employee() { return $this->belongsTo(Employee::class); }
+
+    public function permissionSessions() {
+        return $this->hasMany(StaffPermissionSession::class, 'staff_attendance_id')->orderBy('out_time', 'asc');
+    }
 }

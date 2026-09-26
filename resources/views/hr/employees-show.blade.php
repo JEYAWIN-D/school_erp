@@ -75,7 +75,7 @@
           {{ $attendancePercentage ?? '—' }}{{ $attendancePercentage !== null ? '%' : '' }}
         </p>
         <span class="text-[11px] font-semibold text-slate-500">
-          {{ $effectivePresent }} / {{ $attTotalDays }} days
+          {{ $cmEffectivePresent ?? $effectivePresent }} / {{ $currentMonthWorkingDays ?? $attTotalDays }} working days
         </span>
       </div>
     </div>
