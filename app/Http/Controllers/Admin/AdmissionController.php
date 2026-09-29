@@ -34,7 +34,13 @@ class AdmissionController extends Controller
         $yearId = (int) ($academicYear?->id ?? 0);
 
         return Cache::remember("admission_fee_structure_data_{$yearId}", 3600, function () use ($academicYear) {
-            $classes = Classes::with('sections')->active()->orderBy('numeric_value')->get();
+            $classes = Classes::with('sections')
+                ->active()
+                ->orderBy('sort_order')
+                ->orderBy('numeric_value')
+                ->get()
+                ->unique('name')
+                ->values();
 
             $enquiryCounts = Enquiry::selectRaw('class_id, count(*) as total')
                 ->groupBy('class_id')
