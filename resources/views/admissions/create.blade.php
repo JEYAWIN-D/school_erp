@@ -67,7 +67,7 @@
 @endpush
 
 @section('content')
-<div class="max-w-5xl mx-auto space-y-6 admission-form-wrapper" x-data="{
+<div class="max-w-5xl mx-auto space-y-6 admission-form-wrapper" x-init="initAdmission()" x-data="{
   classList: {{ json_encode($classes->map(fn($c) => ['id' => $c->id, 'name' => $c->name])) }},
   sectionsList: {{ json_encode($sections->map(fn($s) => ['id' => $s->id, 'class_id' => $s->class_id, 'name' => $s->name])) }},
   standardFees: {{ json_encode($standardFees) }},
@@ -76,6 +76,125 @@
   transportRoutesData: {{ json_encode($transportRoutes ?? []) }},
   selectedClassId: '{{ request("class_id", "") }}',
   selectedSectionId: '',
+
+  // Books & Notes Master Checklist State
+  academicYearId: '{{ $academicYear?->id ?? "" }}',
+  academicYearsList: {{ json_encode(($academicYears ?? collect([$academicYear]))->map(fn($y) => ['id' => $y->id, 'name' => $y->name, 'is_current' => $y->is_current])) }},
+  academicGroupsList: {{ json_encode(($academicGroups ?? collect([]))->map(fn($g) => ['id' => $g->id, 'name' => $g->name, 'code' => $g->code])) }},
+  selectedBookNoteGroupId: '',
+  selectedGender: '{{ old('gender', '') }}',
+  bookNoteList: { books: [], notes: [], uniforms: [] },
+  bookNoteLoading: false,
+
+  get selectedYearName() {
+    let y = this.academicYearsList.find(x => x.id == this.academicYearId);
+    return y ? y.name : '2026–2027';
+  },
+
+  async fetchBooksNotesChecklist() {
+    if (!this.selectedClassId) {
+      this.bookNoteList = { books: [], notes: [], uniforms: [] };
+      return;
+    }
+    if (this.isSeniorSecondary && !this.selectedBookNoteGroupId) {
+      this.bookNoteList = { books: [], notes: [], uniforms: [] };
+      return;
+    }
+    this.bookNoteLoading = true;
+    try {
+      let params = new URLSearchParams({
+        academicYearId: this.academicYearId,
+        classId: this.selectedClassId,
+      });
+      if (this.selectedGender) {
+        params.append('gender', this.selectedGender);
+      }
+      if (this.selectedBookNoteGroupId) {
+        params.append('groupId', this.selectedBookNoteGroupId);
+      }
+      let res = await fetch(`{{ route('api.books-notes.checklist') }}?${params.toString()}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      let json = await res.json();
+      if (json.success) {
+        this.bookNoteList = {
+          books: (json.books || []).map(b => ({ ...b, is_issued: true })),
+          notes: (json.notes || []).map(n => ({ ...n, is_issued: true })),
+          uniforms: (json.uniforms || []).map(u => ({ ...u, is_issued: true })),
+        };
+      } else {
+        this.bookNoteList = { books: [], notes: [], uniforms: [] };
+      }
+    } catch (e) {
+      console.error('Error fetching books & notes checklist:', e);
+      this.bookNoteList = { books: [], notes: [], uniforms: [] };
+    } finally {
+      this.bookNoteLoading = false;
+    }
+  },
+
+  setAllBookNoteIssuance(issued) {
+    this.bookNoteList.books.forEach(b => b.is_issued = issued);
+    this.bookNoteList.notes.forEach(n => n.is_issued = issued);
+    (this.bookNoteList.uniforms || []).forEach(u => u.is_issued = issued);
+  },
+
+  get bookNoteIssuedTotalUnits() {
+    let b = this.bookNoteList.books.filter(x => x.is_issued).reduce((a,c) => a + (c.quantity || 1), 0);
+    let n = this.bookNoteList.notes.filter(x => x.is_issued).reduce((a,c) => a + (c.quantity || 1), 0);
+    let u = (this.bookNoteList.uniforms || []).filter(x => x.is_issued).reduce((a,c) => a + (c.quantity || 1), 0);
+    return b + n + u;
+  },
+
+  get bookNotePendingTotalUnits() {
+    let b = this.bookNoteList.books.filter(x => !x.is_issued).reduce((a,c) => a + (c.quantity || 1), 0);
+    let n = this.bookNoteList.notes.filter(x => !x.is_issued).reduce((a,c) => a + (c.quantity || 1), 0);
+    let u = (this.bookNoteList.uniforms || []).filter(x => !x.is_issued).reduce((a,c) => a + (c.quantity || 1), 0);
+    return b + n + u;
+  },
+
+  syncGroupFromStream() {
+    if (this.isSeniorSecondary) {
+      let st = (this.selectedStreamGroup || '').toUpperCase();
+      let matchGrp = null;
+      if (st.includes('GROUP C') || st.includes('ACCOUNT') || st.includes('COMMERCE') || st.includes('CA')) {
+        matchGrp = this.academicGroupsList.find(g => (g.code && g.code.includes('ACCOUNT')) || g.name.includes('ACCOUNT'));
+      } else if (st.includes('CS') || st.includes('COMPUTER') || st.includes('ENGINEERING')) {
+        matchGrp = this.academicGroupsList.find(g => (g.code && g.code === 'CS') || g.name.includes('CS'));
+      } else if (st.includes('GROUP A') || st.includes('GROUP B') || st.includes('BIOLOGY') || st.includes('RESEARCH') || st.includes('MEDICAL') || st.includes('BIO')) {
+        matchGrp = this.academicGroupsList.find(g => (g.code && g.code.includes('BIO')) || g.name.includes('BIO'));
+      }
+      if (matchGrp) {
+        this.selectedBookNoteGroupId = matchGrp.id;
+      }
+    } else {
+      this.selectedBookNoteGroupId = '';
+    }
+    this.fetchBooksNotesChecklist();
+  },
+
+  initAdmission() {
+    this.$watch('selectedClassId', () => {
+      this.syncGroupFromStream();
+      this.fetchBooksNotesChecklist();
+    });
+    this.$watch('selectedGender', () => {
+      this.fetchBooksNotesChecklist();
+    });
+    this.$watch('selectedStreamGroup', () => {
+      this.syncGroupFromStream();
+    });
+    this.$watch('selectedBookNoteGroupId', () => {
+      this.fetchBooksNotesChecklist();
+    });
+    this.$watch('academicYearId', () => {
+      this.fetchBooksNotesChecklist();
+    });
+    if (this.selectedClassId) {
+      this.syncGroupFromStream();
+      this.fetchBooksNotesChecklist();
+    }
+  },
 
   // After School Program (ASP) State — replaces Hostel per school requirement
   aspRequired: false,
@@ -841,7 +960,7 @@
           {{-- Gender --}}
           <div>
             <label for="gender" class="block text-xs font-bold text-slate-700 mb-2">Gender <span class="text-rose-500">*</span></label>
-            <select id="gender" name="gender" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#8C2826] focus:ring-2 focus:ring-[#FEE2E2] text-sm font-medium transition text-slate-700 bg-white">
+            <select id="gender" name="gender" x-model="selectedGender" @change="fetchBooksNotesChecklist()" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#8C2826] focus:ring-2 focus:ring-[#FEE2E2] text-sm font-medium transition text-slate-700 bg-white">
               <option value="">Select gender</option>
               <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>Male</option>
               <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>Female</option>
@@ -942,8 +1061,18 @@
       <div class="pt-8 border-t border-slate-100 space-y-6">
         <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Class Enrollment &amp; Academic Stage</h3>
 
-        {{-- Class, Section & Enquiry Source (Spacious 3-Column Grid) --}}
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {{-- Academic Year, Class, Section & Enquiry Source (Spacious 4-Column Grid) --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div>
+            <label for="academic_year_id" class="block text-xs font-bold text-slate-700 mb-2">Academic Year <span class="text-rose-500">*</span></label>
+            <select id="academic_year_id" name="academic_year_id" required x-model="academicYearId"
+                    class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-[#8C2826] focus:ring-2 focus:ring-[#FEE2E2] text-sm font-bold text-slate-900 bg-white">
+              <template x-for="y in academicYearsList" :key="y.id">
+                <option :value="y.id" :selected="y.id == academicYearId" x-text="y.name + (y.is_current ? ' (Current)' : '')"></option>
+              </template>
+            </select>
+          </div>
+
           <div>
             <label for="class_id" class="block text-xs font-bold text-slate-700 mb-2">Applying for Standard / Class <span class="text-rose-500">*</span></label>
             <select id="class_id" name="class_id" required x-model="selectedClassId" @change="selectedSectionId = ''"
@@ -1127,6 +1256,26 @@
                 <p class="text-slate-600 text-[11px] leading-relaxed">English, History, Political Science / Legal, Psychology, Entr / Economics</p>
               </div>
             </label>
+          </div>
+
+          {{-- Academic Group Selection for Books & Notes --}}
+          <div class="p-4 rounded-xl bg-white border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-slate-800 uppercase tracking-wide">Books &amp; Notes Checklist Group</span>
+                <span class="text-[10px] font-bold text-[#8C2826] bg-[#FFF5F5] border border-[#FECACA] px-2 py-0.5 rounded">Auto-synced from stream</span>
+              </div>
+              <p class="text-slate-500 text-[11px] mt-0.5">Determines the exact textbooks and notebook checklists prescribed for Grade XI &amp; XII</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <select name="book_note_group_id" x-model="selectedBookNoteGroupId" @change="fetchBooksNotesChecklist()"
+                      class="px-3.5 py-2 rounded-xl border border-slate-300 focus:border-[#8C2826] focus:ring-[#8C2826] text-xs font-bold text-slate-800 bg-slate-50">
+                <option value="">-- Select Academic Group --</option>
+                <template x-for="grp in academicGroupsList" :key="grp.id">
+                  <option :value="grp.id" :selected="grp.id == selectedBookNoteGroupId" x-text="grp.name"></option>
+                </template>
+              </select>
+            </div>
           </div>
 
           {{-- Class X Qualifying Board Information --}}
@@ -1360,6 +1509,315 @@
                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-[#8C2826] focus:ring-2 focus:ring-[#FEE2E2] text-xs font-medium text-slate-900 bg-white">
             </div>
           </div>
+        </div>
+      </div>
+
+      {{-- ── Prescribed Books & Notes Checklist (Auto-Fetched from Master) ── --}}
+      <div x-show="selectedClassId" x-transition class="pt-8 border-t border-slate-200/80 space-y-5">
+        
+        {{-- Luxury Banner Header --}}
+        <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+          {{-- Ambient Glow Elements --}}
+          <div class="absolute -right-10 -bottom-10 w-52 h-52 bg-[#8C2826]/30 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute right-36 -top-12 w-44 h-44 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none"></div>
+
+          <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div class="flex items-center gap-4">
+              <div class="w-13 h-13 rounded-2xl bg-gradient-to-br from-[#8C2826] to-[#a83230] text-white flex items-center justify-center font-black shadow-lg shadow-[#8C2826]/40 shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+              </div>
+              <div>
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <h3 class="text-base font-black tracking-tight text-white">Prescribed Books, Notes &amp; Uniform Checklist</h3>
+                  <span class="text-[11px] font-extrabold px-3 py-0.5 rounded-full bg-[#8C2826]/90 text-rose-100 border border-rose-300/30" x-text="selectedYearName"></span>
+                </div>
+                <p class="text-xs text-slate-300 font-medium mt-1">
+                  Statutory textbooks, activity kits, notebooks and school uniform allocated for <span class="font-extrabold text-amber-300" x-text="selectedClassName.toUpperCase().startsWith('CLASS') || selectedClassName.toUpperCase().includes('KG') ? selectedClassName : 'Class ' + selectedClassName"></span>
+                </p>
+              </div>
+            </div>
+
+            {{-- Live Pill Counters & Issuance Controls --}}
+            <div class="flex items-center gap-2.5 flex-wrap shrink-0" x-show="!bookNoteLoading && (bookNoteList.books.length > 0 || bookNoteList.notes.length > 0 || (bookNoteList.uniforms && bookNoteList.uniforms.length > 0))">
+              <div class="px-3.5 py-1.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center gap-2 shadow-xs">
+                <span class="text-[11px] font-bold text-amber-300">📚 Books:</span>
+                <span class="text-xs font-black text-white tabular-nums" x-text="bookNoteList.books.length + ' (' + bookNoteList.books.reduce((acc,b) => acc + (b.quantity || 1), 0) + ')'"></span>
+              </div>
+              <div class="px-3.5 py-1.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center gap-2 shadow-xs">
+                <span class="text-[11px] font-bold text-indigo-300">📝 Notes:</span>
+                <span class="text-xs font-black text-white tabular-nums" x-text="bookNoteList.notes.length + ' (' + bookNoteList.notes.reduce((acc,n) => acc + (n.quantity || 1), 0) + ')'"></span>
+              </div>
+              <div class="px-3.5 py-1.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center gap-2 shadow-xs">
+                <span class="text-[11px] font-bold text-emerald-300">👔 Uniforms:</span>
+                <span class="text-xs font-black text-white tabular-nums" x-text="(bookNoteList.uniforms || []).length + ' (' + (bookNoteList.uniforms || []).reduce((acc,u) => acc + (u.quantity || 1), 0) + ')'"></span>
+              </div>
+              <div class="px-3.5 py-1.5 rounded-xl border flex items-center gap-2 shadow-xs"
+                   :class="bookNotePendingTotalUnits > 0 ? 'bg-amber-500/20 text-amber-200 border-amber-400/30' : 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30'">
+                <span class="w-2 h-2 rounded-full" :class="bookNotePendingTotalUnits > 0 ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'"></span>
+                <span class="text-xs font-black" x-text="bookNoteIssuedTotalUnits + ' Issued / ' + bookNotePendingTotalUnits + ' Pending'"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {{-- Checklist Quick Action Bar --}}
+        <div x-show="!bookNoteLoading && (bookNoteList.books.length > 0 || bookNoteList.notes.length > 0 || (bookNoteList.uniforms && bookNoteList.uniforms.length > 0))"
+             class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="font-bold text-slate-700">Admission Issuance Mode:</span>
+            <span class="text-slate-500 text-[11px]">Click any item to toggle between "Issued Now" and "Pending (To be collected later)".</span>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <button type="button" @click="setAllBookNoteIssuance(true)"
+                    class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+              <span>Issue All Items Now</span>
+            </button>
+            <button type="button" @click="setAllBookNoteIssuance(false)"
+                    class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>Mark All as Pending</span>
+            </button>
+          </div>
+        </div>
+
+        {{-- Hidden Form Inputs for Submission --}}
+        <template x-for="book in bookNoteList.books" :key="'in_b_' + book.id">
+          <div>
+            <input type="hidden" name="issued_book_note_ids[]" :value="book.id" x-show="book.is_issued" :disabled="!book.is_issued">
+          </div>
+        </template>
+        <template x-for="note in bookNoteList.notes" :key="'in_n_' + note.id">
+          <div>
+            <input type="hidden" name="issued_book_note_ids[]" :value="note.id" x-show="note.is_issued" :disabled="!note.is_issued">
+          </div>
+        </template>
+        <template x-for="uniform in (bookNoteList.uniforms || [])" :key="'in_u_' + uniform.sku">
+          <div>
+            <input type="hidden" name="issued_book_note_ids[]" :value="uniform.sku" x-show="uniform.is_issued" :disabled="!uniform.is_issued">
+          </div>
+        </template>
+
+        {{-- Loading State --}}
+        <div x-show="bookNoteLoading" class="py-12 text-center text-xs text-slate-500 font-bold bg-white rounded-3xl border border-slate-200/80 p-8 shadow-xs space-y-3">
+          <div class="w-8 h-8 border-3 border-[#8C2826] border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p>Loading statutory checklist from master inventory...</p>
+        </div>
+
+        {{-- Senior Secondary Group Notice --}}
+        <div x-show="!bookNoteLoading && isSeniorSecondary && !selectedBookNoteGroupId"
+             class="p-6 rounded-3xl bg-purple-50/80 border border-purple-200/90 text-purple-950 text-xs flex items-center gap-4 shadow-xs">
+          <div class="w-10 h-10 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center font-black text-lg shrink-0">
+            ℹ️
+          </div>
+          <div>
+            <span class="font-black text-sm block">Please select an Academic Group above</span>
+            <span class="text-xs text-purple-800 mt-0.5 block">For Class XI and XII, the curriculum is strictly customized by academic stream (e.g., BIO &amp; CS GROUP or ACCOUNTS GROUP). Choosing a group will automatically load its respective book and notebook inventory.</span>
+          </div>
+        </div>
+
+        {{-- Empty State --}}
+        <div x-show="!bookNoteLoading && (!isSeniorSecondary || selectedBookNoteGroupId) && bookNoteList.books.length === 0 && bookNoteList.notes.length === 0 && (!bookNoteList.uniforms || bookNoteList.uniforms.length === 0)"
+             class="py-12 px-6 text-center rounded-3xl border border-dashed border-slate-300 bg-white shadow-xs space-y-2">
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto text-xl">📚</div>
+          <p class="text-sm font-black text-slate-800">No Books, Notes &amp; Uniforms configured for this class.</p>
+          <p class="text-xs text-slate-500">Administrators can register curriculum requirements under Settings &rarr; Book, Note &amp; Uniform Distribution.</p>
+        </div>
+
+        {{-- Itemized Checklist Grid (Books, Notes & Uniforms 3 Columns) --}}
+        <div x-show="!bookNoteLoading && (bookNoteList.books.length > 0 || bookNoteList.notes.length > 0 || (bookNoteList.uniforms && bookNoteList.uniforms.length > 0))"
+             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          
+          {{-- Books Column --}}
+          <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col">
+            {{-- Books Header --}}
+            <div class="p-4 px-5 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-b border-amber-100 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black shadow-xs text-xs">
+                  📚
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-amber-950 uppercase tracking-wider">Prescribed Textbooks</h4>
+                  <span class="text-[10px] text-amber-800 font-medium">Standard curriculum titles &amp; readers</span>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-100/90 text-amber-900 border border-amber-200 tabular-nums"
+                    x-text="bookNoteList.books.length + ' Titles'"></span>
+            </div>
+
+            {{-- Books Item List --}}
+            <div class="p-4 space-y-2.5 max-h-[440px] overflow-y-auto divide-y divide-slate-100">
+              <template x-for="(book, index) in bookNoteList.books" :key="book.id">
+                <div @click="book.is_issued = !book.is_issued"
+                     class="pt-2.5 first:pt-0 group flex items-center justify-between gap-3 p-2.5 rounded-2xl border transition-all duration-150 cursor-pointer"
+                     :class="book.is_issued ? 'bg-white hover:bg-slate-50 border-slate-200/70 hover:border-slate-300' : 'bg-amber-50/40 border-amber-200/80 hover:bg-amber-50/70'">
+                  <div class="flex items-center gap-3 min-w-0 flex-1">
+                    {{-- Interactive Checkmark Badge --}}
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs transition"
+                         :class="book.is_issued ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-slate-100 text-slate-400 border border-slate-200'">
+                      <svg x-show="book.is_issued" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                      <span x-show="!book.is_issued" class="text-[10px] text-slate-400">⏳</span>
+                    </div>
+                    
+                    <div class="min-w-0 flex-1">
+                      <p class="text-xs font-bold text-slate-900 transition-colors truncate"
+                         :class="book.is_issued ? 'group-hover:text-[#8C2826]' : 'text-slate-700'"
+                         x-text="book.name"></p>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span x-show="book.sku" class="font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/80 tracking-tight" x-text="book.sku"></span>
+                        <span class="text-[10px] font-semibold"
+                              :class="book.is_issued ? 'text-emerald-700' : 'text-amber-800'"
+                              x-text="book.is_issued ? '• Issue Now' : '• Pending (Collect Later)'">
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {{-- Quantity Badge --}}
+                  <div class="shrink-0 flex items-center gap-1.5">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-black tabular-nums border"
+                          :class="book.is_issued ? 'bg-amber-50 text-amber-900 border-amber-200/90' : 'bg-slate-100 text-slate-500 border-slate-200'">
+                      <span class="text-[10px] font-bold mr-1" :class="book.is_issued ? 'text-amber-600' : 'text-slate-400'">Qty:</span>
+                      <span x-text="book.quantity"></span>
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          {{-- Notebooks Column --}}
+          <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col">
+            {{-- Notebooks Header --}}
+            <div class="p-4 px-5 bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent border-b border-indigo-100 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-xs text-xs">
+                  📝
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-indigo-950 uppercase tracking-wider">Notebooks &amp; Workbooks</h4>
+                  <span class="text-[10px] text-indigo-800 font-medium">Ruled, unruled, graph &amp; assignment books</span>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-indigo-100/90 text-indigo-900 border border-indigo-200 tabular-nums"
+                    x-text="bookNoteList.notes.length + ' Items'"></span>
+            </div>
+
+            {{-- Notebooks Item List --}}
+            <div class="p-4 space-y-2.5 max-h-[440px] overflow-y-auto divide-y divide-slate-100">
+              <template x-for="(note, index) in bookNoteList.notes" :key="note.id">
+                <div @click="note.is_issued = !note.is_issued"
+                     class="pt-2.5 first:pt-0 group flex items-center justify-between gap-3 p-2.5 rounded-2xl border transition-all duration-150 cursor-pointer"
+                     :class="note.is_issued ? 'bg-white hover:bg-slate-50 border-slate-200/70 hover:border-slate-300' : 'bg-amber-50/40 border-amber-200/80 hover:bg-amber-50/70'">
+                  <div class="flex items-center gap-3 min-w-0 flex-1">
+                    {{-- Interactive Checkmark Badge --}}
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs transition"
+                         :class="note.is_issued ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-slate-100 text-slate-400 border border-slate-200'">
+                      <svg x-show="note.is_issued" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                      <span x-show="!note.is_issued" class="text-[10px] text-slate-400">⏳</span>
+                    </div>
+
+                    <div class="min-w-0 flex-1">
+                      <p class="text-xs font-bold text-slate-900 transition-colors truncate"
+                         :class="note.is_issued ? 'group-hover:text-indigo-900' : 'text-slate-700'"
+                         x-text="note.name"></p>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span x-show="note.sku" class="font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/80 tracking-tight" x-text="note.sku"></span>
+                        <span class="text-[10px] font-semibold"
+                              :class="note.is_issued ? 'text-emerald-700' : 'text-amber-800'"
+                              x-text="note.is_issued ? '• Issue Now' : '• Pending (Collect Later)'">
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {{-- Quantity Badge --}}
+                  <div class="shrink-0 flex items-center gap-1.5">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-black tabular-nums border"
+                          :class="note.is_issued ? 'bg-indigo-50 text-indigo-900 border border-indigo-200/90' : 'bg-slate-100 text-slate-500 border-slate-200'">
+                      <span class="text-[10px] font-bold mr-1" :class="note.is_issued ? 'text-indigo-600' : 'text-slate-400'">Qty:</span>
+                      <span x-text="note.quantity"></span>
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          {{-- Uniforms Column --}}
+          <div class="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden flex flex-col"
+               x-show="bookNoteList.uniforms && bookNoteList.uniforms.length > 0">
+            {{-- Uniforms Header --}}
+            <div class="p-4 px-5 bg-gradient-to-r from-teal-500/10 via-emerald-500/5 to-transparent border-b border-teal-100 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center font-black shadow-xs text-xs">
+                  👔
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-teal-950 uppercase tracking-wider"
+                      x-text="(selectedGender || '').toLowerCase() === 'female' ? 'Prescribed Uniform (Girls)' : ((selectedGender || '').toLowerCase() === 'male' ? 'Prescribed Uniform (Boys)' : 'Prescribed School Uniform')"></h4>
+                  <span class="text-[10px] text-teal-800 font-medium"
+                        x-text="selectedGender ? (selectedGender.toUpperCase() + ' Standard Allocation • Auto-mapped to Class') : 'Auto-computed from Standard & Gender'"></span>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-teal-100/90 text-teal-900 border border-teal-200 tabular-nums"
+                    x-text="(bookNoteList.uniforms || []).length + ' Items'"></span>
+            </div>
+
+            {{-- Uniforms Item List --}}
+            <div class="p-4 space-y-2.5 max-h-[440px] overflow-y-auto divide-y divide-slate-100">
+              <template x-for="(uniform, index) in (bookNoteList.uniforms || [])" :key="uniform.sku">
+                <div @click="uniform.is_issued = !uniform.is_issued"
+                     class="pt-2.5 first:pt-0 group flex items-center justify-between gap-3 p-2.5 rounded-2xl border transition-all duration-150 cursor-pointer"
+                     :class="uniform.is_issued ? 'bg-white hover:bg-slate-50 border-slate-200/70 hover:border-slate-300' : 'bg-amber-50/40 border-amber-200/80 hover:bg-amber-50/70'">
+                  <div class="flex items-center gap-3 min-w-0 flex-1">
+                    {{-- Interactive Checkmark Badge --}}
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs transition"
+                         :class="uniform.is_issued ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-slate-100 text-slate-400 border border-slate-200'">
+                      <svg x-show="uniform.is_issued" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                      <span x-show="!uniform.is_issued" class="text-[10px] text-slate-400">⏳</span>
+                    </div>
+
+                    <div class="min-w-0 flex-1">
+                      <p class="text-xs font-bold text-slate-900 transition-colors truncate"
+                         :class="uniform.is_issued ? 'group-hover:text-teal-900' : 'text-slate-700'"
+                         x-text="uniform.name"></p>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span x-show="uniform.sku" class="font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/80 tracking-tight" x-text="uniform.sku"></span>
+                        <span class="text-[10px] font-semibold"
+                              :class="uniform.is_issued ? 'text-emerald-700' : 'text-amber-800'"
+                              x-text="uniform.is_issued ? '• Issue Now' : '• Pending (Collect Later)'">
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {{-- Quantity Badge --}}
+                  <div class="shrink-0 flex items-center gap-1.5">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-xl text-xs font-black tabular-nums border"
+                          :class="uniform.is_issued ? 'bg-teal-50 text-teal-900 border border-teal-200/90' : 'bg-slate-100 text-slate-500 border-slate-200'">
+                      <span class="text-[10px] font-bold mr-1" :class="uniform.is_issued ? 'text-teal-600' : 'text-slate-400'">Qty:</span>
+                      <span x-text="uniform.quantity"></span>
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </div>
+
+        {{-- Footer Reassurance Note --}}
+        <div x-show="!bookNoteLoading && (bookNoteList.books.length > 0 || bookNoteList.notes.length > 0)"
+             class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full" :class="bookNotePendingTotalUnits > 0 ? 'bg-amber-500' : 'bg-emerald-500'"></span>
+            <span x-text="bookNotePendingTotalUnits > 0 ? 'Checked items will be issued today. Pending items will be tracked under Books & Notes Distribution until collected.' : 'All statutory items above will be issued immediately upon admission creation.'"></span>
+          </div>
+          <span class="font-bold text-slate-700">Protected Master Snapshot</span>
         </div>
       </div>
 

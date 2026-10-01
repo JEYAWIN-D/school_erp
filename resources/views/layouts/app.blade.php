@@ -194,7 +194,8 @@
       <x-nav-item route="system.audit-log" icon="shield-check" label="Audit/Security" :active="str_starts_with($currentRoute, 'system')" :open="$sidebarOpen ?? true" />
       @endcanany
       @can('manage settings')
-      <x-nav-item route="settings.index"  icon="cog-6-tooth"   label="Settings"   :active="str_starts_with($currentRoute, 'settings')" :open="$sidebarOpen ?? true" />
+      <x-nav-item route="settings.index"  icon="cog-6-tooth"   label="Settings"   :active="$currentRoute === 'settings.index' || str_starts_with($currentRoute, 'settings.save')" :open="$sidebarOpen ?? true" />
+      <x-nav-item route="settings.books-notes.index" icon="book-open" label="Book, Note & Uniform Distribution" :active="str_starts_with($currentRoute, 'settings.books-notes')" :open="$sidebarOpen ?? true" />
       @endcan
       @endcanany
 

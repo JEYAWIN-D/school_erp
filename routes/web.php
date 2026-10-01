@@ -1229,6 +1229,26 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/settings/notification-templates',    [App\Http\Controllers\Admin\SettingsController::class, 'notificationTemplates'])->name('settings.notification-templates');
     Route::post('/settings/notification-templates',   [App\Http\Controllers\Admin\SettingsController::class, 'saveNotificationTemplate'])->name('settings.notification-templates.save');
 
+    // ── Books & Notes Management (Settings → Books & Notes) ──────
+    Route::get('/settings/books-notes', [App\Http\Controllers\Admin\BooksNotesController::class, 'index'])->name('settings.books-notes.index');
+    Route::get('/settings/books-notes/slip/{studentId}', [App\Http\Controllers\Admin\BooksNotesController::class, 'slip'])->name('settings.books-notes.slip');
+    Route::prefix('api/books-notes')->name('api.books-notes.')->group(function () {
+        Route::get('/cards',                           [App\Http\Controllers\Admin\BooksNotesController::class, 'apiCards'])->name('cards');
+        Route::get('/checklist',                       [App\Http\Controllers\Admin\BooksNotesController::class, 'apiChecklist'])->name('checklist');
+        Route::get('/distribution/summary',            [App\Http\Controllers\Admin\BooksNotesController::class, 'apiDistributionSummary'])->name('distribution.summary');
+        Route::get('/distribution/students',           [App\Http\Controllers\Admin\BooksNotesController::class, 'apiDistributionStudents'])->name('distribution.students');
+        Route::get('/distribution/student/{studentId}',[App\Http\Controllers\Admin\BooksNotesController::class, 'apiStudentChecklist'])->name('distribution.student');
+        Route::post('/distribution/issue-item',        [App\Http\Controllers\Admin\BooksNotesController::class, 'apiIssueItem'])->name('distribution.issue-item');
+        Route::post('/distribution/issue-all/{studentId}', [App\Http\Controllers\Admin\BooksNotesController::class, 'apiIssueAll'])->name('distribution.issue-all');
+        Route::get('/',                                [App\Http\Controllers\Admin\BooksNotesController::class, 'apiList'])->name('index');
+        Route::post('/',                               [App\Http\Controllers\Admin\BooksNotesController::class, 'apiStore'])->name('store');
+        Route::get('/{id}',                            [App\Http\Controllers\Admin\BooksNotesController::class, 'apiShow'])->name('show');
+        Route::put('/{id}',                            [App\Http\Controllers\Admin\BooksNotesController::class, 'apiUpdate'])->name('update');
+        Route::delete('/{id}',                         [App\Http\Controllers\Admin\BooksNotesController::class, 'apiDestroy'])->name('destroy');
+        Route::patch('/{id}/status',                   [App\Http\Controllers\Admin\BooksNotesController::class, 'apiToggleStatus'])->name('status');
+    });
+    Route::get('/api/academic-groups', [App\Http\Controllers\Admin\BooksNotesController::class, 'apiGroups'])->name('api.academic-groups');
+
     // API helpers
     Route::get('/api/sections', function (\Illuminate\Http\Request $r) {
         $sections = \App\Models\Section::where('class_id', $r->class_id)
