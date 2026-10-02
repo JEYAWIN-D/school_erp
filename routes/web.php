@@ -49,6 +49,8 @@ Route::post('/pay/fee/{classId}', [PublicFeePaymentController::class, 'processPa
 Route::get('/visitor-card/view/{token}',   [\App\Http\Controllers\Public\VisitorCardController::class, 'viewPass'])->name('public.visitor-card.view');
 Route::get('/visitor-card/verify/{token}', [\App\Http\Controllers\Public\VisitorCardController::class, 'verifyPass'])->name('public.visitor-card.verify');
 
+// ── Public Gate Visitor Pass QR Verification (no auth) ────
+Route::get('/gate/verify/{token}', [\App\Http\Controllers\Admin\GateController::class, 'verifyPass'])->name('gate.verify');
 
 // ── Authenticated routes ──────────────────────────────────
 Route::middleware(['auth'])->group(function () {
@@ -1106,21 +1108,33 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/events/circulars', fn() => redirect()->route('circulars.index'));
 
     // ── Module 16 — Gate & Visitor Management ─────────────────
-    Route::middleware('permission:view gate')->prefix('gate')->name('gate.')->group(function () {
-        Route::get('/',              [\App\Http\Controllers\Admin\GateController::class, 'index'])->name('index');
-        Route::get('/create',        [\App\Http\Controllers\Admin\GateController::class, 'create'])->name('create');
-        Route::post('/',             [\App\Http\Controllers\Admin\GateController::class, 'store'])->name('store');
-        Route::get('/{id}/pass',     [\App\Http\Controllers\Admin\GateController::class, 'pass'])->name('pass');
-        Route::patch('/{id}/checkout',[\App\Http\Controllers\Admin\GateController::class, 'checkout'])->name('checkout');
-        Route::get('/report',        [\App\Http\Controllers\Admin\GateController::class, 'report'])->name('report');
-        Route::get('/blacklist',     [\App\Http\Controllers\Admin\GateController::class, 'blacklist'])->name('blacklist');
-        Route::post('/blacklist',    [\App\Http\Controllers\Admin\GateController::class, 'storeBlacklist'])->name('blacklist.store');
-        Route::patch('/blacklist/{id}/remove', [\App\Http\Controllers\Admin\GateController::class, 'removeBlacklist'])->name('blacklist.remove');
-        Route::get('/outpass',       [\App\Http\Controllers\Admin\GateController::class, 'outpass'])->name('outpass');
-        Route::get('/outpass/create',[\App\Http\Controllers\Admin\GateController::class, 'createOutpass'])->name('outpass.create');
-        Route::post('/outpass',      [\App\Http\Controllers\Admin\GateController::class, 'storeOutpass'])->name('outpass.store');
-        Route::patch('/outpass/{id}/return', [\App\Http\Controllers\Admin\GateController::class, 'returnOutpass'])->name('outpass.return');
-        Route::get('/verify/{token}',  [\App\Http\Controllers\Admin\GateController::class, 'verifyPass'])->name('verify')->withoutMiddleware('auth');
+    Route::prefix('gate')->name('gate.')->group(function () {
+        Route::middleware('permission:view gate')->group(function () {
+            Route::get('/',              [\App\Http\Controllers\Admin\GateController::class, 'index'])->name('index');
+            Route::get('/create',        [\App\Http\Controllers\Admin\GateController::class, 'create'])->name('create');
+            Route::post('/',             [\App\Http\Controllers\Admin\GateController::class, 'store'])->name('store');
+            Route::get('/scanner',       [\App\Http\Controllers\Admin\GateController::class, 'scanner'])->name('scanner');
+            Route::post('/scan-checkout',[\App\Http\Controllers\Admin\GateController::class, 'scanCheckout'])->name('scan-checkout');
+            Route::get('/lookup/students',[\App\Http\Controllers\Admin\GateController::class, 'lookupStudents'])->name('lookup.students');
+            Route::get('/lookup/hosts',  [\App\Http\Controllers\Admin\GateController::class, 'lookupHosts'])->name('lookup.hosts');
+            Route::get('/report',        [\App\Http\Controllers\Admin\GateController::class, 'report'])->name('report');
+            Route::get('/blacklist',     [\App\Http\Controllers\Admin\GateController::class, 'blacklist'])->name('blacklist');
+            Route::post('/blacklist',    [\App\Http\Controllers\Admin\GateController::class, 'storeBlacklist'])->name('blacklist.store');
+            Route::patch('/blacklist/{id}/remove', [\App\Http\Controllers\Admin\GateController::class, 'removeBlacklist'])->name('blacklist.remove');
+            Route::get('/outpass',       [\App\Http\Controllers\Admin\GateController::class, 'outpass'])->name('outpass');
+            Route::get('/outpass/create',[\App\Http\Controllers\Admin\GateController::class, 'createOutpass'])->name('outpass.create');
+            Route::post('/outpass',      [\App\Http\Controllers\Admin\GateController::class, 'storeOutpass'])->name('outpass.store');
+            Route::patch('/outpass/{id}/return', [\App\Http\Controllers\Admin\GateController::class, 'returnOutpass'])->name('outpass.return');
+            Route::get('/{id}',          [\App\Http\Controllers\Admin\GateController::class, 'show'])->name('show');
+            Route::get('/{id}/pass',     [\App\Http\Controllers\Admin\GateController::class, 'pass'])->name('pass');
+            Route::patch('/{id}/checkout',[\App\Http\Controllers\Admin\GateController::class, 'checkout'])->name('checkout');
+        });
+
+        // Host Approval & Rejection endpoints (accessible by authenticated staff & gatekeepers)
+        Route::middleware('auth')->group(function () {
+            Route::post('/{id}/approve', [\App\Http\Controllers\Admin\GateController::class, 'approve'])->name('approve');
+            Route::post('/{id}/reject',  [\App\Http\Controllers\Admin\GateController::class, 'reject'])->name('reject');
+        });
     });
 
     // ── Module 18 — Alumni Management ─────────────────────────
